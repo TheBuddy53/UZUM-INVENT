@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>UZUM · Инвентаризация</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+  :root {
+    --purple: #7000FF;
+    --purple-light: #9D4DFF;
+    --purple-dark: #320073;
+    --purple-glow: rgba(112, 0, 255, 0.8);
+    --bg-base: #030008;
+    
+    --glass-bg: linear-gradient(150deg, rgba(50, 20, 90, 0.25), rgba(10, 2, 25, 0.4));
+    --glass-border-light: rgba(255, 255, 255, 0.3);
+    --glass-border-dark: rgba(255, 255, 255, 0.05);
+    
+    --text-main: #FFFFFF;
+    --text-muted: #B8AEE0;
+    --text-dim: #6B5E8C;
+    --green: #34C77B;
+    --green-glow: rgba(52, 199, 123, 0.7);
+    --red: #FF3B30;
+    --orange: #FF9F0A;
+    --yellow: #FFD60A;
+
+    --r-xl: 24px;
+    --r-lg: 16px;
+    --r-md: 12px;
+    
+    --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease: cubic-bezier(0.25, 1, 0.15, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    background-color: var(--bg-base);
+    font-family: "SF Pro Display", "Inter", -apple-system, sans-serif;
+    color: var(--text-main);
+    min-height: 100vh;
+    letter-spacing: -0.02em;
+    padding: 12px 12px 24px;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* МАКСИМАЛЬНЫЙ ШУМ И ЗЕРНО (HDR ЭФФЕКТ) */
+  #noise {
+    position: fixed; inset: -50%; z-index: 999; pointer-events: none;
+    opacity: 0.18; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    animation: noiseShift 8s steps(10) infinite;
+  }
+  @keyframes noiseShift {
+    0% { transform: translate(0,0); }
+    10% { transform: translate(-5%,-5%); }
+    20% { transform: translate(-10%,5%); }
+    30% { transform: translate(5%,-10%); }
+    40% { transform: translate(-5%,15%); }
+    50% { transform: translate(-10%,5%); }
+    60% { transform: translate(15%,0); }
+    70% { transform: translate(0,15%); }
+    80% { transform: translate(3%,35%); }
+    90% { transform: translate(-10%,10%); }
+    100% { transform: translate(0,0); }
+  }
+
+  /* АНИМИРОВАННЫЕ БЛИКИ И СВЕЧЕНИЯ НА ФОНЕ */
+  #mesh {
+    position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    filter: blur(70px) saturate(150%);
+    overflow: hidden;
+  }
+  #mesh span { position: absolute; border-radius: 50%; will-change: transform; mix-blend-mode: screen; }
+  #mesh .b1 { width: 80vw; height: 80vw; left: -10%; top: -10%; background: radial-gradient(circle, rgba(112,0,255,0.4), transparent 70%); animation: orbFloat1 20s infinite alternate var(--ease); }
+  #mesh .b2 { width: 70vw; height: 70vw; right: -20%; top: 40%; background: radial-gradient(circle, rgba(157,77,255,0.25), transparent 70%); animation: orbFloat2 25s infinite alternate-reverse var(--ease); }
+  #mesh .b3 { width: 90vw; height: 90vw; left: 10%; bottom: -30%; background: radial-gradient(circle, rgba(52, 199, 123, 0.15), transparent 70%); animation: orbFloat3 22s infinite alternate var(--ease); }
+  
+  @keyframes orbFloat1 { 0% { transform: translate(0, 0) scale(1) rotate(0deg); } 100% { transform: translate(20vw, 15vh) scale(1.2) rotate(45deg); } }
+  @keyframes orbFloat2 { 0% { transform: translate(0, 0) scale(1) rotate(0deg); } 100% { transform: translate(-30vw, -20vh) scale(1.1) rotate(-30deg); } }
+  @keyframes orbFloat3 { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(10vw, -30vh) scale(1.3); } }
+
+  /* ВОДЯНОЙ ЗНАК */
+  #watermark {
+    position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: -2;
+    font-size: clamp(80px, 30vw, 160px);
+    font-weight: 900; line-height: 1;
+    color: transparent;
+    background: linear-gradient(135deg, rgba(157,77,255,0.6), rgba(112,0,255,0.4) 45%, rgba(75,0,173,0.5));
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-stroke: 2px rgba(255,255,255,0.15);
+    display: flex; align-items: center; justify-content: center;
+    user-select: none; pointer-events: none;
+    animation: premiumBreathe 4s ease-in-out infinite;
+  }
+  @keyframes premiumBreathe { 
+    0%, 100% { filter: drop-shadow(0 0 15px rgba(112,0,255,0.3)); opacity: 0.8; } 
+    50% { filter: drop-shadow(0 0 35px rgba(157,77,255,0.7)); opacity: 1; } 
+  }
+
+  .wrap { max-width: 480px; margin: 0 auto; position: relative; z-index: 1; display: flex; flex-direction: column; gap: 16px; }
+
+  /* ИСПРАВЛЕННАЯ АНИМАЦИЯ */
+  .stagger { opacity: 1 !important; transform: none !important; animation: riseIn 0.8s var(--spring) forwards; }
+  @keyframes riseIn {
+    0% { opacity: 0; transform: translateY(30px) scale(0.95); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* ВЕРХНИЙ БАР */
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; padding: 0 8px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 44px; height: 44px; border-radius: 14px;
+    background: linear-gradient(135deg, #A855F7, var(--purple));
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 20px; color: #fff;
+    box-shadow: 0 10px 25px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 10px rgba(0,0,0,0.3);
+    position: relative; overflow: hidden;
+  }
+  .brand-mark::after {
+    content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+    background: linear-gradient(45deg, transparent, rgba(255,255,255,0.4), transparent);
+    transform: rotate(45deg) translateY(-100%);
+    animation: shine 6s infinite;
+  }
+  @keyframes shine { 0%, 20% { transform: rotate(45deg) translateY(-100%); } 40%, 100% { transform: rotate(45deg) translateY(100%); } }
+  
+  .brand-text { display: flex; flex-direction: column; gap: 2px; }
+  .brand-name { font-weight: 900; font-size: 18px; letter-spacing: -0.03em; text-shadow: 0 2px 10px rgba(255,255,255,0.2); }
+  .brand-sub { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.15em; font-weight: 800; background: linear-gradient(90deg, var(--text-muted), #fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+  .icon-btn {
+    width: 44px; height: 44px; border-radius: 14px;
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%);
+    border: 1px solid var(--glass-border-dark); border-top: 1px solid var(--glass-border-light);
+    color: var(--text-main); display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 900; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    transition: all 0.3s var(--spring); cursor: pointer;
+  }
+  .icon-btn:active { transform: scale(0.9); }
+
+  /* APPLE GLASS КАРТОЧКИ */
+  .card {
+    position: relative;
+    background: var(--glass-bg);
+    backdrop-filter: blur(40px) saturate(200%); -webkit-backdrop-filter: blur(40px) saturate(200%);
+    border: 1px solid var(--glass-border-dark);
+    border-top: 1px solid var(--glass-border-light);
+    border-left: 1px solid rgba(255,255,255,0.15);
+    border-radius: var(--r-xl);
+    padding: 20px;
+    box-shadow: 0 24px 48px -12px rgba(0,0,0,0.8), inset 0 1px 1px rgba(255,255,255,0.3);
+    overflow: hidden;
+    transform: translateZ(0);
+    animation: floatCard 8s infinite ease-in-out;
+  }
+  .card:nth-child(2) { animation-delay: -2s; }
+  .card:nth-child(3) { animation-delay: -4s; }
+  @keyframes floatCard { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+
+  .card::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(800px circle at var(--mouse-x, 50%) var(--mouse-y, -20%), rgba(255,255,255,0.06), transparent 40%);
+  }
+
+  /* ЧИПЫ */
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(112,0,255,0.15);
+    border: 1px solid rgba(157,77,255,0.4); border-top: 1px solid rgba(157,77,255,0.8);
+    border-radius: 999px; padding: 6px 12px;
+    font-size: 10px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase;
+    color: #E2D4FF; box-shadow: 0 4px 12px rgba(112,0,255,0.2);
+  }
+  .chip .dot { width: 6px; height: 6px; border-radius: 50%; background: #38E888; box-shadow: 0 0 12px #38E888, 0 0 20px #38E888; animation: pulseDot 2s infinite; }
+  @keyframes pulseDot { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
+
+  .live-badge { 
+    display: inline-flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 900; 
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--green); 
+    background: rgba(52, 199, 123, 0.1); padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(52, 199, 123, 0.3);
+    box-shadow: 0 0 15px rgba(52, 199, 123, 0.2);
+  }
+  .live-badge .ldot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green); animation: pulseDot 1.4s infinite; }
+  .live-badge.offline { color: var(--text-dim); background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); box-shadow: none; }
+  .live-badge.offline .ldot { background: var(--text-dim); box-shadow: none; animation: none; }
+
+  /* ИНФО О ПВЗ */
+  .pvz-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-top: 16px; }
+  .pvz-name { font-size: 24px; font-weight: 900; line-height: 1.1; letter-spacing: -0.04em; text-shadow: 0 2px 10px rgba(255,255,255,0.1); }
+  .admin-line { color: var(--text-muted); font-size: 12px; margin-top: 4px; font-weight: 600; }
+
+  .cell-badge {
+    background: rgba(0,0,0,0.3); backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.1); border-top: 1px solid rgba(255,255,255,0.25);
+    border-radius: 12px; padding: 8px 16px;
+    font-size: 13px; font-weight: 800; color: var(--text-muted);
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+  }
+  .cell-badge.active { 
+    background: linear-gradient(135deg, rgba(112,0,255,0.4), rgba(50,0,115,0.6)); 
+    border-color: rgba(157,77,255,0.8); color: #fff; 
+    box-shadow: 0 0 25px var(--purple-glow), inset 0 2px 10px rgba(255,255,255,0.3); 
+    text-shadow: 0 0 10px rgba(255,255,255,0.5);
+  }
+
+  /* ПРОГРЕСС БАР (МЕГА АНИМАЦИЯ) */
+  .progress-wrap { 
+    position: relative; background: rgba(0,0,0,0.6); 
+    border: 1px solid rgba(255,255,255,0.08); border-top: 1px solid rgba(0,0,0,0.8);
+    border-radius: 999px; height: 16px; overflow: hidden; margin: 24px 0 12px; 
+    box-shadow: inset 0 4px 10px rgba(0,0,0,0.8), 0 2px 0 rgba(255,255,255,0.05); 
+  }
+  .progress-bar { 
+    position: relative; height: 100%; border-radius: 999px; 
+    background: linear-gradient(90deg, #7000FF, #B966FF); 
+    width: 0%; transition: width 0.8s var(--spring); 
+    box-shadow: 0 0 20px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5); 
+    overflow: hidden; 
+  }
+  .progress-bar::after {
+    content: ""; position: absolute; top: 0; left: 0; bottom: 0; width: 100%;
+    background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.15) 10px, rgba(255,255,255,0.15) 20px);
+    background-size: 28px 28px;
+    animation: moveStripes 1s linear infinite;
+  }
+  @keyframes moveStripes { 100% { background-position: 28px 0; } }
+  .progress-bar.complete { background: linear-gradient(90deg, #34C77B, #5DF5A6); box-shadow: 0 0 25px var(--green-glow), inset 0 2px 4px rgba(255,255,255,0.6); }
+
+  .progress-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); font-weight: 700; }
+  .progress-meta b { color: #fff; font-weight: 900; font-size: 14px; text-shadow: 0 0 10px rgba(255,255,255,0.4); }
+
+  /* СТАТИСТИКА (ГРИД) */
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 20px; }
+  .stat-item {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--glass-border-dark); border-top: 1px solid rgba(255,255,255,0.15);
+    border-radius: var(--r-lg); padding: 16px 8px; text-align: center;
+    box-shadow: inset 0 4px 15px rgba(0,0,0,0.5); position: relative; overflow: hidden;
+  }
+  .stat-item::before { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,0.05), transparent); pointer-events: none; }
+  .stat-item .num { font-size: 26px; font-weight: 900; transition: all 0.4s var(--spring); font-family: "SF Pro Display", sans-serif; letter-spacing: -0.05em; }
+  .stat-item .label { font-size: 9px; color: var(--text-dim); margin-top: 6px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; }
+  
+  .stat-item.ok { border-color: rgba(52, 199, 123, 0.3); background: rgba(52, 199, 123, 0.05); }
+  .stat-item.ok .num { color: var(--green); text-shadow: 0 0 20px rgba(52, 199, 123, 0.6); }
+  
+  .stat-item.pending { border-color: rgba(157, 77, 255, 0.3); background: rgba(112, 0, 255, 0.05); }
+  .stat-item.pending .num { color: #E2D4FF; text-shadow: 0 0 20px rgba(157,77,255,0.5); }
+
+  /* LIVE GRID ОБНОВЛЕННЫЙ */
+  .live-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .live-item { 
+    background: rgba(0,0,0,0.4); border: 1px solid var(--glass-border-dark); border-top: 1px solid rgba(255,255,255,0.1); 
+    border-radius: var(--r-lg); padding: 14px; text-align: center; 
+    transition: transform 0.3s var(--spring), box-shadow 0.3s ease; 
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.6);
+  }
+  .live-item .num { font-size: 22px; font-weight: 900; letter-spacing: -0.05em; transition: all 0.3s var(--spring); }
+  .live-item .label { font-size: 9px; color: var(--text-dim); margin-top: 4px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; }
+  
+  .live-item.wrong { border-color: rgba(255, 59, 48, 0.2); }
+  .live-item.wrong .num { color: var(--red); text-shadow: 0 0 15px rgba(255,59,48,0.6); }
+  
+  .live-item.surplus { border-color: rgba(255, 159, 10, 0.2); }
+  .live-item.surplus .num { color: var(--orange); text-shadow: 0 0 15px rgba(255,159,10,0.6); }
+  
+  .live-item.duplicate { border-color: rgba(255, 214, 10, 0.2); }
+  .live-item.duplicate .num { color: var(--yellow); text-shadow: 0 0 15px rgba(255,214,10,0.6); }
+  
+  .live-item.pulse { animation: liveItemPulse 0.6s var(--spring); }
+  @keyframes liveItemPulse { 0% { transform: scale(1); } 40% { transform: scale(1.08) translateY(-4px); box-shadow: 0 10px 20px rgba(112,0,255,0.4), inset 0 2px 10px rgba(255,255,255,0.2); } 100% { transform: scale(1); } }
+
+  .last-scan-row { 
+    display: flex; align-items: center; gap: 12px; margin-top: 16px; padding: 12px 16px; 
+    background: rgba(0,0,0,0.5); border-radius: var(--r-md); border: 1px solid var(--glass-border-dark); border-top: 1px solid rgba(255,255,255,0.1);
+    font-size: 13px; font-weight: 700; opacity: 0; transform: translateY(10px); 
+    transition: opacity 0.4s var(--ease), transform 0.4s var(--ease); box-shadow: inset 0 2px 8px rgba(0,0,0,0.6);
+  }
+  .last-scan-row.show { opacity: 1; transform: translateY(0); }
+  .last-scan-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .last-scan-dot.ok { background: var(--green); box-shadow: 0 0 12px var(--green); }
+  .last-scan-dot.wrong { background: var(--red); box-shadow: 0 0 12px var(--red); }
+  .last-scan-dot.surplus { background: var(--orange); box-shadow: 0 0 12px var(--orange); }
+  .last-scan-dot.duplicate { background: var(--yellow); box-shadow: 0 0 12px var(--yellow); }
+  .last-scan-code { color: #fff; font-family: "SF Mono", "Menlo", monospace; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: 0.05em; }
+
+  /* КНОПКИ */
+  .section-label { font-size: 11px; font-weight: 900; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 12px; }
+
+  .btn { 
+    border: none; border-radius: var(--r-lg); padding: 16px; 
+    font-weight: 900; font-size: 14px; letter-spacing: 0.02em; color: #fff; 
+    display: flex; align-items: center; justify-content: center; gap: 8px; 
+    cursor: pointer; transition: all 0.2s var(--spring); width: 100%; 
+    position: relative; overflow: hidden; text-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  }
+  .btn:active { transform: scale(0.96) translateY(2px); }
+  
+  .btn.primary { 
+    background: linear-gradient(135deg, var(--purple-light), var(--purple)); 
+    box-shadow: 0 12px 24px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5), inset 0 -4px 12px rgba(0,0,0,0.3); 
+  }
+  .btn.primary::after {
+    content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+    background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
+    transform: rotate(45deg) translateY(-100%); transition: transform 0.6s ease;
+  }
+  .btn.primary:hover::after { transform: rotate(45deg) translateY(100%); }
+
+  .btn.finish { 
+    background: linear-gradient(135deg, #38E888, #0F9D58); 
+    box-shadow: 0 12px 24px var(--green-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 12px rgba(0,0,0,0.3); 
+    animation: pulseFinish 3s infinite;
+  }
+  @keyframes pulseFinish { 0%,100% { box-shadow: 0 12px 24px var(--green-glow), inset 0 2px 4px rgba(255,255,255,0.6); } 50% { box-shadow: 0 16px 32px rgba(52, 199, 123, 0.9), inset 0 2px 4px rgba(255,255,255,0.6); transform: scale(1.02); } }
+
+  /* ФУТЕР */
+  .footer { text-align: center; margin-top: 24px; opacity: 0.6; padding-bottom: 20px; }
+  .footer-mark { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; }
+  .footer-mark .fdot { width: 20px; height: 20px; border-radius: 6px; background: linear-gradient(135deg, var(--purple), var(--purple-dark)); display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; color: #fff; box-shadow: 0 4px 10px var(--purple-glow); }
+
+  /* TOAST */
+  #toast { 
+    position: fixed; left: 16px; right: 16px; bottom: 32px; max-width: 420px; margin: 0 auto; 
+    background: rgba(20, 10, 35, 0.9); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+    border: 1px solid rgba(157,77,255,0.5); border-top: 1px solid rgba(255,255,255,0.3); border-radius: var(--r-lg); 
+    padding: 16px; font-size: 14px; font-weight: 800; text-align: center; 
+    transform: translateY(150%) scale(0.9); transition: all 0.5s var(--spring); z-index: 200; 
+    box-shadow: 0 20px 40px rgba(0,0,0,0.9), 0 0 30px var(--purple-glow); 
+  }
+  #toast.show { transform: translateY(0) scale(1); }
+
+  /* BOTTOM SHEET (ВСТАВКА ИЗ WMS) */
+  #sheet-overlay { position: fixed; inset: 0; z-index: 300; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); opacity: 0; pointer-events: none; transition: opacity 0.4s var(--ease); }
+  #sheet-overlay.show { opacity: 1; pointer-events: auto; }
+
+  #paste-sheet { 
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 301; max-width: 480px; margin: 0 auto; 
+    background: linear-gradient(180deg, rgba(30,15,50,0.95), rgba(10,2,20,0.98)); 
+    backdrop-filter: blur(40px) saturate(220%); -webkit-backdrop-filter: blur(40px) saturate(220%); 
+    border: 1px solid var(--glass-border-dark); border-top: 1px solid rgba(255,255,255,0.25); 
+    border-radius: 32px 32px 0 0; padding: 12px 20px calc(24px + env(safe-area-inset-bottom, 0px)); 
+    box-shadow: 0 -20px 60px rgba(0,0,0,0.9), inset 0 2px 10px rgba(255,255,255,0.1); 
+    transform: translateY(100%); transition: transform 0.5s var(--spring); max-height: 80vh; display: flex; flex-direction: column; 
+  }
+  #paste-sheet.show { transform: translateY(0); }
+
+  .sheet-handle { width: 40px; height: 5px; border-radius: 999px; background: rgba(255,255,255,0.3); margin: 0 auto 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+  .sheet-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .sheet-title { font-size: 18px; font-weight: 900; letter-spacing: -0.02em; text-shadow: 0 2px 10px rgba(255,255,255,0.2); }
+  .sheet-close { 
+    width: 32px; height: 32px; border-radius: 10px; background: rgba(255,255,255,0.1); 
+    border: 1px solid rgba(255,255,255,0.15); color: #fff; display: flex; align-items: center; justify-content: center; 
+    cursor: pointer; font-size: 14px; font-weight: 900; transition: all 0.2s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  }
+  .sheet-close:active { transform: scale(0.9); }
+
+  #paste-textarea { 
+    width: 100%; min-height: 160px; max-height: 30vh; resize: vertical; 
+    background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); border-top: 1px solid rgba(0,0,0,0.8);
+    border-radius: var(--r-lg); padding: 16px; color: #fff; font-size: 13px; line-height: 1.6; 
+    font-family: "SF Mono", "Menlo", monospace; outline: none; transition: all 0.3s var(--ease); 
+    box-shadow: inset 0 4px 15px rgba(0,0,0,0.7);
+  }
+  #paste-textarea:focus { border-color: rgba(157,77,255,0.8); box-shadow: inset 0 4px 15px rgba(0,0,0,0.7), 0 0 0 4px rgba(112,0,255,0.25); }
+
+  .sheet-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 12px; color: var(--text-dim); font-weight: 800; }
+  #parsed-count { color: #E2D4FF; font-size: 14px; }
+  #parsed-count.ready { color: var(--green); text-shadow: 0 0 10px rgba(52, 199, 123, 0.5); }
+
+  .sheet-actions { display: flex; gap: 12px; margin-top: 20px; }
+  .btn.ghost { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); box-shadow: none; }
+  .btn.confirm { background: linear-gradient(135deg, var(--purple-light), var(--purple)); box-shadow: 0 12px 24px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5); }
+  .btn:disabled { opacity: 0.4; filter: grayscale(1); pointer-events: none; }
+</style>
+</head>
+<body>
+
+<div id="noise"></div>
+<div id="mesh"><span class="b1"></span><span class="b2"></span><span class="b3"></span></div>
+<div id="watermark">U</div>
+
+<div class="wrap">
+  <div class="topbar stagger" style="animation-delay:0s">
+    <div class="brand">
+      <div class="brand-mark">U</div>
+      <div class="brand-text">
+        <div class="brand-name">Uzum Inventory</div>
+        <div class="brand-sub">Экосистема ПВЗ</div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <div class="icon-btn" id="btn-info">?</div>
+    </div>
+  </div>
+
+  <div class="card stagger" style="animation-delay:0.1s">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+      <div class="chip" id="session-chip" style="margin-bottom:0;"><span class="dot"></span> <span>СЕССИЯ АКТИВНА</span></div>
+      <div class="live-badge offline" id="live-badge"><span class="ldot"></span><span id="live-badge-text">ОФЛАЙН</span></div>
+    </div>
+
+    <div class="pvz-row">
+      <div>
+        <div class="pvz-name" id="pvz-name">ПВЗ —</div>
+        <div class="admin-line" id="admin-info">Администратор —</div>
+      </div>
+      <div class="cell-badge" id="cell-badge">Нет ячейки</div>
+    </div>
+
+    <div class="progress-wrap"><div class="progress-bar" id="progress-bar"></div></div>
+    <div class="progress-meta"><span><b id="progress-percent">0%</b> готово</span><span id="progress-text">0 / 0</span></div>
+
+    <div class="stats-grid">
+      <div class="stat-item"><div class="num" id="stat-total">0</div><div class="label">Всего</div></div>
+      <div class="stat-item ok"><div class="num" id="stat-done">0</div><div class="label">Верно</div></div>
+      <div class="stat-item pending"><div class="num" id="stat-pending">0</div><div class="label">Ожидают</div></div>
+    </div>
+
+    <!-- ЭТОТ БЛОК ПОЯВЛЯЕТСЯ ТОЛЬКО В РЕЖИМЕ ОТСЛЕЖИВАНИЯ -->
+    <div class="live-grid" id="live-grid" style="display:none;">
+      <div class="live-item wrong"><div class="num" id="stat-wrong">0</div><div class="label">Не та ячейка</div></div>
+      <div class="live-item surplus"><div class="num" id="stat-surplus">0</div><div class="label">Излишки</div></div>
+      <div class="live-item duplicate"><div class="num" id="stat-duplicate">0</div><div class="label">Задвоено</div></div>
+      <div class="live-item"><div class="num" id="stat-live-pending">0</div><div class="label">В очереди</div></div>
+    </div>
+    
+    <div class="last-scan-row" id="last-scan-row">
+      <div class="last-scan-dot ok" id="last-scan-dot"></div>
+      <div class="last-scan-code" id="last-scan-code">—</div>
+    </div>
+  </div>
+
+  <!-- БЛОК ЗАГРУЗКИ ИЗ WMS (СКРЫВАЕТСЯ В РЕЖИМЕ ОТСЛЕЖИВАНИЯ) -->
+  <div class="card stagger wms-card" id="wms-card" style="animation-delay:0.2s">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 12px;">
+      <div style="font-size: 11px; font-weight: 900; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.15em; line-height: 1.4;">
+        ЗАГРУЗКА ИЗ WMS
+      </div>
+      <button class="btn primary" id="btn-paste-wms" style="border-radius: 999px; padding: 10px 20px; font-size: 11px; line-height: 1.2; text-transform: uppercase; flex: 0 0 auto; width: auto;">
+        ВСТАВИТЬ СПИСОК
+      </button>
+    </div>
+    <div class="hint-text" style="font-size: 12px; color: var(--text-dim); font-weight: 600; line-height: 1.5;">
+      Вставьте список <b style="color:#fff">ID заказа</b> и <b style="color:#fff">ячейка</b> из WMS. Формат как в Excel.
+    </div>
+  </div>
+
+  <div class="card stagger" style="animation-delay:0.3s">
+    <div class="section-label">ЗАВЕРШЕНИЕ</div>
+    <div class="hint-text" style="font-size: 12px; color: var(--text-dim); font-weight: 600; line-height: 1.5; margin-bottom: 16px;">
+      Когда все ячейки склада отсканированы и закрыты — завершите инвентаризацию.
+    </div>
+    <button class="btn finish" id="btn-finish">Завершить инвентаризацию</button>
+  </div>
+
+  <div class="footer stagger" style="animation-delay:0.4s">
+    <div class="footer-mark"><span class="fdot">U</span> Uzum Invent Bot</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<div id="sheet-overlay"></div>
+<div id="paste-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header">
+    <div class="sheet-title">Вставить из WMS</div>
+    <div class="sheet-close" id="sheet-close">✕</div>
+  </div>
+  <div class="sheet-hint" style="font-size: 12px; color: var(--text-dim); font-weight: 600; margin-bottom: 12px;">
+    Скопируйте из WMS два столбца — <b style="color:#fff">ID заказа</b> и <b style="color:#fff">Ячейка</b>.
+  </div>
+  <textarea id="paste-textarea" placeholder="118&#9;674&#10;250&#9;132&#10;117&#9;737"></textarea>
+  <div class="sheet-meta">
+    <span>Строк найдено: <span id="parsed-count">0</span></span>
+  </div>
+  <div class="sheet-actions">
+    <button class="btn ghost" id="sheet-cancel">Отмена</button>
+    <button class="btn confirm" id="sheet-confirm" disabled>Загрузить</button>
+  </div>
+</div>
+
+<script>
+  const webApp = window.Telegram.WebApp;
+  webApp.ready();
+  webApp.expand();
+  try { webApp.setHeaderColor('#030008'); webApp.setBackgroundColor('#030008'); } catch(e) {}
+
+  const $ = id => document.getElementById(id);
+
+  // ===== КОНФИГ =====
+  // ⚠️ ЕСЛИ НА ТЕЛЕФОНЕ ИЛИ НЕ РАБОТАЕТ НА ПК: замени localhost на IP твоего ПК в локальной сети, например: ws://192.168.1.100:8000
+  const WS_BASE = "ws://localhost:8000";
+  const HTTP_BASE = "http://localhost:8000";
+
+  const uid = webApp.initDataUnsafe?.user?.id || null;
+  
+  // Считываем ХЭШ ИЛИ start_param (от кнопки "Отслеживать прогресс")
+  const startParam = webApp.initDataUnsafe?.start_param;
+  let liveMode = startParam === 'track' || window.location.hash === '#mode=track';
+
+  // Состояния
+  let doneCount = 0, totalCount = 0, ws = null, wsReconnectTimer = null;
+
+  function showToast(msg) {
+    const el = $('toast');
+    el.textContent = msg; el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 3000);
+  }
+
+  function setCellBadge(cell) {
+    const badge = $('cell-badge');
+    if (cell) { badge.textContent = cell; badge.classList.add('active'); } 
+    else { badge.textContent = 'Нет ячейки'; badge.classList.remove('active'); }
+  }
+
+  function pulseEl(el) {
+    el.classList.remove('pulse');
+    void el.offsetWidth;
+    el.classList.add('pulse');
+  }
+
+  function updateProgress() {
+    const totalEl = $('stat-total'), doneEl = $('stat-done'), pendingEl = $('stat-pending'), bar = $('progress-bar');
+    totalEl.textContent = totalCount;
+    doneEl.textContent = doneCount;
+    pendingEl.textContent = Math.max(totalCount - doneCount, 0);
+    const pct = totalCount ? Math.round((doneCount / totalCount) * 100) : 0;
+    bar.style.width = pct + '%';
+    $('progress-percent').textContent = pct + '%';
+    $('progress-text').textContent = `${doneCount} / ${totalCount}`;
+    bar.classList.toggle('complete', totalCount > 0 && doneCount >= totalCount);
+  }
+
+  function updateLiveDetails(d) {
+    const map = { 'stat-wrong': d.wrong, 'stat-surplus': d.surplus, 'stat-duplicate': d.duplicate, 'stat-live-pending': d.pending };
+    for (const [id, val] of Object.entries(map)) {
+      if (val === undefined) continue;
+      const el = $(id);
+      if (el.textContent !== String(val)) {
+        el.textContent = val;
+        pulseEl(el.closest('.live-item'));
+      }
+    }
+  }
+
+  function showLastScan(scan) {
+    if (!scan) return;
+    const row = $('last-scan-row');
+    $('last-scan-dot').className = 'last-scan-dot ' + (scan.result || 'ok');
+    $('last-scan-code').textContent = scan.code || '';
+    row.classList.remove('show');
+    void row.offsetWidth;
+    row.classList.add('show');
+  }
+
+  function enterLiveMode() {
+    liveMode = true;
+    $('live-grid').style.display = 'grid';
+    $('wms-card').style.display = 'none'; // Скрываем карточку загрузки как на скрине 4
+    $('session-chip').querySelector('span:last-child').textContent = 'ИДЁТ СВЕРКА';
+    connectWebSocket();
+  }
+
+  function setLiveBadge(online) {
+    const badge = $('live-badge');
+    badge.classList.toggle('offline', !online);
+    $('live-badge-text').textContent = online ? 'LIVE' : 'ОФЛАЙН';
+  }
+
+  function connectWebSocket() {
+    if (!uid) { 
+        console.error("Нет user_id. Закрой и открой приложение заново.");
+        setLiveBadge(false); 
+        return; 
+    }
+    if (ws) try { ws.close(); } catch (e) {}
+    
+    ws = new WebSocket(`${WS_BASE}/ws?user_id=${uid}`);
+    ws.onopen = () => {
+        console.log("WebSocket подключен!");
+        setLiveBadge(true);
+    };
+    ws.onclose = (e) => { 
+        console.warn("WebSocket отключен:", e.reason);
+        setLiveBadge(false); 
+        clearTimeout(wsReconnectTimer); 
+        wsReconnectTimer = setTimeout(connectWebSocket, 3000); 
+    };
+    ws.onerror = (e) => {
+        console.error("Ошибка WebSocket (вероятно, брандмауэр или неверный IP):", e);
+        setLiveBadge(false);
+    };
+    ws.onmessage = (event) => {
+      let data;
+      try { data = JSON.parse(event.data); } catch (e) { return; }
+      if (data.action !== 'update_progress') return;
+      doneCount = data.done ?? doneCount;
+      totalCount = data.total ?? totalCount;
+      updateProgress();
+      updateLiveDetails(data);
+      setCellBadge(data.current_cell);
+      if (data.last_scan) showLastScan(data.last_scan);
+      if (totalCount > 0 && doneCount >= totalCount) showToast('✅ Все заказы сверены!');
+    };
+  }
+
+  async function loadInitialStatus() {
+    if (!uid) return;
+    try {
+      console.log("Загружаем статус...");
+      const res = await fetch(`${HTTP_BASE}/status?user_id=${uid}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.pvz) $('pvz-name').textContent = 'ПВЗ ' + data.pvz;
+      if (data.admin_name) $('admin-info').textContent = 'Администратор ' + data.admin_name;
+      doneCount = data.done || 0; totalCount = data.total || 0;
+      updateProgress();
+      if (liveMode) updateLiveDetails(data);
+    } catch (e) {
+        console.error("Ошибка HTTP статуса (ошибка подключения к серверу):", e);
+    }
+  }
+
+  // Bottom-sheet
+  const sheetOverlay = $('sheet-overlay'), sheet = $('paste-sheet'), textarea = $('paste-textarea');
+  function openSheet() { sheetOverlay.classList.add('show'); sheet.classList.add('show'); setTimeout(() => textarea.focus(), 300); }
+  function closeSheet() { sheetOverlay.classList.remove('show'); sheet.classList.remove('show'); }
+
+  function countParseableLines(text) {
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    let count = 0;
+    for (const line of lines) {
+      const parts = line.split(/[\t,;]+|\s{2,}|\s(?=\S+$)/).filter(Boolean);
+      if (parts.length >= 2) count++;
+      else if (/^\d{1,4}$/.test(line)) count++;
+    }
+    return count;
+  }
+
+  textarea.addEventListener('input', () => {
+    const n = countParseableLines(textarea.value);
+    $('parsed-count').textContent = n;
+    $('parsed-count').classList.toggle('ready', n > 0);
+    $('sheet-confirm').disabled = n === 0;
+  });
+
+  $('btn-paste-wms').addEventListener('click', () => { textarea.value = ''; $('parsed-count').textContent = '0'; $('sheet-confirm').disabled = true; openSheet(); });
+  $('sheet-close').addEventListener('click', closeSheet);
+  $('sheet-cancel').addEventListener('click', closeSheet);
+  sheetOverlay.addEventListener('click', closeSheet);
+
+  $('sheet-confirm').addEventListener('click', () => {
+    const text = textarea.value.trim();
+    if (!text) return;
+    closeSheet();
+    showToast('Загружаю список…');
+    webApp.sendData(JSON.stringify({ action: 'bulk_load', payload: { text } }));
+  });
+
+  $('btn-finish').addEventListener('click', () => {
+    webApp.sendData(JSON.stringify({ action: 'finish_inventory' }));
+    showToast('✅ Инвентаризация завершена!');
+  });
+
+  $('btn-info').addEventListener('click', () => {
+    showToast(liveMode ? 'Live-режим: прогресс обновляется по мере сканирования в чате.' : 'Загрузите список из WMS для проведения сверки.');
+  });
+
+  loadInitialStatus();
+  if (liveMode) enterLiveMode();
+</script>
+</body>
+</html>
