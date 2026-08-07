@@ -35,6 +35,7 @@
     --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
     --ease: cubic-bezier(0.25, 1, 0.15, 1);
     --epic: cubic-bezier(0.16, 1.36, 0.4, 1);
+    --epic-out: cubic-bezier(0.6, 0, 0.85, 0.35);
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -52,11 +53,20 @@
     perspective: 1000px;
   }
 
-  #noise { position: fixed; inset: -50%; z-index: 999; pointer-events: none; opacity: 0.18; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); animation: noiseShift 8s steps(10) infinite; transition: opacity 0.3s ease; }
+  /* ============================================================
+     ПЕРФОМАНС: слои ниже сознательно переведены на собственные
+     композитные слои (translateZ(0) / will-change) и заключены
+     в contain, чтобы GPU кэшировал blur/backdrop-filter и не
+     пересчитывал их поверх всего документа на каждый кадр.
+     Ни один визуальный эффект не убран — только "удешевлён".
+     ============================================================ */
+
+  #noise { position: fixed; inset: -50%; z-index: 999; pointer-events: none; opacity: 0.18; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); animation: noiseShift 8s steps(10) infinite; transition: opacity 0.3s ease; will-change: transform; transform: translateZ(0); contain: paint; }
   #noise.flash { opacity: 0.5; }
   @keyframes noiseShift { 0% { transform: translate(0,0); } 10% { transform: translate(-5%,-5%); } 20% { transform: translate(-10%,5%); } 30% { transform: translate(5%,-10%); } 40% { transform: translate(-5%,15%); } 50% { transform: translate(-10%,5%); } 60% { transform: translate(15%,0); } 70% { transform: translate(0,15%); } 80% { transform: translate(3%,35%); } 90% { transform: translate(-10%,10%); } 100% { transform: translate(0,0); } }
 
-  #mesh { position: fixed; inset: 0; z-index: -1; pointer-events: none; filter: blur(70px) saturate(150%); overflow: hidden; }
+  #mesh { position: fixed; inset: 0; z-index: -1; pointer-events: none; filter: blur(70px) saturate(150%); overflow: hidden; will-change: filter, transform; transform: translateZ(0); contain: paint; }
+  #mesh-track { position: absolute; inset: -10%; }
   #mesh span { position: absolute; border-radius: 50%; will-change: transform; mix-blend-mode: screen; }
   #mesh .b1 { width: 80vw; height: 80vw; left: -10%; top: -10%; background: radial-gradient(circle, rgba(112,0,255,0.4), transparent 70%); animation: orbFloat1 20s infinite alternate var(--ease); }
   #mesh .b2 { width: 70vw; height: 70vw; right: -20%; top: 40%; background: radial-gradient(circle, rgba(157,77,255,0.25), transparent 70%); animation: orbFloat2 25s infinite alternate-reverse var(--ease); }
@@ -65,7 +75,7 @@
   @keyframes orbFloat2 { 0% { transform: translate(0, 0) scale(1) rotate(0deg); } 100% { transform: translate(-30vw, -20vh) scale(1.1) rotate(-30deg); } }
   @keyframes orbFloat3 { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(10vw, -30vh) scale(1.3); } }
 
-  #watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: -2; font-size: clamp(80px, 30vw, 160px); font-weight: 900; line-height: 1; color: transparent; background: linear-gradient(135deg, rgba(157,77,255,0.6), rgba(112,0,255,0.4) 45%, rgba(75,0,173,0.5)); -webkit-background-clip: text; background-clip: text; -webkit-text-stroke: 2px rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; user-select: none; pointer-events: none; animation: premiumBreathe 4s ease-in-out infinite; }
+  #watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) translateZ(0); z-index: -2; font-size: clamp(80px, 30vw, 160px); font-weight: 900; line-height: 1; color: transparent; background: linear-gradient(135deg, rgba(157,77,255,0.6), rgba(112,0,255,0.4) 45%, rgba(75,0,173,0.5)); -webkit-background-clip: text; background-clip: text; -webkit-text-stroke: 2px rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; user-select: none; pointer-events: none; animation: premiumBreathe 4s ease-in-out infinite; will-change: opacity, filter; }
   @keyframes premiumBreathe { 0%, 100% { filter: drop-shadow(0 0 15px rgba(112,0,255,0.3)); opacity: 0.8; } 50% { filter: drop-shadow(0 0 35px rgba(157,77,255,0.7)); opacity: 1; } }
 
   .wrap { max-width: 480px; margin: 0 auto; position: relative; z-index: 1; display: flex; flex-direction: column; gap: 16px; }
@@ -83,8 +93,14 @@
 
   .topbar-actions { display: flex; align-items: center; gap: 8px; }
 
-  .icon-btn { width: 44px; height: 44px; border-radius: 14px; background: rgba(255,255,255,0.05); backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%); border: 1px solid var(--glass-border-dark); border-top: 1px solid var(--glass-border-light); color: var(--text-main); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 900; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transition: all 0.3s var(--spring); cursor: pointer; }
-  .icon-btn:active { transform: scale(0.9); }
+  /* icon-btn: overflow оставлен видимым намеренно — под кнопкой теперь
+     живёт мягкий дышащий ореол (::before), который не был бы виден,
+     если бы контейнер обрезал контент. Это "дефолтная" анимация
+     до нажатия, которую просили добавить. */
+  .icon-btn { width: 44px; height: 44px; border-radius: 14px; background: rgba(255,255,255,0.05); backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%); border: 1px solid var(--glass-border-dark); border-top: 1px solid var(--glass-border-light); color: var(--text-main); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 900; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transition: all 0.3s var(--spring); cursor: pointer; position: relative; transform: translateZ(0); }
+  .icon-btn::before { content: ''; position: absolute; inset: -7px; border-radius: inherit; background: radial-gradient(circle, rgba(157,77,255,0.55), transparent 70%); filter: blur(9px); z-index: -1; pointer-events: none; animation: iconIdle 3.4s ease-in-out infinite; will-change: opacity, transform; }
+  @keyframes iconIdle { 0%, 100% { opacity: 0.18; transform: scale(0.9); } 50% { opacity: 0.42; transform: scale(1.1); } }
+  .icon-btn:active { transform: scale(0.9) translateZ(0); }
 
   /* ПЕРЕКЛЮЧАТЕЛЬ ЯЗЫКА — вращающаяся кайма + пульс */
   .lang-switch {
@@ -95,39 +111,51 @@
     border: none; cursor: pointer; overflow: visible;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     transition: transform 0.25s var(--spring);
+    transform: translateZ(0);
   }
   .lang-switch::before {
     content: ''; position: absolute; inset: -1.5px; border-radius: 999px; z-index: -1;
     background: conic-gradient(from 0deg, var(--purple), rgba(255,255,255,0.6), var(--purple-light), var(--purple-dark), var(--purple));
     animation: spinBorder 4s linear infinite;
-    opacity: 0.85;
+    opacity: 0.85; will-change: transform;
   }
   .lang-switch::after {
     content: ''; position: absolute; inset: 1.5px; border-radius: 999px; z-index: -1;
     background: rgba(15, 5, 30, 0.85);
   }
   @keyframes spinBorder { to { transform: rotate(360deg); } }
-  .lang-switch:active { transform: scale(0.92); }
+  .lang-switch:active { transform: scale(0.92) translateZ(0); }
   .lang-switch .lang-cur { font-weight: 900; font-size: 13px; letter-spacing: 0.05em; color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
-  .lang-switch .lang-globe { font-size: 14px; filter: drop-shadow(0 0 6px rgba(157,77,255,0.8)); }
+  .lang-switch .lang-globe { font-size: 14px; filter: drop-shadow(0 0 6px rgba(157,77,255,0.8)); display: inline-block; animation: globeSway 3.6s ease-in-out infinite; }
+  @keyframes globeSway { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
 
-  .card { position: relative; background: var(--glass-bg); backdrop-filter: blur(40px) saturate(200%); -webkit-backdrop-filter: blur(40px) saturate(200%); border: 1px solid var(--glass-border-dark); border-top: 1px solid var(--glass-border-light); border-left: 1px solid rgba(255,255,255,0.15); border-radius: var(--r-xl); padding: 20px; box-shadow: 0 24px 48px -12px rgba(0,0,0,0.8), inset 0 1px 1px rgba(255,255,255,0.3); overflow: hidden; transform: translateZ(0); animation: floatCard 8s infinite ease-in-out; }
+  /* card::before — интерактивный "прожектор", который теперь реально
+     следует за пальцем/курсором через --mouse-x/--mouse-y (раньше
+     переменные объявлялись в CSS, но нигде не обновлялись из JS —
+     эффект существовал только на бумаге). card::after — тонкий блик,
+     идущий волной по карточке, обрезается имеющимся overflow:hidden. */
+  .card { position: relative; background: var(--glass-bg); backdrop-filter: blur(40px) saturate(200%); -webkit-backdrop-filter: blur(40px) saturate(200%); border: 1px solid var(--glass-border-dark); border-top: 1px solid var(--glass-border-light); border-left: 1px solid rgba(255,255,255,0.15); border-radius: var(--r-xl); padding: 20px; box-shadow: 0 24px 48px -12px rgba(0,0,0,0.8), inset 0 1px 1px rgba(255,255,255,0.3); overflow: hidden; transform: translateZ(0); animation: floatCard 8s infinite ease-in-out; will-change: transform; }
   .card:nth-child(2) { animation-delay: -2s; }
   .card:nth-child(3) { animation-delay: -4s; }
-  @keyframes floatCard { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-  .card::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(800px circle at var(--mouse-x, 50%) var(--mouse-y, -20%), rgba(255,255,255,0.06), transparent 40%); }
+  @keyframes floatCard { 0%, 100% { transform: translateY(0) translateZ(0); } 50% { transform: translateY(-4px) translateZ(0); } }
+  .card::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(800px circle at var(--mouse-x, 50%) var(--mouse-y, -20%), rgba(255,255,255,0.06), transparent 40%); transition: background 0.15s linear; }
+  .card::after { content: ''; position: absolute; top: -60%; left: -40%; width: 45%; height: 220%; background: linear-gradient(75deg, transparent, rgba(255,255,255,0.05), transparent); transform: translateX(-20%) rotate(8deg); animation: cardSheen 9s ease-in-out infinite; pointer-events: none; will-change: transform; }
+  .card:nth-child(2)::after { animation-delay: -3s; }
+  .card:nth-child(3)::after { animation-delay: -6s; }
+  @keyframes cardSheen { 0%, 55% { transform: translateX(-20%) rotate(8deg); } 100% { transform: translateX(480%) rotate(8deg); } }
   .card.replay { animation: riseIn 0.7s var(--epic) forwards, floatCard 8s infinite ease-in-out 0.7s; }
 
   .btn { border: none; border-radius: var(--r-lg); padding: 16px; font-weight: 900; font-size: 14px; letter-spacing: 0.02em; color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.2s var(--spring); width: 100%; position: relative; overflow: hidden; text-shadow: 0 2px 5px rgba(0,0,0,0.3); }
   .btn:active { transform: scale(0.96) translateY(2px); }
   .btn.primary { background: linear-gradient(135deg, var(--purple-light), var(--purple)); box-shadow: 0 12px 24px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5), inset 0 -4px 12px rgba(0,0,0,0.3); }
-  .btn.finish { background: linear-gradient(135deg, #38E888, #0F9D58); box-shadow: 0 12px 24px var(--green-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 12px rgba(0,0,0,0.3); animation: pulseFinish 3s infinite; }
+  .btn.finish { background: linear-gradient(135deg, #38E888, #0F9D58); box-shadow: 0 12px 24px var(--green-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 12px rgba(0,0,0,0.3); animation: pulseFinish 3s infinite; will-change: box-shadow, transform; }
   @keyframes pulseFinish { 0%,100% { box-shadow: 0 12px 24px var(--green-glow), inset 0 2px 4px rgba(255,255,255,0.6); } 50% { box-shadow: 0 16px 32px rgba(52, 199, 123, 0.9), inset 0 2px 4px rgba(255,255,255,0.6); transform: scale(1.02); } }
 
   /* КНОПКА "ВСТАВИТЬ СПИСОК" — эпичная, с автопульсом, бегущим бликом и ripple от тапа */
   #btn-paste-wms {
     position: relative;
     animation: pasteBreathe 2.6s ease-in-out infinite;
+    will-change: box-shadow, transform;
   }
   @keyframes pasteBreathe {
     0%, 100% { box-shadow: 0 12px 24px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5), inset 0 -4px 12px rgba(0,0,0,0.3); }
@@ -144,15 +172,27 @@
 
   .footer { text-align: center; margin-top: 24px; opacity: 0.6; padding-bottom: 20px; }
   .footer-mark { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; }
-  .footer-mark .fdot { width: 20px; height: 20px; border-radius: 6px; background: linear-gradient(135deg, var(--purple), var(--purple-dark)); display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; color: #fff; box-shadow: 0 4px 10px var(--purple-glow); }
+  .footer-mark .fdot { width: 20px; height: 20px; border-radius: 6px; background: linear-gradient(135deg, var(--purple), var(--purple-dark)); display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; color: #fff; box-shadow: 0 4px 10px var(--purple-glow); animation: fdotPulse 3s ease-in-out infinite; }
+  @keyframes fdotPulse { 0%, 100% { box-shadow: 0 4px 10px var(--purple-glow); } 50% { box-shadow: 0 4px 16px rgba(157,77,255,0.9); } }
 
-  #toast { position: fixed; left: 16px; right: 16px; bottom: 32px; max-width: 420px; margin: 0 auto; background: rgba(20, 10, 35, 0.9); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border: 1px solid rgba(157,77,255,0.5); border-top: 1px solid rgba(255,255,255,0.3); border-radius: var(--r-lg); padding: 16px; font-size: 14px; font-weight: 800; text-align: center; transform: translateY(150%) scale(0.9); transition: all 0.5s var(--spring); z-index: 200; box-shadow: 0 20px 40px rgba(0,0,0,0.9), 0 0 30px var(--purple-glow); }
+  #toast { position: fixed; left: 16px; right: 16px; bottom: 32px; max-width: 420px; margin: 0 auto; background: rgba(20, 10, 35, 0.9); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border: 1px solid rgba(157,77,255,0.5); border-top: 1px solid rgba(255,255,255,0.3); border-radius: var(--r-lg); padding: 16px; font-size: 14px; font-weight: 800; text-align: center; transform: translateY(calc(100% + 60px)) scale(0.9); transition: all 0.5s var(--spring); z-index: 200; box-shadow: 0 20px 40px rgba(0,0,0,0.9), 0 0 30px var(--purple-glow); }
   #toast.show { transform: translateY(0) scale(1); }
 
-  #sheet-overlay { position: fixed; inset: 0; z-index: 300; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); opacity: 0; pointer-events: none; transition: opacity 0.5s var(--ease); }
+  #sheet-overlay { position: fixed; inset: 0; z-index: 300; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); opacity: 0; pointer-events: none; transition: opacity 0.5s var(--ease); transform: translateZ(0); }
   #sheet-overlay.show { opacity: 1; pointer-events: auto; }
 
-  /* BOTTOM SHEET — эпичное появление: блюр→фокус, лёгкий 3D-наклон, вспышка, кольцо свечения */
+  /* ============================================================
+     BOTTOM SHEET — БАГ-ФИКС.
+     Раньше .show вешал только анимацию появления, а закрытие было
+     обычным classList.remove('show') — свойства мгновенно
+     откатывались к базовым БЕЗ transition/анимации, отсюда
+     "дёрганое" исчезновение и на записи видно, как панель залипает
+     снизу экрана. Плюс элемент ничем не гарантировал, что он
+     невидим/некликабелен, пока явно не открыт кнопкой.
+     Теперь: visibility/pointer-events жёстко управляются из JS,
+     а закрытие — отдельная зеркальная анимация sheetEpicOut,
+     а не "обрубание" стилей.
+     ============================================================ */
   #paste-sheet {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 301; max-width: 480px; margin: 0 auto;
     background: linear-gradient(180deg, rgba(30,15,50,0.95), rgba(10,2,20,0.98));
@@ -161,14 +201,20 @@
     border-radius: 32px 32px 0 0; padding: 12px 20px calc(24px + env(safe-area-inset-bottom, 0px));
     box-shadow: 0 -20px 60px rgba(0,0,0,0.9), inset 0 2px 10px rgba(255,255,255,0.1);
     transform: translateY(100%); max-height: 80vh; display: flex; flex-direction: column;
-    transform-origin: center bottom;
+    transform-origin: center bottom; visibility: hidden; pointer-events: none;
   }
-  #paste-sheet.show { animation: sheetEpicIn 0.85s var(--epic) forwards; }
+  #paste-sheet.show { visibility: visible; animation: sheetEpicIn 0.85s var(--epic) forwards; }
+  #paste-sheet.closing { visibility: visible; animation: sheetEpicOut 0.5s var(--epic-out) forwards; }
   @keyframes sheetEpicIn {
     0%   { transform: translateY(65%) scale(0.92) rotateX(6deg); filter: blur(22px) brightness(0.5) saturate(1.4); opacity: 0; }
     40%  { transform: translateY(-3%) scale(1.015) rotateX(-1deg); filter: blur(3px) brightness(1.4) saturate(1.6); opacity: 1; }
     68%  { transform: translateY(1.5%) scale(0.997) rotateX(0.4deg); filter: blur(0px) brightness(1.08) saturate(1.1); }
     100% { transform: translateY(0) scale(1) rotateX(0deg); filter: blur(0) brightness(1) saturate(1); }
+  }
+  @keyframes sheetEpicOut {
+    0%   { transform: translateY(0) scale(1) rotateX(0deg); filter: blur(0) brightness(1) saturate(1); opacity: 1; }
+    35%  { transform: translateY(4%) scale(0.985) rotateX(1.5deg); filter: blur(2px) brightness(0.85) saturate(1.05); opacity: 1; }
+    100% { transform: translateY(100%) scale(0.93) rotateX(5deg); filter: blur(14px) brightness(0.5) saturate(1.2); opacity: 0.2; }
   }
   #paste-sheet::before {
     content: ''; position: absolute; left: 50%; top: 0; width: 10px; height: 10px; margin-left: -5px; margin-top: -5px;
@@ -178,11 +224,12 @@
   #paste-sheet.show::before { animation: ringPulse 0.9s var(--ease) forwards; }
   @keyframes ringPulse { 0% { opacity: 0.9; transform: scale(1); } 100% { opacity: 0; transform: scale(60); } }
 
-  .sheet-handle { width: 40px; height: 5px; border-radius: 999px; background: rgba(255,255,255,0.3); margin: 0 auto 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+  .sheet-handle { width: 40px; height: 5px; border-radius: 999px; background: rgba(255,255,255,0.3); margin: 0 auto 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.5); animation: handlePulse 2.2s ease-in-out infinite; }
+  @keyframes handlePulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
   .sheet-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
   .sheet-title { font-size: 18px; font-weight: 900; letter-spacing: -0.02em; text-shadow: 0 2px 10px rgba(255,255,255,0.2); }
   .sheet-close { width: 32px; height: 32px; border-radius: 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; font-weight: 900; transition: all 0.2s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-  .sheet-close:active { transform: scale(0.9); }
+  .sheet-close:active { transform: scale(0.9) rotate(90deg); }
 
   /* ПОДСКАЗКА ФОРМАТА — наглядный мини-пример вместо только текста */
   .format-example {
@@ -191,16 +238,18 @@
   .format-col {
     background: rgba(0,0,0,0.45); border: 1px solid rgba(157,77,255,0.25); border-top: 1px solid rgba(255,255,255,0.15);
     border-radius: var(--r-md); padding: 10px 12px; box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+    transition: border-color 0.3s var(--ease);
   }
   .format-label { display: block; font-size: 9px; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 4px; }
-  .format-val { display: block; font-family: "SF Mono", "Menlo", monospace; font-size: 14px; font-weight: 800; color: #E2D4FF; text-shadow: 0 0 10px rgba(157,77,255,0.5); }
+  .format-val { display: block; font-family: "SF Mono", "Menlo", monospace; font-size: 14px; font-weight: 800; color: #E2D4FF; animation: valGlow 3s ease-in-out infinite; }
+  @keyframes valGlow { 0%, 100% { text-shadow: 0 0 8px rgba(157,77,255,0.4); } 50% { text-shadow: 0 0 16px rgba(157,77,255,0.85); } }
   .format-arrow { display: flex; align-items: center; justify-content: center; color: var(--text-dim); font-size: 11px; font-weight: 900; grid-column: 1 / -1; margin-top: -4px; margin-bottom: 2px; opacity: 0.7; }
 
   #paste-textarea { width: 100%; min-height: 160px; max-height: 30vh; resize: vertical; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); border-top: 1px solid rgba(0,0,0,0.8); border-radius: var(--r-lg); padding: 16px; color: #fff; font-size: 13px; line-height: 1.6; font-family: "SF Mono", "Menlo", monospace; outline: none; transition: all 0.3s var(--ease); box-shadow: inset 0 4px 15px rgba(0,0,0,0.7); }
   #paste-textarea:focus { border-color: rgba(157,77,255,0.8); box-shadow: inset 0 4px 15px rgba(0,0,0,0.7), 0 0 0 4px rgba(112,0,255,0.25); }
 
   .sheet-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 12px; color: var(--text-dim); font-weight: 800; }
-  #parsed-count { color: #E2D4FF; font-size: 14px; }
+  #parsed-count { color: #E2D4FF; font-size: 14px; transition: color 0.25s var(--ease), text-shadow 0.25s var(--ease); }
   #parsed-count.ready { color: var(--green); text-shadow: 0 0 10px rgba(52, 199, 123, 0.5); }
 
   .sheet-actions { display: flex; gap: 12px; margin-top: 20px; }
@@ -211,7 +260,7 @@
   .section-label { font-size: 11px; font-weight: 900; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 12px; }
   .hint-text { font-size: 12px; color: var(--text-dim); font-weight: 600; line-height: 1.5; }
 
-  /* ВОЛНА СМЕНЫ ЯЗЫКА — эпичный кинематографичный переход по всему интерфейсу */
+  /* ВОЛНА СМЕНЫ ЯЗЫКА — эпичный кинематографичный переход по всему интерфейсу (переиспользуется и для intro-заставки при загрузке) */
   #lang-wash {
     position: fixed; top: 0; left: 0; width: 40px; height: 40px; margin-left: -20px; margin-top: -20px;
     border-radius: 50%; z-index: 600; pointer-events: none; opacity: 0;
@@ -226,11 +275,22 @@
     78%  { opacity: 0.55; transform: translate(var(--wx),var(--wy)) scale(calc(var(--ws, 50) * 1.25)); }
     100% { opacity: 0; transform: translate(var(--wx),var(--wy)) scale(calc(var(--ws, 50) * 1.4)); }
   }
+
+  /* КОНФЕТТИ — короткий разовый эффект на "Завершить инвентаризацию", только transform/opacity, самоудаляется */
+  .confetti-piece { position: fixed; width: 7px; height: 7px; border-radius: 2px; z-index: 700; pointer-events: none; left: 0; top: 0; transform: translate(-50%,-50%); animation: confettiFly 0.85s cubic-bezier(0.2,0.8,0.3,1) forwards; box-shadow: 0 0 6px rgba(255,255,255,0.5); }
+  @keyframes confettiFly {
+    0%   { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; }
+    100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.35) rotate(300deg); opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+  }
 </style>
 </head>
 <body>
 
-<div id="mesh"><span class="b1"></span><span class="b2"></span><span class="b3"></span></div>
+<div id="mesh"><div id="mesh-track"><span class="b1"></span><span class="b2"></span><span class="b3"></span></div></div>
 <div id="watermark">U</div>
 <div id="noise"></div>
 <div id="lang-wash"></div>
@@ -325,6 +385,14 @@
   const $ = id => document.getElementById(id);
   const uid = webApp.initDataUnsafe?.user?.id || null;
 
+  function haptic(type) {
+    try {
+      if (!webApp.HapticFeedback) return;
+      if (type === 'success' || type === 'error' || type === 'warning') webApp.HapticFeedback.notificationOccurred(type);
+      else webApp.HapticFeedback.impactOccurred(type || 'light');
+    } catch (e) {}
+  }
+
   // ===== ПЕРЕВОДЫ =====
   const I18N = {
     ru: {
@@ -387,66 +455,144 @@
   function t(key) { return I18N[currentLang][key] || key; }
 
   // ===== ЭПИЧНАЯ СМЕНА ЯЗЫКА: волна цвета накрывает экран, текст меняется под ней =====
-  function switchLang() {
-    const nextLang = currentLang === 'ru' ? 'uz' : 'ru';
-    const btn = $('btn-lang');
-    const rect = btn.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
-    const dx = Math.max(cx, window.innerWidth - cx);
-    const dy = Math.max(cy, window.innerHeight - cy);
-    const diag = Math.sqrt(dx * dx + dy * dy);
-    const scaleNeeded = (diag / 20) + 4;
-
+  function playWash(cx, cy, scaleNeeded, onMid) {
     const wash = $('lang-wash');
     wash.style.setProperty('--wx', cx + 'px');
     wash.style.setProperty('--wy', cy + 'px');
     wash.style.setProperty('--ws', scaleNeeded);
     wash.classList.remove('active'); void wash.offsetWidth;
     wash.classList.add('active');
-
     $('noise').classList.add('flash');
+    setTimeout(() => { if (onMid) onMid(); }, 480);
+    setTimeout(() => { wash.classList.remove('active'); $('noise').classList.remove('flash'); }, 1200);
+  }
 
-    setTimeout(() => {
+  function washScaleFrom(cx, cy) {
+    const dx = Math.max(cx, window.innerWidth - cx);
+    const dy = Math.max(cy, window.innerHeight - cy);
+    const diag = Math.sqrt(dx * dx + dy * dy);
+    return (diag / 20) + 4;
+  }
+
+  function switchLang() {
+    haptic('light');
+    const nextLang = currentLang === 'ru' ? 'uz' : 'ru';
+    const btn = $('btn-lang');
+    const rect = btn.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+    playWash(cx, cy, washScaleFrom(cx, cy), () => {
       applyLang(nextLang);
       document.querySelectorAll('.card').forEach(card => {
         card.classList.remove('replay'); void card.offsetWidth; card.classList.add('replay');
       });
-    }, 480);
-
-    setTimeout(() => { wash.classList.remove('active'); $('noise').classList.remove('flash'); }, 1200);
+    });
   }
 
   $('btn-lang').addEventListener('click', switchLang);
   applyLang(currentLang);
 
+  // Кинематографичная заставка при первом запуске — та же волна, но от логотипа, один раз
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      const mark = document.querySelector('.brand-mark');
+      if (!mark) return;
+      const r = mark.getBoundingClientRect();
+      playWash(r.left + r.width / 2, r.top + r.height / 2, 42, null);
+    }, 150);
+  });
+
   function showToast(msg) {
     const el = $('toast');
     el.textContent = msg; el.classList.add('show');
-    setTimeout(() => el.classList.remove('show'), 3000);
+    clearTimeout(el._hideTimer);
+    el._hideTimer = setTimeout(() => el.classList.remove('show'), 3000);
   }
 
-  // Ripple-эффект от тапа на кнопке "Вставить список"
-  $('btn-paste-wms').addEventListener('pointerdown', (e) => {
+  // ===== УНИВЕРСАЛЬНЫЙ RIPPLE — теперь на всех .btn, а не только на "Вставить список" =====
+  function spawnRipple(e) {
     const btn = e.currentTarget;
     const r = btn.getBoundingClientRect();
     const size = Math.max(r.width, r.height) * 1.4;
+    const x = (e.clientX !== undefined ? e.clientX : r.left + r.width / 2);
+    const y = (e.clientY !== undefined ? e.clientY : r.top + r.height / 2);
     const ripple = document.createElement('span');
     ripple.className = 'ripple';
     ripple.style.width = ripple.style.height = size + 'px';
-    ripple.style.left = (e.clientX - r.left - size / 2) + 'px';
-    ripple.style.top = (e.clientY - r.top - size / 2) + 'px';
+    ripple.style.left = (x - r.left - size / 2) + 'px';
+    ripple.style.top = (y - r.top - size / 2) + 'px';
     btn.appendChild(ripple);
     setTimeout(() => ripple.remove(), 700);
+  }
+  document.querySelectorAll('.btn').forEach(btn => btn.addEventListener('pointerdown', spawnRipple));
+
+  // ===== ФОН СТАЛ ИНТЕРАКТИВНЫМ =====
+  // 1) Лёгкий параллакс туманных пятен вслед за пальцем/курсором (демпфированный lerp через rAF).
+  const meshTrack = $('mesh-track');
+  let mx = 0, my = 0, tx = 0, ty = 0, meshRaf = null;
+  function tickMesh() {
+    mx += (tx - mx) * 0.08;
+    my += (ty - my) * 0.08;
+    meshTrack.style.transform = `translate3d(${mx.toFixed(2)}px, ${my.toFixed(2)}px, 0)`;
+    if (Math.abs(tx - mx) > 0.05 || Math.abs(ty - my) > 0.05) {
+      meshRaf = requestAnimationFrame(tickMesh);
+    } else {
+      meshRaf = null;
+    }
+  }
+  window.addEventListener('pointermove', (e) => {
+    tx = ((e.clientX / window.innerWidth) - 0.5) * 26;
+    ty = ((e.clientY / window.innerHeight) - 0.5) * 26;
+    if (!meshRaf) meshRaf = requestAnimationFrame(tickMesh);
+  }, { passive: true });
+
+  // 2) Прожектор на карточках — оживляет ранее не используемые --mouse-x/--mouse-y.
+  document.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('pointermove', (e) => {
+      const r = card.getBoundingClientRect();
+      card.style.setProperty('--mouse-x', ((e.clientX - r.left) / r.width * 100) + '%');
+      card.style.setProperty('--mouse-y', ((e.clientY - r.top) / r.height * 100) + '%');
+    }, { passive: true });
+    card.addEventListener('pointerleave', () => {
+      card.style.setProperty('--mouse-x', '50%');
+      card.style.setProperty('--mouse-y', '-20%');
+    });
   });
 
-  // Bottom-sheet
+  // Ripple-эффект от тапа на кнопке "Вставить список" (плюс лёгкий хаптик)
+  $('btn-paste-wms').addEventListener('pointerdown', () => haptic('light'));
+
+  // ============================================================
+  // BOTTOM-SHEET — переписан на маленький стейт-машин.
+  // closing — переходное состояние с зеркальной анимацией sheetEpicOut.
+  // visibility/pointer-events всегда явно выставлены в JS, поэтому
+  // панель физически не может "висеть" или перехватывать тапы,
+  // если её не открыли кнопкой "Вставить список".
+  // ============================================================
   const sheetOverlay = $('sheet-overlay'), sheet = $('paste-sheet'), textarea = $('paste-textarea');
+  let sheetCloseTimer = null;
+
   function openSheet() {
+    clearTimeout(sheetCloseTimer);
+    sheet.classList.remove('closing');
+    sheet.style.visibility = 'visible';
+    sheet.style.pointerEvents = 'auto';
     sheetOverlay.classList.add('show');
     sheet.classList.remove('show'); void sheet.offsetWidth; sheet.classList.add('show');
     setTimeout(() => textarea.focus(), 400);
   }
-  function closeSheet() { sheetOverlay.classList.remove('show'); sheet.classList.remove('show'); }
+
+  function closeSheet() {
+    if (!sheet.classList.contains('show') && !sheet.classList.contains('closing')) return;
+    sheetOverlay.classList.remove('show');
+    sheet.classList.remove('show');
+    sheet.classList.add('closing');
+    sheet.style.pointerEvents = 'none';
+    clearTimeout(sheetCloseTimer);
+    sheetCloseTimer = setTimeout(() => {
+      sheet.classList.remove('closing');
+      sheet.style.visibility = 'hidden';
+    }, 520);
+  }
 
   function countParseableLines(text) {
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
@@ -467,24 +613,49 @@
   });
 
   $('btn-paste-wms').addEventListener('click', () => { textarea.value = ''; $('parsed-count').textContent = '0'; $('sheet-confirm').disabled = true; openSheet(); });
-  $('sheet-close').addEventListener('click', closeSheet);
-  $('sheet-cancel').addEventListener('click', closeSheet);
+  $('sheet-close').addEventListener('click', () => { haptic('light'); closeSheet(); });
+  $('sheet-cancel').addEventListener('click', () => { haptic('light'); closeSheet(); });
   sheetOverlay.addEventListener('click', closeSheet);
 
   $('sheet-confirm').addEventListener('click', () => {
     const text = textarea.value.trim();
     if (!text) return;
+    haptic('medium');
     closeSheet();
     showToast(t('toast_loading'));
     webApp.sendData(JSON.stringify({ action: 'bulk_load', payload: { text } }));
   });
 
-  $('btn-finish').addEventListener('click', () => {
+  // ===== КОНФЕТТИ на успешное завершение — разовый всплеск, без непрерывной анимации =====
+  function burstConfetti(originEl) {
+    const rect = originEl.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+    const colors = ['#9D4DFF', '#7000FF', '#38E888', '#FFD60A', '#ffffff'];
+    for (let i = 0; i < 16; i++) {
+      const angle = (Math.PI * 2 * i / 16) + (Math.random() * 0.4 - 0.2);
+      const dist = 55 + Math.random() * 85;
+      const p = document.createElement('span');
+      p.className = 'confetti-piece';
+      p.style.setProperty('--dx', (Math.cos(angle) * dist).toFixed(1) + 'px');
+      p.style.setProperty('--dy', (Math.sin(angle) * dist - 30).toFixed(1) + 'px');
+      p.style.left = cx + 'px';
+      p.style.top = cy + 'px';
+      p.style.background = colors[i % colors.length];
+      document.body.appendChild(p);
+      p.addEventListener('animationend', () => p.remove());
+      setTimeout(() => p.remove(), 1200);
+    }
+  }
+
+  $('btn-finish').addEventListener('click', (e) => {
+    haptic('success');
+    burstConfetti(e.currentTarget);
     webApp.sendData(JSON.stringify({ action: 'finish_inventory' }));
     showToast(t('toast_finish'));
   });
 
   $('btn-info').addEventListener('click', () => {
+    haptic('light');
     showToast(t('toast_info'));
   });
 </script>
