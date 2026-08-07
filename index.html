@@ -132,6 +132,11 @@
     height: var(--saga-h, 44px);
     margin: 0;
     pointer-events: none !important;
+    /* contain изолирует layout/paint логотипа от остального документа: браузер не обязан
+       перепроверять геометрию других элементов на каждый кадр роста width/height —
+       reflow остаётся внутри самого .brand-mark, а не всей страницы. Главный источник
+       тормозов саги на телефоне был именно в этом (плюс мимика ниже). */
+    contain: layout paint;
     will-change: transform, left, top, width, height, box-shadow, background;
     transition:
       left 1.8s var(--saga-epic), top 1.8s var(--saga-epic),
@@ -192,7 +197,7 @@
   .brand-mark.saga-rage .mark-face, .brand-mark.saga-smash .mark-face, .brand-mark.saga-oops .mark-face { opacity: 1; }
   .brand-mark.saga-liftoff .mark-face { opacity: 0; }
 
-  .mark-eye { position: absolute; top: 46%; width: 15%; height: 15%; border-radius: 50%; background: #fff; box-shadow: 0 0 12px rgba(255,255,255,0.8); transition: all 0.4s var(--ease); }
+  .mark-eye { position: absolute; top: 46%; width: 15%; height: 15%; border-radius: 50%; background: #fff; box-shadow: 0 0 12px rgba(255,255,255,0.8); transition: top 0.4s var(--ease), height 0.4s var(--ease), width 0.4s var(--ease), border-radius 0.4s var(--ease), background 0.4s var(--ease), box-shadow 0.4s var(--ease); }
   .mark-eye.l { left: 30%; } .mark-eye.r { right: 30%; }
   .mark-eye .pupil { position: absolute; inset: 22%; border-radius: 50%; background: #2a0845; transition: transform 0.4s ease; }
   
@@ -201,11 +206,11 @@
   .brand-mark.saga-rage .mark-eye .pupil, .brand-mark.saga-smash .mark-eye .pupil { background: #4A0000; animation: pupilShake 0.15s ease-in-out infinite; }
   @keyframes pupilShake { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(-2px, 1px); } 50% { transform: translate(2px, -1px); } 75% { transform: translate(-1px, 2px); } }
 
-  .mark-brow { position: absolute; top: 34%; width: 15%; height: 4px; border-radius: 4px; background: rgba(30,0,20,0.85); opacity: 0; transition: all 0.4s var(--ease); }
+  .mark-brow { position: absolute; top: 34%; width: 15%; height: 4px; border-radius: 4px; background: rgba(30,0,20,0.85); opacity: 0; transition: top 0.4s var(--ease), opacity 0.4s var(--ease), transform 0.4s var(--ease), left 0.4s var(--ease), right 0.4s var(--ease); }
   .mark-brow.l { left: 29%; transform: rotate(18deg); }
   .mark-brow.r { right: 29%; transform: rotate(-18deg); }
 
-  .mark-mouth { position: absolute; left: 50%; top: 62%; width: 22%; height: 10%; margin-left: -11%; border-radius: 4px; background: #2a0845; transition: all 0.4s var(--ease); }
+  .mark-mouth { position: absolute; left: 50%; top: 62%; width: 22%; height: 10%; margin-left: -11%; border-radius: 4px; background: #2a0845; transition: width 0.4s var(--ease), height 0.4s var(--ease), top 0.4s var(--ease), margin-left 0.4s var(--ease), border-radius 0.4s var(--ease), background 0.4s var(--ease); }
   .mark-blush { position: absolute; top: 56%; width: 12%; height: 8%; border-radius: 50%; background: rgba(255,120,150,0); transition: background 0.6s ease; }
   .mark-blush.l { left: 16%; } .mark-blush.r { right: 16%; }
 
@@ -440,6 +445,33 @@
   .btn.ghost { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); box-shadow: none; }
   .btn.confirm { background: linear-gradient(135deg, var(--purple-light), var(--purple)); box-shadow: 0 12px 24px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5); }
   .btn:disabled { opacity: 0.4; filter: grayscale(1); pointer-events: none; }
+
+  /* Пауза фоновых decorative-анимаций на время саги логотипа — только на мобильных,
+     где параллельная работа GPU над орбами/дыханием кнопок/sheen карточек одновременно
+     с растущим логотипом просаживала FPS сильнее всего. На ПК не применяется вообще.
+     Сама сага, взрыв, тряска карточек и мимика логотипа сюда не входят — не паузятся. */
+  @media (max-width: 767px) {
+    body.saga-active #mesh .b1,
+    body.saga-active #mesh .b2,
+    body.saga-active #mesh .b3,
+    body.saga-active #watermark,
+    body.saga-active .card::after,
+    body.saga-active .cinematic-glare,
+    body.saga-active .lang-switch,
+    body.saga-active .icon-btn::before,
+    body.saga-active #btn-paste-wms,
+    body.saga-active #btn-paste-wms::after,
+    body.saga-active .btn.finish,
+    body.saga-active .footer-mark .fdot,
+    body.saga-active .hint-text .key,
+    body.saga-active .format-val {
+      animation-play-state: paused;
+    }
+    /* floatCard крутится на самих .card, которые не участвуют в саге — тоже пауза */
+    body.saga-active .card {
+      animation-play-state: paused;
+    }
+  }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
@@ -950,6 +982,14 @@
       playing = true;
       haptic('medium');
 
+      // На мобильных на время саги ставим на паузу фоновые decorative-анимации
+      // (мерцание орбов, дыхание кнопок, sheen карточек и т.д.) — они всё равно
+      // почти не видны за полноэкранным логотипом и взрывом, а параллельная работа
+      // GPU над ними вместе с растущим/двигающимся логотипом и была главной причиной
+      // подвисаний саги на слабых телефонах. Ничего не удаляется — просто откладывается
+      // на 4.3s самой сцены, после чего всё возобновляется с той же точки цикла.
+      if (isMobile) document.body.classList.add('saga-active');
+
       // --- ПЕРЕМЕЩАЕМ ЛОГОТИП В BODY ---
       document.body.appendChild(mark);
 
@@ -1039,6 +1079,7 @@
 
         // --- ВОЗВРАЩАЕМ ЛОГОТИП ОБРАТНО В КОНТЕЙНЕР ---
         container.appendChild(mark);
+        document.body.classList.remove('saga-active');
         playing = false;
       }, 4250);
     }
