@@ -22,6 +22,9 @@
     --text-main: #FFFFFF;
     --text-muted: #B8AEE0;
     --text-dim: #6B5E8C;
+    --text-hint: #D7CDF2;
+    --accent-key: #FFD3E8;
+    --accent-key-glow: rgba(255, 168, 214, 0.55);
     --green: #34C77B;
     --green-glow: rgba(52, 199, 123, 0.7);
     --red: #FF3B30;
@@ -61,8 +64,12 @@
      Ни один визуальный эффект не убран — только "удешевлён".
      ============================================================ */
 
-  #noise { position: fixed; inset: -50%; z-index: 999; pointer-events: none; opacity: 0.18; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); animation: noiseShift 8s steps(10) infinite; transition: opacity 0.3s ease; will-change: transform; transform: translateZ(0); contain: paint; }
-  #noise.flash { opacity: 0.5; }
+  #noise { position: fixed; inset: -50%; z-index: 999; pointer-events: none; opacity: 0.1; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); animation: noiseShift 8s steps(10) infinite; transition: opacity 0.3s ease; will-change: transform; transform: translateZ(0); contain: paint; }
+  #noise.flash { opacity: 0.32; }
+  /* Тонкое собственное зерно на стеклянных элементах интерфейса — то, что "забрали" у фона,
+     точечно возвращено карточкам/шторке/кнопке через ту же SVG-turbulence текстуру,
+     подмешанную вторым background-layer в существующий card::before (без новых узлов DOM). */
+  :root { --grain-url: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
   @keyframes noiseShift { 0% { transform: translate(0,0); } 10% { transform: translate(-5%,-5%); } 20% { transform: translate(-10%,5%); } 30% { transform: translate(5%,-10%); } 40% { transform: translate(-5%,15%); } 50% { transform: translate(-10%,5%); } 60% { transform: translate(15%,0); } 70% { transform: translate(0,15%); } 80% { transform: translate(3%,35%); } 90% { transform: translate(-10%,10%); } 100% { transform: translate(0,0); } }
 
   #mesh { position: fixed; inset: 0; z-index: -1; pointer-events: none; filter: blur(70px) saturate(150%); overflow: hidden; will-change: filter, transform; transform: translateZ(0); contain: paint; }
@@ -84,9 +91,120 @@
 
   .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; padding: 0 8px; }
   .brand { display: flex; align-items: center; gap: 12px; }
-  .brand-mark { width: 44px; height: 44px; border-radius: 14px; background: linear-gradient(135deg, #A855F7, var(--purple)); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 20px; color: #fff; box-shadow: 0 10px 25px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 10px rgba(0,0,0,0.3); position: relative; overflow: hidden; }
-  .brand-mark::after { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(45deg, transparent, rgba(255,255,255,0.4), transparent); transform: rotate(45deg) translateY(-100%); animation: shine 6s infinite; }
+  .brand-mark { width: 44px; height: 44px; border-radius: 14px; background: linear-gradient(135deg, #A855F7, var(--purple)); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 20px; color: #fff; box-shadow: 0 10px 25px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 10px rgba(0,0,0,0.3); position: relative; overflow: visible; cursor: pointer; transition: transform 0.3s var(--spring); transform: translateZ(0) scale(1); }
+  .brand-mark::after { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(45deg, transparent, rgba(255,255,255,0.4), transparent); transform: rotate(45deg) translateY(-100%); animation: shine 6s infinite; border-radius: inherit; pointer-events: none; }
   @keyframes shine { 0%, 20% { transform: rotate(45deg) translateY(-100%); } 40%, 100% { transform: rotate(45deg) translateY(100%); } }
+  .brand-mark:active { transform: scale(0.92) translateZ(0); }
+
+  /* ============================================================
+     ЖИВОЙ ЛОГОТИП — по тапу проигрывает один цикл и сам возвращается.
+     Стадии (управляются JS через классы на .brand-mark, тайминги
+     синхронизированы с keyframes ниже):
+       1. expand   — значок "распахивается" вбок, буква U подвигается,
+                     с бока выезжает панель с глазками
+       2. blink    — глазки моргают
+       3. look     — зрачки смотрят по сторонам, потом останавливаются
+       4. point    — снизу выезжает "ручка-указатель" и качается вбок,
+                     будто показывает "туда-сюда"
+       5. wave     — ручка машет
+       6. return   — всё синхронно уезжает обратно, значок сжимается
+     Один проигрыш ~3.6s, дальше — пауза, повторный тап запускает заново.
+     ============================================================ */
+  .brand-mark .peek {
+    position: absolute; top: 50%; left: 100%; transform: translateY(-50%) translateX(-6px) scaleX(0.4);
+    transform-origin: left center;
+    width: 30px; height: 26px; opacity: 0; pointer-events: none;
+    display: flex; align-items: center; justify-content: center; gap: 3px;
+    transition: opacity 0.25s ease;
+  }
+  .brand-mark .eye {
+    width: 7px; height: 9px; border-radius: 50%; background: #fff;
+    box-shadow: 0 0 6px rgba(255,255,255,0.8); position: relative;
+  }
+  .brand-mark .eye::after {
+    content: ''; position: absolute; width: 3.4px; height: 3.4px; border-radius: 50%;
+    background: var(--purple-dark); top: 2.5px; left: 1.7px;
+    transition: transform 0.35s var(--ease);
+  }
+  .brand-mark .lid {
+    position: absolute; inset: 0; border-radius: 50%; background: #A855F7;
+    transform: scaleY(0); transform-origin: top; opacity: 0;
+  }
+
+  .brand-mark .pointer-arm {
+    position: absolute; bottom: -4px; left: 50%; width: 5px; height: 16px; margin-left: -2.5px;
+    transform-origin: top center; transform: translateY(6px) scaleY(0.3) rotate(0deg);
+    opacity: 0; pointer-events: none;
+    border-radius: 3px; background: linear-gradient(180deg, #C99BFF, #7000FF);
+    box-shadow: 0 2px 8px rgba(112,0,255,0.6);
+  }
+  .brand-mark .pointer-arm::after {
+    content: ''; position: absolute; bottom: -4px; left: 50%; width: 9px; height: 9px; margin-left: -4.5px;
+    border-radius: 50%; background: #E9D5FF; box-shadow: 0 0 6px rgba(255,255,255,0.7);
+  }
+
+  /* --- Стадия 1: раскрытие бока значка и появление глазок ---
+     Масштаб держится на всех активных стадиях (не только в момент expand),
+     иначе после первых 260мс значок резко "сдувался" обратно, пока
+     глазки/ручка ещё были на сцене. */
+  .brand-mark.anim-expand,
+  .brand-mark.anim-blink,
+  .brand-mark.anim-look,
+  .brand-mark.anim-point,
+  .brand-mark.anim-wave {
+    transform: scale(1.08) translateZ(0);
+    transition: transform 0.35s var(--spring);
+  }
+  .brand-mark.anim-expand .peek,
+  .brand-mark.anim-blink .peek,
+  .brand-mark.anim-look .peek,
+  .brand-mark.anim-point .peek,
+  .brand-mark.anim-wave .peek {
+    opacity: 1; transform: translateY(-50%) translateX(2px) scaleX(1);
+    transition: opacity 0.3s var(--spring), transform 0.42s var(--spring);
+  }
+
+  /* --- Стадия 2: моргание --- */
+  .brand-mark.anim-blink .lid { animation: blinkOnce 0.5s var(--ease); }
+  @keyframes blinkOnce {
+    0%, 100% { transform: scaleY(0); opacity: 0; }
+    45%, 60% { transform: scaleY(1); opacity: 1; }
+  }
+
+  /* --- Стадия 3: взгляд по сторонам --- */
+  .brand-mark.anim-look .eye::after { animation: eyeLook 1.1s var(--ease); }
+  @keyframes eyeLook {
+    0%   { transform: translateX(0); }
+    25%  { transform: translateX(-1.6px); }
+    55%  { transform: translateX(1.8px); }
+    80%  { transform: translateX(0); }
+    100% { transform: translateX(0); }
+  }
+
+  /* --- Стадия 4 и 5: ручка выезжает, показывает "туда-сюда", машет --- */
+  .brand-mark.anim-point .pointer-arm,
+  .brand-mark.anim-wave .pointer-arm {
+    opacity: 1; transform: translateY(0) scaleY(1) rotate(0deg);
+    transition: opacity 0.25s var(--ease), transform 0.3s var(--spring);
+  }
+  .brand-mark.anim-point .pointer-arm { animation: pointSway 0.9s var(--ease) 0.05s; }
+  @keyframes pointSway {
+    0%, 100% { transform: translateY(0) scaleY(1) rotate(0deg); }
+    30% { transform: translateY(0) scaleY(1) rotate(-22deg); }
+    70% { transform: translateY(0) scaleY(1) rotate(20deg); }
+  }
+  .brand-mark.anim-wave .pointer-arm { animation: waveArm 0.7s ease-in-out; }
+  @keyframes waveArm {
+    0%, 100% { transform: translateY(0) scaleY(1) rotate(6deg); }
+    25% { transform: translateY(0) scaleY(1) rotate(-16deg); }
+    50% { transform: translateY(0) scaleY(1) rotate(14deg); }
+    75% { transform: translateY(0) scaleY(1) rotate(-10deg); }
+  }
+
+  /* --- Стадия 6: возврат --- */
+  .brand-mark.anim-return { transform: scale(1) translateZ(0); }
+  .brand-mark.anim-return .peek { opacity: 0; transform: translateY(-50%) translateX(-6px) scaleX(0.4); transition: opacity 0.3s var(--ease), transform 0.4s var(--epic-out); }
+  .brand-mark.anim-return .pointer-arm { opacity: 0; transform: translateY(6px) scaleY(0.3) rotate(0deg); transition: opacity 0.25s var(--ease), transform 0.35s var(--epic-out); }
   .brand-text { display: flex; flex-direction: column; gap: 2px; }
   .brand-name { font-weight: 900; font-size: 18px; letter-spacing: -0.03em; text-shadow: 0 2px 10px rgba(255,255,255,0.2); }
   .brand-sub { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.15em; font-weight: 800; background: linear-gradient(90deg, var(--text-muted), #fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
@@ -102,32 +220,32 @@
   @keyframes iconIdle { 0%, 100% { opacity: 0.18; transform: scale(0.9); } 50% { opacity: 0.42; transform: scale(1.1); } }
   .icon-btn:active { transform: scale(0.9) translateZ(0); }
 
-  /* ПЕРЕКЛЮЧАТЕЛЬ ЯЗЫКА — вращающаяся кайма + пульс */
+  /* ПЕРЕКЛЮЧАТЕЛЬ ЯЗЫКА — раньше конический градиент крутился по всей кайме
+     непрерывно, а глобус покачивался и светился отдельным drop-shadow —
+     вместе это создавало широкое "плавающее" пятно позади букв RU/UZ,
+     которое перетягивало внимание на себя сильнее самой кнопки.
+     Теперь кайма статична (тихая, в стиле остального интерфейса), а вся
+     "живость" сжата в едва заметное дыхание самой обводки — без вращения
+     и без покачивания глобуса. Акцент включается только в момент тапа. */
   .lang-switch {
     position: relative; height: 44px; padding: 0 14px; border-radius: 999px;
     display: flex; align-items: center; justify-content: center; gap: 6px;
     background: rgba(255,255,255,0.05);
     backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%);
-    border: none; cursor: pointer; overflow: visible;
+    border: 1px solid var(--glass-border-dark); border-top: 1px solid var(--glass-border-light);
+    cursor: pointer; overflow: hidden;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    transition: transform 0.25s var(--spring);
+    transition: transform 0.25s var(--spring), box-shadow 0.3s var(--ease);
     transform: translateZ(0);
+    animation: langBreathe 4.5s ease-in-out infinite;
   }
-  .lang-switch::before {
-    content: ''; position: absolute; inset: -1.5px; border-radius: 999px; z-index: -1;
-    background: conic-gradient(from 0deg, var(--purple), rgba(255,255,255,0.6), var(--purple-light), var(--purple-dark), var(--purple));
-    animation: spinBorder 4s linear infinite;
-    opacity: 0.85; will-change: transform;
+  @keyframes langBreathe {
+    0%, 100% { box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+    50% { box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 0 1px rgba(157,77,255,0.35), 0 0 14px rgba(157,77,255,0.25); }
   }
-  .lang-switch::after {
-    content: ''; position: absolute; inset: 1.5px; border-radius: 999px; z-index: -1;
-    background: rgba(15, 5, 30, 0.85);
-  }
-  @keyframes spinBorder { to { transform: rotate(360deg); } }
   .lang-switch:active { transform: scale(0.92) translateZ(0); }
   .lang-switch .lang-cur { font-weight: 900; font-size: 13px; letter-spacing: 0.05em; color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
-  .lang-switch .lang-globe { font-size: 14px; filter: drop-shadow(0 0 6px rgba(157,77,255,0.8)); display: inline-block; animation: globeSway 3.6s ease-in-out infinite; }
-  @keyframes globeSway { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+  .lang-switch .lang-globe { font-size: 14px; display: inline-block; opacity: 0.9; }
 
   /* card::before — интерактивный "прожектор", который теперь реально
      следует за пальцем/курсором через --mouse-x/--mouse-y (раньше
@@ -138,7 +256,10 @@
   .card:nth-child(2) { animation-delay: -2s; }
   .card:nth-child(3) { animation-delay: -4s; }
   @keyframes floatCard { 0%, 100% { transform: translateY(0) translateZ(0); } 50% { transform: translateY(-4px) translateZ(0); } }
-  .card::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(800px circle at var(--mouse-x, 50%) var(--mouse-y, -20%), rgba(255,255,255,0.06), transparent 40%); transition: background 0.15s linear; }
+  .card::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(800px circle at var(--mouse-x, 50%) var(--mouse-y, -20%), rgba(255,255,255,0.06), transparent 40%); transition: background 0.15s linear; z-index: 1; }
+  .card { isolation: isolate; }
+  .card .grain { content: ''; position: absolute; inset: 0; pointer-events: none; background-image: var(--grain-url); background-size: 180px 180px; opacity: 0.05; mix-blend-mode: overlay; border-radius: inherit; z-index: 1; }
+  .card > *:not(.grain) { position: relative; z-index: 2; }
   .card::after { content: ''; position: absolute; top: -60%; left: -40%; width: 45%; height: 220%; background: linear-gradient(75deg, transparent, rgba(255,255,255,0.05), transparent); transform: translateX(-20%) rotate(8deg); animation: cardSheen 9s ease-in-out infinite; pointer-events: none; will-change: transform; }
   .card:nth-child(2)::after { animation-delay: -3s; }
   .card:nth-child(3)::after { animation-delay: -6s; }
@@ -161,12 +282,18 @@
     0%, 100% { box-shadow: 0 12px 24px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5), inset 0 -4px 12px rgba(0,0,0,0.3); }
     50% { box-shadow: 0 16px 40px rgba(157,77,255,0.95), 0 0 30px rgba(157,77,255,0.5), inset 0 2px 4px rgba(255,255,255,0.7), inset 0 -4px 12px rgba(0,0,0,0.3); transform: scale(1.015); }
   }
+  /* Блик кнопки "Вставить список" — раньше стоял на месте 55% цикла, потом резко
+     срывался и долетал за оставшиеся 25%, отсюда ощущение "дёрганости".
+     Теперь блик идёт равномерно (linear) справа налево через ВЕСЬ цикл без пауз,
+     а мягкость входа/выхода достигается формой самого градиента, а не easing. */
   #btn-paste-wms::after {
-    content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-    background: linear-gradient(45deg, transparent, rgba(255,255,255,0.5), transparent);
-    transform: rotate(45deg) translateY(-120%); animation: pasteShine 3.2s ease-in-out infinite;
+    content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: linear-gradient(100deg, transparent 35%, rgba(255,255,255,0.45) 48%, rgba(255,255,255,0.65) 50%, rgba(255,255,255,0.45) 52%, transparent 65%);
+    background-size: 300% 100%; background-position: 130% 0;
+    animation: pasteShine 3.6s linear infinite;
+    mix-blend-mode: overlay; pointer-events: none;
   }
-  @keyframes pasteShine { 0%, 55% { transform: rotate(45deg) translateY(-120%); } 75%, 100% { transform: rotate(45deg) translateY(120%); } }
+  @keyframes pasteShine { 0% { background-position: 160% 0; } 100% { background-position: -60% 0; } }
   .ripple { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.6); transform: scale(0); pointer-events: none; animation: rippleOut 0.7s var(--ease) forwards; }
   @keyframes rippleOut { to { transform: scale(1); opacity: 0; } }
 
@@ -223,6 +350,10 @@
   }
   #paste-sheet.show::before { animation: ringPulse 0.9s var(--ease) forwards; }
   @keyframes ringPulse { 0% { opacity: 0.9; transform: scale(1); } 100% { opacity: 0; transform: scale(60); } }
+  #paste-sheet::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none; background-image: var(--grain-url);
+    background-size: 180px 180px; opacity: 0.045; mix-blend-mode: overlay; border-radius: inherit;
+  }
 
   .sheet-handle { width: 40px; height: 5px; border-radius: 999px; background: rgba(255,255,255,0.3); margin: 0 auto 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.5); animation: handlePulse 2.2s ease-in-out infinite; }
   @keyframes handlePulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
@@ -258,7 +389,26 @@
   .btn:disabled { opacity: 0.4; filter: grayscale(1); pointer-events: none; }
 
   .section-label { font-size: 11px; font-weight: 900; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 12px; }
-  .hint-text { font-size: 12px; color: var(--text-dim); font-weight: 600; line-height: 1.5; }
+  .hint-text { font-size: 13px; color: var(--text-hint); font-weight: 600; line-height: 1.6; position: relative; z-index: 2; }
+  /* Ключевые термины в подсказках — раньше просто белый bold, тонущий в тексте.
+     Теперь: тёплый розово-лиловый (в той же гамме, что и фиолетовый бренд),
+     лёгкое подчёркивание-градиент и едва заметное дыхание — глаз сам находит
+     важное, без "кричащего" оранжевого цвета. */
+  .hint-text .key {
+    color: var(--accent-key);
+    font-weight: 800;
+    background: linear-gradient(90deg, var(--accent-key), #fff 120%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    text-shadow: none;
+    position: relative;
+    padding-bottom: 1px;
+    border-bottom: 1.5px solid rgba(255, 168, 214, 0.35);
+    animation: keyGlow 3.6s ease-in-out infinite;
+  }
+  @keyframes keyGlow {
+    0%, 100% { filter: drop-shadow(0 0 0px var(--accent-key-glow)); }
+    50% { filter: drop-shadow(0 0 6px var(--accent-key-glow)); }
+  }
 
   /* ВОЛНА СМЕНЫ ЯЗЫКА — эпичный кинематографичный переход по всему интерфейсу (переиспользуется и для intro-заставки при загрузке) */
   #lang-wash {
@@ -298,7 +448,7 @@
 <div class="wrap">
   <div class="topbar stagger" style="animation-delay:0s">
     <div class="brand">
-      <div class="brand-mark">U</div>
+      <div class="brand-mark" id="brand-mark" role="button" tabindex="0" aria-label="Uzum">U<span class="peek"><span class="eye"><span class="lid"></span></span><span class="eye"><span class="lid"></span></span></span><span class="pointer-arm"></span></div>
       <div class="brand-text">
         <div class="brand-name">Uzum Inventory</div>
         <div class="brand-sub" data-i18n="brand_sub">Экосистема ПВЗ</div>
@@ -314,6 +464,7 @@
 
   <!-- Карточка загрузки списка -->
   <div class="card stagger" style="animation-delay:0.1s">
+    <div class="grain"></div>
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 12px;">
       <div class="section-label" style="margin-bottom:0;" data-i18n="wms_title">
         ЗАГРУЗКА ИЗ WMS
@@ -323,15 +474,16 @@
       </button>
     </div>
     <div class="hint-text" data-i18n="wms_hint">
-      Вставьте список <b style="color:#fff">ID заказа</b> и <b style="color:#fff">ячейка</b> из WMS. Формат как в Excel.
+      Вставьте список <span class="key">ID заказа</span> и <span class="key">ячейка</span> из WMS. Формат как в Excel.
     </div>
   </div>
 
   <!-- Карточка завершения -->
   <div class="card stagger" style="animation-delay:0.2s">
+    <div class="grain"></div>
     <div class="section-label" data-i18n="finish_title">ЗАВЕРШЕНИЕ</div>
     <div class="hint-text" style="margin-bottom: 16px;" data-i18n="finish_hint">
-      Когда все ячейки склада отсканированы и закрыты — завершите инвентаризацию.
+      Когда все <span class="key">ячейки склада</span> отсканированы и закрыты — завершите инвентаризацию.
     </div>
     <button class="btn finish" id="btn-finish"><span data-i18n="finish_btn">Завершить инвентаризацию</span></button>
   </div>
@@ -350,8 +502,8 @@
     <div class="sheet-title" data-i18n="sheet_title">Вставить из WMS</div>
     <div class="sheet-close" id="sheet-close">✕</div>
   </div>
-  <div class="sheet-hint" style="font-size: 12px; color: var(--text-dim); font-weight: 600; margin-bottom: 14px;" data-i18n="sheet_hint">
-    Скопируйте из WMS два столбца — <b style="color:#fff">ID заказа</b> и <b style="color:#fff">Ячейка</b>.
+  <div class="sheet-hint hint-text" style="margin-bottom: 14px;" data-i18n="sheet_hint">
+    Скопируйте из WMS два столбца — <span class="key">ID заказа</span> и <span class="key">Ячейка</span>.
   </div>
 
   <div class="format-example">
@@ -399,12 +551,12 @@
       brand_sub: "Экосистема ПВЗ",
       wms_title: "ЗАГРУЗКА ИЗ WMS",
       wms_btn: "ВСТАВИТЬ СПИСОК",
-      wms_hint: 'Вставьте список <b style="color:#fff">ID заказа</b> и <b style="color:#fff">ячейка</b> из WMS. Формат как в Excel.',
+      wms_hint: 'Вставьте список <span class="key">ID заказа</span> и <span class="key">ячейка</span> из WMS. Формат как в Excel.',
       finish_title: "ЗАВЕРШЕНИЕ",
-      finish_hint: "Когда все ячейки склада отсканированы и закрыты — завершите инвентаризацию.",
+      finish_hint: 'Когда все <span class="key">ячейки склада</span> отсканированы и закрыты — завершите инвентаризацию.',
       finish_btn: "Завершить инвентаризацию",
       sheet_title: "Вставить из WMS",
-      sheet_hint: 'Скопируйте из WMS два столбца — <b style="color:#fff">ID заказа</b> и <b style="color:#fff">Ячейка</b>.',
+      sheet_hint: 'Скопируйте из WMS два столбца — <span class="key">ID заказа</span> и <span class="key">Ячейка</span>.',
       format_col1: "ID ЗАКАЗА",
       format_col2: "ЯЧЕЙКА",
       format_note: "👆 вставьте так же, двумя колонками — прямо как в Excel",
@@ -419,12 +571,12 @@
       brand_sub: "PVZ ekotizimi",
       wms_title: "WMS DAN YUKLASH",
       wms_btn: "RO'YXATNI KIRITISH",
-      wms_hint: 'WMS dan <b style="color:#fff">Buyurtma ID</b> va <b style="color:#fff">katak</b> ro\'yxatini joylashtiring. Excel formatida.',
+      wms_hint: 'WMS dan <span class="key">Buyurtma ID</span> va <span class="key">katak</span> ro\'yxatini joylashtiring. Excel formatida.',
       finish_title: "YAKUNLASH",
-      finish_hint: "Barcha kataklar skanerlanib yopilgach — inventarizatsiyani yakunlang.",
+      finish_hint: 'Barcha <span class="key">kataklar</span> skanerlanib yopilgach — inventarizatsiyani yakunlang.',
       finish_btn: "Inventarizatsiyani yakunlash",
       sheet_title: "WMS dan kiritish",
-      sheet_hint: 'WMS dan ikki ustunni nusxalang — <b style="color:#fff">Buyurtma ID</b> va <b style="color:#fff">Katak</b>.',
+      sheet_hint: 'WMS dan ikki ustunni nusxalang — <span class="key">Buyurtma ID</span> va <span class="key">Katak</span>.',
       format_col1: "BUYURTMA ID",
       format_col2: "KATAK",
       format_note: "👆 xuddi shunday, ikki ustunda joylashtiring — Excel dagidek",
@@ -658,6 +810,52 @@
     haptic('light');
     showToast(t('toast_info'));
   });
+
+  // ============================================================
+  // ЖИВОЙ ЛОГОТИП — по тапу один раз проигрывает цикл: расширился →
+  // выглянули глазки → моргнул → посмотрел по сторонам → высунулась
+  // ручка, показала "туда-сюда" → помахала → всё вернулось на место.
+  // Стадии переключаются классами, тайминги соответствуют keyframes
+  // в CSS. Пока проигрывается — повторный тап игнорируется, чтобы
+  // не ломать цикл.
+  // ============================================================
+  (function initBrandMark() {
+    const mark = $('brand-mark');
+    if (!mark) return;
+    let playing = false;
+    const STAGES = [
+      { cls: 'anim-expand', at: 0 },
+      { cls: 'anim-blink',  at: 260 },
+      { cls: 'anim-look',   at: 640 },
+      { cls: 'anim-point',  at: 1650 },
+      { cls: 'anim-wave',   at: 2500 },
+      { cls: 'anim-return', at: 3150 },
+    ];
+    const CLASSES = STAGES.map(s => s.cls);
+    const TOTAL = 3550;
+
+    function playCycle() {
+      if (playing) return;
+      playing = true;
+      haptic('light');
+      const timers = [];
+      STAGES.forEach(stage => {
+        timers.push(setTimeout(() => {
+          mark.classList.remove(...CLASSES);
+          mark.classList.add(stage.cls);
+        }, stage.at));
+      });
+      timers.push(setTimeout(() => {
+        mark.classList.remove(...CLASSES);
+        playing = false;
+      }, TOTAL));
+    }
+
+    mark.addEventListener('click', playCycle);
+    mark.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); playCycle(); }
+    });
+  })();
 </script>
 </body>
 </html>
