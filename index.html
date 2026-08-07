@@ -53,10 +53,33 @@
   /* МАКСИМАЛЬНЫЙ ШУМ И ЗЕРНО (HDR ЭФФЕКТ) */
   #noise {
     position: fixed; inset: -50%; z-index: 999; pointer-events: none;
-    opacity: 0.18; mix-blend-mode: overlay;
+    opacity: 0.3; mix-blend-mode: overlay;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
     animation: noiseShift 8s steps(10) infinite;
   }
+  /* Второй, более крупнозернистый слой шума — для кинематографичной "плёночной" фактуры */
+  #grain2 {
+    position: fixed; inset: -50%; z-index: 998; pointer-events: none;
+    opacity: 0.14; mix-blend-mode: soft-light;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n2'%3E%3CfeTurbulence type='turbulence' baseFrequency='0.45' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n2)'/%3E%3C/svg%3E");
+    animation: noiseShift 11s steps(8) infinite reverse;
+  }
+  /* Виньетка — затемнение краёв для глубины кадра */
+  #vignette {
+    position: fixed; inset: 0; z-index: 997; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.55) 100%);
+  }
+  /* Свечение, следующее за курсором — премиальный "живой" фон */
+  #cursor-glow {
+    position: fixed; top: 0; left: 0; z-index: -1; pointer-events: none;
+    width: 600px; height: 600px; margin: -300px 0 0 -300px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(157,77,255,0.25), rgba(112,0,255,0.08) 45%, transparent 70%);
+    filter: blur(10px);
+    transform: translate(var(--cx, 50vw), var(--cy, 50vh));
+    transition: transform 0.15s linear, opacity 0.4s ease;
+    opacity: 0;
+  }
+  #cursor-glow.active { opacity: 1; }
   @keyframes noiseShift {
     0% { transform: translate(0,0); }
     10% { transform: translate(-5%,-5%); }
@@ -76,6 +99,8 @@
     position: fixed; inset: 0; z-index: -1; pointer-events: none;
     filter: blur(70px) saturate(150%);
     overflow: hidden;
+    transform: translate(calc((var(--mx, 0.5) - 0.5) * -40px), calc((var(--my, 0.5) - 0.5) * -40px));
+    transition: transform 0.6s var(--ease);
   }
   #mesh span { position: absolute; border-radius: 50%; will-change: transform; mix-blend-mode: screen; }
   #mesh .b1 { width: 80vw; height: 80vw; left: -10%; top: -10%; background: radial-gradient(circle, rgba(112,0,255,0.4), transparent 70%); animation: orbFloat1 20s infinite alternate var(--ease); }
@@ -247,6 +272,7 @@
     border: 1px solid var(--glass-border-dark); border-top: 1px solid rgba(255,255,255,0.15);
     border-radius: var(--r-lg); padding: 16px 8px; text-align: center;
     box-shadow: inset 0 4px 15px rgba(0,0,0,0.5); position: relative; overflow: hidden;
+    transition: transform 0.3s var(--spring), box-shadow 0.3s ease;
   }
   .stat-item::before { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,0.05), transparent); pointer-events: none; }
   .stat-item .num { font-size: 26px; font-weight: 900; transition: all 0.4s var(--spring); font-family: "SF Pro Display", sans-serif; letter-spacing: -0.05em; }
@@ -311,12 +337,29 @@
     background: linear-gradient(135deg, var(--purple-light), var(--purple)); 
     box-shadow: 0 12px 24px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5), inset 0 -4px 12px rgba(0,0,0,0.3); 
   }
-  .btn.primary::after {
+  /* HDR-блик на любой кнопке: авто-пробег плюс усиление под курсором */
+  .btn::after {
     content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-    background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
+    background: linear-gradient(45deg, transparent, rgba(255,255,255,0.35), transparent);
     transform: rotate(45deg) translateY(-100%); transition: transform 0.6s ease;
+    pointer-events: none;
   }
-  .btn.primary:hover::after { transform: rotate(45deg) translateY(100%); }
+  .btn.primary, .btn.confirm, .btn.finish {
+    animation: btnAutoShine 4.5s ease-in-out infinite;
+  }
+  @keyframes btnAutoShine {
+    0%, 70%, 100% { filter: brightness(1); }
+    82% { filter: brightness(1.25); }
+  }
+  @media (hover: hover) {
+    .btn:hover { transform: translateY(-2px); filter: brightness(1.12); }
+    .btn.primary:hover, .btn.confirm:hover, .btn.finish:hover {
+      box-shadow: 0 16px 36px var(--purple-glow), 0 0 40px rgba(157,77,255,0.6), inset 0 2px 4px rgba(255,255,255,0.6);
+    }
+    .btn:hover::after { transform: rotate(45deg) translateY(100%); }
+    .card:hover { box-shadow: 0 30px 60px -12px rgba(0,0,0,0.85), 0 0 50px rgba(112,0,255,0.15), inset 0 1px 1px rgba(255,255,255,0.35); }
+    .stat-item:hover, .live-item:hover { transform: translateY(-3px) scale(1.03); box-shadow: 0 12px 24px rgba(112,0,255,0.25), inset 0 4px 15px rgba(0,0,0,0.5); }
+  }
 
   .btn.finish { 
     background: linear-gradient(135deg, #38E888, #0F9D58); 
@@ -383,13 +426,25 @@
   .btn.ghost { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); box-shadow: none; }
   .btn.confirm { background: linear-gradient(135deg, var(--purple-light), var(--purple)); box-shadow: 0 12px 24px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5); }
   .btn:disabled { opacity: 0.4; filter: grayscale(1); pointer-events: none; }
+
+  /* Анимация смены цифр — "одометр" с HDR-вспышкой на каждое обновление */
+  .num { display: inline-block; }
+  .num.flash { animation: numFlash 0.55s var(--spring); }
+  @keyframes numFlash {
+    0% { transform: scale(1); filter: brightness(1); }
+    35% { transform: scale(1.35); filter: brightness(1.8) drop-shadow(0 0 18px currentColor); }
+    100% { transform: scale(1); filter: brightness(1); }
+  }
 </style>
 </head>
 <body>
 
-<div id="noise"></div>
+<div id="cursor-glow"></div>
 <div id="mesh"><span class="b1"></span><span class="b2"></span><span class="b3"></span></div>
 <div id="watermark">U</div>
+<div id="noise"></div>
+<div id="grain2"></div>
+<div id="vignette"></div>
 
 <div class="wrap">
   <div class="topbar stagger" style="animation-delay:0s">
@@ -500,10 +555,72 @@
 
   const $ = id => document.getElementById(id);
 
+  // ===== ЖИВОЙ ФОН ОТ КУРСОРА (десктоп/мышь — премиальный эффект) =====
+  (function initCursorReactiveBg() {
+    const root = document.documentElement;
+    const glow = document.getElementById('cursor-glow');
+    let raf = null, lastEvt = null;
+    function apply() {
+      raf = null;
+      if (!lastEvt) return;
+      const { clientX: x, clientY: y } = lastEvt;
+      const nx = x / window.innerWidth, ny = y / window.innerHeight;
+      root.style.setProperty('--mx', nx.toFixed(4));
+      root.style.setProperty('--my', ny.toFixed(4));
+      glow.style.setProperty('--cx', x + 'px');
+      glow.style.setProperty('--cy', y + 'px');
+      document.querySelectorAll('.card').forEach(card => {
+        const r = card.getBoundingClientRect();
+        card.style.setProperty('--mouse-x', ((x - r.left) / r.width * 100).toFixed(1) + '%');
+        card.style.setProperty('--mouse-y', ((y - r.top) / r.height * 100).toFixed(1) + '%');
+      });
+    }
+    window.addEventListener('pointermove', (e) => {
+      lastEvt = e;
+      glow.classList.add('active');
+      if (!raf) raf = requestAnimationFrame(apply);
+    }, { passive: true });
+    window.addEventListener('pointerleave', () => glow.classList.remove('active'));
+  })();
+
+  // Плавная анимация смены числа ("одометр") + HDR-вспышка при изменении
+  function animateNumber(el, newVal) {
+    newVal = Number(newVal) || 0;
+    const oldVal = Number(el.dataset.val || el.textContent) || 0;
+    if (oldVal === newVal) return;
+    el.dataset.val = newVal;
+    const start = performance.now(), dur = 450;
+    function step(now) {
+      const t = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - t, 3);
+      el.textContent = Math.round(oldVal + (newVal - oldVal) * eased);
+      if (t < 1) requestAnimationFrame(step);
+      else el.textContent = newVal;
+    }
+    requestAnimationFrame(step);
+    el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+  }
+
   // ===== КОНФИГ =====
-  // ⚠️ ЕСЛИ НА ТЕЛЕФОНЕ ИЛИ НЕ РАБОТАЕТ НА ПК: замени localhost на IP твоего ПК в локальной сети, например: ws://192.168.1.100:8000
-  const WS_BASE = "ws://localhost:8000";
-  const HTTP_BASE = "http://localhost:8000";
+  // ⚠️ ГЛАВНАЯ ПРИЧИНА "НИЧЕГО НЕ РАБОТАЕТ": этот файл открывается с GitHub
+  // Pages по HTTPS, а "localhost" — это адрес телефона/ноутбука КАЖДОГО
+  // человека, а не твоего сервера. Ни один чужой телефон никогда не
+  // достучится до "localhost:8000" — там нет твоего ws_server.py.
+  // К тому же браузер на HTTPS-странице запрещает подключаться к
+  // незашифрованному ws:// (это называется mixed content) — так что даже
+  // подставив IP, оно не заработает без TLS.
+  //
+  // ЧТО СДЕЛАТЬ: подними ws_server.py (uvicorn) на сервере с белым IP или
+  // домене и заверни его в HTTPS/WSS — проще всего через Caddy (сам
+  // выпускает TLS-сертификат) или Cloudflare Tunnel, если сервера с белым
+  // IP нет вообще. Затем впиши сюда домен ОДИН РАЗ:
+  const SERVER_HOST = "invent-api.твой-домен.uz"; // <-- ЗАМЕНИ на реальный домен/IP:порт своего сервера с ws_server.py
+  const WS_BASE = `wss://${SERVER_HOST}`;
+  const HTTP_BASE = `https://${SERVER_HOST}`;
+  // Только для локальной отладки с компьютера, где сам запустил ws_server.py
+  // (без HTTPS), можешь временно раскомментировать две строки ниже:
+  // const WS_BASE = "ws://localhost:8000";
+  // const HTTP_BASE = "http://localhost:8000";
 
   const uid = webApp.initDataUnsafe?.user?.id || null;
   
@@ -534,9 +651,9 @@
 
   function updateProgress() {
     const totalEl = $('stat-total'), doneEl = $('stat-done'), pendingEl = $('stat-pending'), bar = $('progress-bar');
-    totalEl.textContent = totalCount;
-    doneEl.textContent = doneCount;
-    pendingEl.textContent = Math.max(totalCount - doneCount, 0);
+    animateNumber(totalEl, totalCount);
+    animateNumber(doneEl, doneCount);
+    animateNumber(pendingEl, Math.max(totalCount - doneCount, 0));
     const pct = totalCount ? Math.round((doneCount / totalCount) * 100) : 0;
     bar.style.width = pct + '%';
     $('progress-percent').textContent = pct + '%';
@@ -549,8 +666,8 @@
     for (const [id, val] of Object.entries(map)) {
       if (val === undefined) continue;
       const el = $(id);
-      if (el.textContent !== String(val)) {
-        el.textContent = val;
+      if (Number(el.dataset.val || el.textContent) !== Number(val)) {
+        animateNumber(el, val);
         pulseEl(el.closest('.live-item'));
       }
     }
