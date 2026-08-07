@@ -14,11 +14,11 @@
     --purple-dark: #320073;
     --purple-glow: rgba(112, 0, 255, 0.8);
     --bg-base: #030008;
-    
+
     --glass-bg: linear-gradient(150deg, rgba(50, 20, 90, 0.25), rgba(10, 2, 25, 0.4));
     --glass-border-light: rgba(255, 255, 255, 0.3);
     --glass-border-dark: rgba(255, 255, 255, 0.05);
-    
+
     --text-main: #FFFFFF;
     --text-muted: #B8AEE0;
     --text-dim: #6B5E8C;
@@ -31,9 +31,10 @@
     --r-xl: 24px;
     --r-lg: 16px;
     --r-md: 12px;
-    
+
     --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
     --ease: cubic-bezier(0.25, 1, 0.15, 1);
+    --epic: cubic-bezier(0.16, 1.36, 0.4, 1);
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -48,9 +49,11 @@
     padding: 12px 12px 24px;
     overflow-x: hidden;
     position: relative;
+    perspective: 1000px;
   }
 
-  #noise { position: fixed; inset: -50%; z-index: 999; pointer-events: none; opacity: 0.18; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); animation: noiseShift 8s steps(10) infinite; }
+  #noise { position: fixed; inset: -50%; z-index: 999; pointer-events: none; opacity: 0.18; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); animation: noiseShift 8s steps(10) infinite; transition: opacity 0.3s ease; }
+  #noise.flash { opacity: 0.5; }
   @keyframes noiseShift { 0% { transform: translate(0,0); } 10% { transform: translate(-5%,-5%); } 20% { transform: translate(-10%,5%); } 30% { transform: translate(5%,-10%); } 40% { transform: translate(-5%,15%); } 50% { transform: translate(-10%,5%); } 60% { transform: translate(15%,0); } 70% { transform: translate(0,15%); } 80% { transform: translate(3%,35%); } 90% { transform: translate(-10%,10%); } 100% { transform: translate(0,0); } }
 
   #mesh { position: fixed; inset: 0; z-index: -1; pointer-events: none; filter: blur(70px) saturate(150%); overflow: hidden; }
@@ -78,20 +81,66 @@
   .brand-name { font-weight: 900; font-size: 18px; letter-spacing: -0.03em; text-shadow: 0 2px 10px rgba(255,255,255,0.2); }
   .brand-sub { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.15em; font-weight: 800; background: linear-gradient(90deg, var(--text-muted), #fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 
+  .topbar-actions { display: flex; align-items: center; gap: 8px; }
+
   .icon-btn { width: 44px; height: 44px; border-radius: 14px; background: rgba(255,255,255,0.05); backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%); border: 1px solid var(--glass-border-dark); border-top: 1px solid var(--glass-border-light); color: var(--text-main); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 900; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transition: all 0.3s var(--spring); cursor: pointer; }
   .icon-btn:active { transform: scale(0.9); }
+
+  /* ПЕРЕКЛЮЧАТЕЛЬ ЯЗЫКА — вращающаяся кайма + пульс */
+  .lang-switch {
+    position: relative; height: 44px; padding: 0 14px; border-radius: 999px;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%);
+    border: none; cursor: pointer; overflow: visible;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    transition: transform 0.25s var(--spring);
+  }
+  .lang-switch::before {
+    content: ''; position: absolute; inset: -1.5px; border-radius: 999px; z-index: -1;
+    background: conic-gradient(from 0deg, var(--purple), rgba(255,255,255,0.6), var(--purple-light), var(--purple-dark), var(--purple));
+    animation: spinBorder 4s linear infinite;
+    opacity: 0.85;
+  }
+  .lang-switch::after {
+    content: ''; position: absolute; inset: 1.5px; border-radius: 999px; z-index: -1;
+    background: rgba(15, 5, 30, 0.85);
+  }
+  @keyframes spinBorder { to { transform: rotate(360deg); } }
+  .lang-switch:active { transform: scale(0.92); }
+  .lang-switch .lang-cur { font-weight: 900; font-size: 13px; letter-spacing: 0.05em; color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
+  .lang-switch .lang-globe { font-size: 14px; filter: drop-shadow(0 0 6px rgba(157,77,255,0.8)); }
 
   .card { position: relative; background: var(--glass-bg); backdrop-filter: blur(40px) saturate(200%); -webkit-backdrop-filter: blur(40px) saturate(200%); border: 1px solid var(--glass-border-dark); border-top: 1px solid var(--glass-border-light); border-left: 1px solid rgba(255,255,255,0.15); border-radius: var(--r-xl); padding: 20px; box-shadow: 0 24px 48px -12px rgba(0,0,0,0.8), inset 0 1px 1px rgba(255,255,255,0.3); overflow: hidden; transform: translateZ(0); animation: floatCard 8s infinite ease-in-out; }
   .card:nth-child(2) { animation-delay: -2s; }
   .card:nth-child(3) { animation-delay: -4s; }
   @keyframes floatCard { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
   .card::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(800px circle at var(--mouse-x, 50%) var(--mouse-y, -20%), rgba(255,255,255,0.06), transparent 40%); }
+  .card.replay { animation: riseIn 0.7s var(--epic) forwards, floatCard 8s infinite ease-in-out 0.7s; }
 
   .btn { border: none; border-radius: var(--r-lg); padding: 16px; font-weight: 900; font-size: 14px; letter-spacing: 0.02em; color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.2s var(--spring); width: 100%; position: relative; overflow: hidden; text-shadow: 0 2px 5px rgba(0,0,0,0.3); }
   .btn:active { transform: scale(0.96) translateY(2px); }
   .btn.primary { background: linear-gradient(135deg, var(--purple-light), var(--purple)); box-shadow: 0 12px 24px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5), inset 0 -4px 12px rgba(0,0,0,0.3); }
   .btn.finish { background: linear-gradient(135deg, #38E888, #0F9D58); box-shadow: 0 12px 24px var(--green-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 12px rgba(0,0,0,0.3); animation: pulseFinish 3s infinite; }
   @keyframes pulseFinish { 0%,100% { box-shadow: 0 12px 24px var(--green-glow), inset 0 2px 4px rgba(255,255,255,0.6); } 50% { box-shadow: 0 16px 32px rgba(52, 199, 123, 0.9), inset 0 2px 4px rgba(255,255,255,0.6); transform: scale(1.02); } }
+
+  /* КНОПКА "ВСТАВИТЬ СПИСОК" — эпичная, с автопульсом, бегущим бликом и ripple от тапа */
+  #btn-paste-wms {
+    position: relative;
+    animation: pasteBreathe 2.6s ease-in-out infinite;
+  }
+  @keyframes pasteBreathe {
+    0%, 100% { box-shadow: 0 12px 24px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5), inset 0 -4px 12px rgba(0,0,0,0.3); }
+    50% { box-shadow: 0 16px 40px rgba(157,77,255,0.95), 0 0 30px rgba(157,77,255,0.5), inset 0 2px 4px rgba(255,255,255,0.7), inset 0 -4px 12px rgba(0,0,0,0.3); transform: scale(1.015); }
+  }
+  #btn-paste-wms::after {
+    content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+    background: linear-gradient(45deg, transparent, rgba(255,255,255,0.5), transparent);
+    transform: rotate(45deg) translateY(-120%); animation: pasteShine 3.2s ease-in-out infinite;
+  }
+  @keyframes pasteShine { 0%, 55% { transform: rotate(45deg) translateY(-120%); } 75%, 100% { transform: rotate(45deg) translateY(120%); } }
+  .ripple { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.6); transform: scale(0); pointer-events: none; animation: rippleOut 0.7s var(--ease) forwards; }
+  @keyframes rippleOut { to { transform: scale(1); opacity: 0; } }
 
   .footer { text-align: center; margin-top: 24px; opacity: 0.6; padding-bottom: 20px; }
   .footer-mark { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; }
@@ -100,16 +149,52 @@
   #toast { position: fixed; left: 16px; right: 16px; bottom: 32px; max-width: 420px; margin: 0 auto; background: rgba(20, 10, 35, 0.9); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border: 1px solid rgba(157,77,255,0.5); border-top: 1px solid rgba(255,255,255,0.3); border-radius: var(--r-lg); padding: 16px; font-size: 14px; font-weight: 800; text-align: center; transform: translateY(150%) scale(0.9); transition: all 0.5s var(--spring); z-index: 200; box-shadow: 0 20px 40px rgba(0,0,0,0.9), 0 0 30px var(--purple-glow); }
   #toast.show { transform: translateY(0) scale(1); }
 
-  #sheet-overlay { position: fixed; inset: 0; z-index: 300; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); opacity: 0; pointer-events: none; transition: opacity 0.4s var(--ease); }
+  #sheet-overlay { position: fixed; inset: 0; z-index: 300; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); opacity: 0; pointer-events: none; transition: opacity 0.5s var(--ease); }
   #sheet-overlay.show { opacity: 1; pointer-events: auto; }
 
-  #paste-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 301; max-width: 480px; margin: 0 auto; background: linear-gradient(180deg, rgba(30,15,50,0.95), rgba(10,2,20,0.98)); backdrop-filter: blur(40px) saturate(220%); -webkit-backdrop-filter: blur(40px) saturate(220%); border: 1px solid var(--glass-border-dark); border-top: 1px solid rgba(255,255,255,0.25); border-radius: 32px 32px 0 0; padding: 12px 20px calc(24px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -20px 60px rgba(0,0,0,0.9), inset 0 2px 10px rgba(255,255,255,0.1); transform: translateY(100%); transition: transform 0.5s var(--spring); max-height: 80vh; display: flex; flex-direction: column; }
-  #paste-sheet.show { transform: translateY(0); }
+  /* BOTTOM SHEET — эпичное появление: блюр→фокус, лёгкий 3D-наклон, вспышка, кольцо свечения */
+  #paste-sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 301; max-width: 480px; margin: 0 auto;
+    background: linear-gradient(180deg, rgba(30,15,50,0.95), rgba(10,2,20,0.98));
+    backdrop-filter: blur(40px) saturate(220%); -webkit-backdrop-filter: blur(40px) saturate(220%);
+    border: 1px solid var(--glass-border-dark); border-top: 1px solid rgba(255,255,255,0.25);
+    border-radius: 32px 32px 0 0; padding: 12px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -20px 60px rgba(0,0,0,0.9), inset 0 2px 10px rgba(255,255,255,0.1);
+    transform: translateY(100%); max-height: 80vh; display: flex; flex-direction: column;
+    transform-origin: center bottom;
+  }
+  #paste-sheet.show { animation: sheetEpicIn 0.85s var(--epic) forwards; }
+  @keyframes sheetEpicIn {
+    0%   { transform: translateY(65%) scale(0.92) rotateX(6deg); filter: blur(22px) brightness(0.5) saturate(1.4); opacity: 0; }
+    40%  { transform: translateY(-3%) scale(1.015) rotateX(-1deg); filter: blur(3px) brightness(1.4) saturate(1.6); opacity: 1; }
+    68%  { transform: translateY(1.5%) scale(0.997) rotateX(0.4deg); filter: blur(0px) brightness(1.08) saturate(1.1); }
+    100% { transform: translateY(0) scale(1) rotateX(0deg); filter: blur(0) brightness(1) saturate(1); }
+  }
+  #paste-sheet::before {
+    content: ''; position: absolute; left: 50%; top: 0; width: 10px; height: 10px; margin-left: -5px; margin-top: -5px;
+    border-radius: 50%; background: radial-gradient(circle, rgba(157,77,255,0.9), transparent 70%);
+    opacity: 0; pointer-events: none;
+  }
+  #paste-sheet.show::before { animation: ringPulse 0.9s var(--ease) forwards; }
+  @keyframes ringPulse { 0% { opacity: 0.9; transform: scale(1); } 100% { opacity: 0; transform: scale(60); } }
+
   .sheet-handle { width: 40px; height: 5px; border-radius: 999px; background: rgba(255,255,255,0.3); margin: 0 auto 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
   .sheet-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
   .sheet-title { font-size: 18px; font-weight: 900; letter-spacing: -0.02em; text-shadow: 0 2px 10px rgba(255,255,255,0.2); }
   .sheet-close { width: 32px; height: 32px; border-radius: 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; font-weight: 900; transition: all 0.2s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
   .sheet-close:active { transform: scale(0.9); }
+
+  /* ПОДСКАЗКА ФОРМАТА — наглядный мини-пример вместо только текста */
+  .format-example {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;
+  }
+  .format-col {
+    background: rgba(0,0,0,0.45); border: 1px solid rgba(157,77,255,0.25); border-top: 1px solid rgba(255,255,255,0.15);
+    border-radius: var(--r-md); padding: 10px 12px; box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+  }
+  .format-label { display: block; font-size: 9px; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 4px; }
+  .format-val { display: block; font-family: "SF Mono", "Menlo", monospace; font-size: 14px; font-weight: 800; color: #E2D4FF; text-shadow: 0 0 10px rgba(157,77,255,0.5); }
+  .format-arrow { display: flex; align-items: center; justify-content: center; color: var(--text-dim); font-size: 11px; font-weight: 900; grid-column: 1 / -1; margin-top: -4px; margin-bottom: 2px; opacity: 0.7; }
 
   #paste-textarea { width: 100%; min-height: 160px; max-height: 30vh; resize: vertical; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); border-top: 1px solid rgba(0,0,0,0.8); border-radius: var(--r-lg); padding: 16px; color: #fff; font-size: 13px; line-height: 1.6; font-family: "SF Mono", "Menlo", monospace; outline: none; transition: all 0.3s var(--ease); box-shadow: inset 0 4px 15px rgba(0,0,0,0.7); }
   #paste-textarea:focus { border-color: rgba(157,77,255,0.8); box-shadow: inset 0 4px 15px rgba(0,0,0,0.7), 0 0 0 4px rgba(112,0,255,0.25); }
@@ -125,6 +210,22 @@
 
   .section-label { font-size: 11px; font-weight: 900; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 12px; }
   .hint-text { font-size: 12px; color: var(--text-dim); font-weight: 600; line-height: 1.5; }
+
+  /* ВОЛНА СМЕНЫ ЯЗЫКА — эпичный кинематографичный переход по всему интерфейсу */
+  #lang-wash {
+    position: fixed; top: 0; left: 0; width: 40px; height: 40px; margin-left: -20px; margin-top: -20px;
+    border-radius: 50%; z-index: 600; pointer-events: none; opacity: 0;
+    background: radial-gradient(circle, rgba(200,150,255,0.95), rgba(112,0,255,0.6) 40%, rgba(3,0,8,0.97) 78%);
+    transform: translate(var(--wx, 50vw), var(--wy, 50vh)) scale(0);
+  }
+  #lang-wash.active { animation: langWash 1.15s cubic-bezier(0.7,0,0.2,1) forwards; }
+  @keyframes langWash {
+    0%   { opacity: 0; transform: translate(var(--wx),var(--wy)) scale(0); }
+    10%  { opacity: 1; }
+    52%  { opacity: 0.97; transform: translate(var(--wx),var(--wy)) scale(var(--ws, 50)); }
+    78%  { opacity: 0.55; transform: translate(var(--wx),var(--wy)) scale(calc(var(--ws, 50) * 1.25)); }
+    100% { opacity: 0; transform: translate(var(--wx),var(--wy)) scale(calc(var(--ws, 50) * 1.4)); }
+  }
 </style>
 </head>
 <body>
@@ -132,6 +233,7 @@
 <div id="mesh"><span class="b1"></span><span class="b2"></span><span class="b3"></span></div>
 <div id="watermark">U</div>
 <div id="noise"></div>
+<div id="lang-wash"></div>
 
 <div class="wrap">
   <div class="topbar stagger" style="animation-delay:0s">
@@ -139,10 +241,13 @@
       <div class="brand-mark">U</div>
       <div class="brand-text">
         <div class="brand-name">Uzum Inventory</div>
-        <div class="brand-sub">Экосистема ПВЗ</div>
+        <div class="brand-sub" data-i18n="brand_sub">Экосистема ПВЗ</div>
       </div>
     </div>
     <div class="topbar-actions">
+      <button class="lang-switch" id="btn-lang" type="button">
+        <span class="lang-globe">🌐</span><span class="lang-cur" id="lang-cur">RU</span>
+      </button>
       <div class="icon-btn" id="btn-info">?</div>
     </div>
   </div>
@@ -150,25 +255,25 @@
   <!-- Карточка загрузки списка -->
   <div class="card stagger" style="animation-delay:0.1s">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 12px;">
-      <div style="font-size: 11px; font-weight: 900; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.15em; line-height: 1.4;">
+      <div class="section-label" style="margin-bottom:0;" data-i18n="wms_title">
         ЗАГРУЗКА ИЗ WMS
       </div>
       <button class="btn primary" id="btn-paste-wms" style="border-radius: 999px; padding: 10px 20px; font-size: 11px; line-height: 1.2; text-transform: uppercase; flex: 0 0 auto; width: auto;">
-        ВСТАВИТЬ СПИСОК
+        <span data-i18n="wms_btn">ВСТАВИТЬ СПИСОК</span>
       </button>
     </div>
-    <div class="hint-text">
+    <div class="hint-text" data-i18n="wms_hint">
       Вставьте список <b style="color:#fff">ID заказа</b> и <b style="color:#fff">ячейка</b> из WMS. Формат как в Excel.
     </div>
   </div>
 
   <!-- Карточка завершения -->
   <div class="card stagger" style="animation-delay:0.2s">
-    <div class="section-label">ЗАВЕРШЕНИЕ</div>
-    <div class="hint-text" style="margin-bottom: 16px;">
+    <div class="section-label" data-i18n="finish_title">ЗАВЕРШЕНИЕ</div>
+    <div class="hint-text" style="margin-bottom: 16px;" data-i18n="finish_hint">
       Когда все ячейки склада отсканированы и закрыты — завершите инвентаризацию.
     </div>
-    <button class="btn finish" id="btn-finish">Завершить инвентаризацию</button>
+    <button class="btn finish" id="btn-finish"><span data-i18n="finish_btn">Завершить инвентаризацию</span></button>
   </div>
 
   <div class="footer stagger" style="animation-delay:0.3s">
@@ -182,19 +287,32 @@
 <div id="paste-sheet">
   <div class="sheet-handle"></div>
   <div class="sheet-header">
-    <div class="sheet-title">Вставить из WMS</div>
+    <div class="sheet-title" data-i18n="sheet_title">Вставить из WMS</div>
     <div class="sheet-close" id="sheet-close">✕</div>
   </div>
-  <div class="sheet-hint" style="font-size: 12px; color: var(--text-dim); font-weight: 600; margin-bottom: 12px;">
+  <div class="sheet-hint" style="font-size: 12px; color: var(--text-dim); font-weight: 600; margin-bottom: 14px;" data-i18n="sheet_hint">
     Скопируйте из WMS два столбца — <b style="color:#fff">ID заказа</b> и <b style="color:#fff">Ячейка</b>.
   </div>
+
+  <div class="format-example">
+    <div class="format-col">
+      <span class="format-label" data-i18n="format_col1">ID ЗАКАЗА</span>
+      <span class="format-val">118575035</span>
+    </div>
+    <div class="format-col">
+      <span class="format-label" data-i18n="format_col2">ЯЧЕЙКА</span>
+      <span class="format-val">674</span>
+    </div>
+    <div class="format-arrow" data-i18n="format_note">👆 вставьте так же, двумя колонками — прямо как в Excel</div>
+  </div>
+
   <textarea id="paste-textarea" placeholder="118&#9;674&#10;250&#9;132&#10;117&#9;737"></textarea>
   <div class="sheet-meta">
-    <span>Строк найдено: <span id="parsed-count">0</span></span>
+    <span><span data-i18n="sheet_rows">Строк найдено:</span> <span id="parsed-count">0</span></span>
   </div>
   <div class="sheet-actions">
-    <button class="btn ghost" id="sheet-cancel">Отмена</button>
-    <button class="btn confirm" id="sheet-confirm" disabled>Загрузить</button>
+    <button class="btn ghost" id="sheet-cancel"><span data-i18n="sheet_cancel">Отмена</span></button>
+    <button class="btn confirm" id="sheet-confirm" disabled><span data-i18n="sheet_confirm">Загрузить</span></button>
   </div>
 </div>
 
@@ -207,15 +325,127 @@
   const $ = id => document.getElementById(id);
   const uid = webApp.initDataUnsafe?.user?.id || null;
 
+  // ===== ПЕРЕВОДЫ =====
+  const I18N = {
+    ru: {
+      brand_sub: "Экосистема ПВЗ",
+      wms_title: "ЗАГРУЗКА ИЗ WMS",
+      wms_btn: "ВСТАВИТЬ СПИСОК",
+      wms_hint: 'Вставьте список <b style="color:#fff">ID заказа</b> и <b style="color:#fff">ячейка</b> из WMS. Формат как в Excel.',
+      finish_title: "ЗАВЕРШЕНИЕ",
+      finish_hint: "Когда все ячейки склада отсканированы и закрыты — завершите инвентаризацию.",
+      finish_btn: "Завершить инвентаризацию",
+      sheet_title: "Вставить из WMS",
+      sheet_hint: 'Скопируйте из WMS два столбца — <b style="color:#fff">ID заказа</b> и <b style="color:#fff">Ячейка</b>.',
+      format_col1: "ID ЗАКАЗА",
+      format_col2: "ЯЧЕЙКА",
+      format_note: "👆 вставьте так же, двумя колонками — прямо как в Excel",
+      sheet_rows: "Строк найдено:",
+      sheet_cancel: "Отмена",
+      sheet_confirm: "Загрузить",
+      toast_info: "Загрузите список из WMS для проведения сверки.",
+      toast_loading: "Загружаю список…",
+      toast_finish: "✅ Инвентаризация завершена!",
+    },
+    uz: {
+      brand_sub: "PVZ ekotizimi",
+      wms_title: "WMS DAN YUKLASH",
+      wms_btn: "RO'YXATNI KIRITISH",
+      wms_hint: 'WMS dan <b style="color:#fff">Buyurtma ID</b> va <b style="color:#fff">katak</b> ro\'yxatini joylashtiring. Excel formatida.',
+      finish_title: "YAKUNLASH",
+      finish_hint: "Barcha kataklar skanerlanib yopilgach — inventarizatsiyani yakunlang.",
+      finish_btn: "Inventarizatsiyani yakunlash",
+      sheet_title: "WMS dan kiritish",
+      sheet_hint: 'WMS dan ikki ustunni nusxalang — <b style="color:#fff">Buyurtma ID</b> va <b style="color:#fff">Katak</b>.',
+      format_col1: "BUYURTMA ID",
+      format_col2: "KATAK",
+      format_note: "👆 xuddi shunday, ikki ustunda joylashtiring — Excel dagidek",
+      sheet_rows: "Qatorlar topildi:",
+      sheet_cancel: "Bekor qilish",
+      sheet_confirm: "Yuklash",
+      toast_info: "Solishtirish uchun WMS dan ro'yxat yuklang.",
+      toast_loading: "Ro'yxat yuklanmoqda…",
+      toast_finish: "✅ Inventarizatsiya yakunlandi!",
+    }
+  };
+
+  let currentLang = localStorage.getItem('invent_lang') || (webApp.initDataUnsafe?.user?.language_code === 'uz' ? 'uz' : 'ru');
+
+  function applyLang(lang) {
+    currentLang = lang;
+    document.documentElement.lang = lang;
+    $('lang-cur').textContent = lang.toUpperCase();
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.dataset.i18n;
+      const val = I18N[lang][key];
+      if (val === undefined) return;
+      el.innerHTML = val;
+    });
+    localStorage.setItem('invent_lang', lang);
+  }
+
+  function t(key) { return I18N[currentLang][key] || key; }
+
+  // ===== ЭПИЧНАЯ СМЕНА ЯЗЫКА: волна цвета накрывает экран, текст меняется под ней =====
+  function switchLang() {
+    const nextLang = currentLang === 'ru' ? 'uz' : 'ru';
+    const btn = $('btn-lang');
+    const rect = btn.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+    const dx = Math.max(cx, window.innerWidth - cx);
+    const dy = Math.max(cy, window.innerHeight - cy);
+    const diag = Math.sqrt(dx * dx + dy * dy);
+    const scaleNeeded = (diag / 20) + 4;
+
+    const wash = $('lang-wash');
+    wash.style.setProperty('--wx', cx + 'px');
+    wash.style.setProperty('--wy', cy + 'px');
+    wash.style.setProperty('--ws', scaleNeeded);
+    wash.classList.remove('active'); void wash.offsetWidth;
+    wash.classList.add('active');
+
+    $('noise').classList.add('flash');
+
+    setTimeout(() => {
+      applyLang(nextLang);
+      document.querySelectorAll('.card').forEach(card => {
+        card.classList.remove('replay'); void card.offsetWidth; card.classList.add('replay');
+      });
+    }, 480);
+
+    setTimeout(() => { wash.classList.remove('active'); $('noise').classList.remove('flash'); }, 1200);
+  }
+
+  $('btn-lang').addEventListener('click', switchLang);
+  applyLang(currentLang);
+
   function showToast(msg) {
     const el = $('toast');
     el.textContent = msg; el.classList.add('show');
     setTimeout(() => el.classList.remove('show'), 3000);
   }
 
+  // Ripple-эффект от тапа на кнопке "Вставить список"
+  $('btn-paste-wms').addEventListener('pointerdown', (e) => {
+    const btn = e.currentTarget;
+    const r = btn.getBoundingClientRect();
+    const size = Math.max(r.width, r.height) * 1.4;
+    const ripple = document.createElement('span');
+    ripple.className = 'ripple';
+    ripple.style.width = ripple.style.height = size + 'px';
+    ripple.style.left = (e.clientX - r.left - size / 2) + 'px';
+    ripple.style.top = (e.clientY - r.top - size / 2) + 'px';
+    btn.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 700);
+  });
+
   // Bottom-sheet
   const sheetOverlay = $('sheet-overlay'), sheet = $('paste-sheet'), textarea = $('paste-textarea');
-  function openSheet() { sheetOverlay.classList.add('show'); sheet.classList.add('show'); setTimeout(() => textarea.focus(), 300); }
+  function openSheet() {
+    sheetOverlay.classList.add('show');
+    sheet.classList.remove('show'); void sheet.offsetWidth; sheet.classList.add('show');
+    setTimeout(() => textarea.focus(), 400);
+  }
   function closeSheet() { sheetOverlay.classList.remove('show'); sheet.classList.remove('show'); }
 
   function countParseableLines(text) {
@@ -245,17 +475,17 @@
     const text = textarea.value.trim();
     if (!text) return;
     closeSheet();
-    showToast('Загружаю список…');
+    showToast(t('toast_loading'));
     webApp.sendData(JSON.stringify({ action: 'bulk_load', payload: { text } }));
   });
 
   $('btn-finish').addEventListener('click', () => {
     webApp.sendData(JSON.stringify({ action: 'finish_inventory' }));
-    showToast('✅ Инвентаризация завершена!');
+    showToast(t('toast_finish'));
   });
 
   $('btn-info').addEventListener('click', () => {
-    showToast('Загрузите список из WMS для проведения сверки.');
+    showToast(t('toast_info'));
   });
 </script>
 </body>
