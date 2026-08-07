@@ -57,7 +57,7 @@
     perspective: 1200px;
   }
 
-  /* КНОПКИ БЕЗ ДЕФОЛТНОГО СТИЛЯ */
+  /* ФИКС КНОПОК */
   button, [type="button"] {
     background: transparent;
     border: none;
@@ -67,14 +67,14 @@
     outline: none;
   }
 
-  /* ФОНОВЫЕ ЭФФЕКТЫ */
+  /* Фоновые эффекты */
   #noise { position: fixed; inset: -50%; z-index: 999; pointer-events: none; opacity: 0.12; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); animation: noiseShift 8s steps(10) infinite; transition: opacity 0.4s ease; will-change: transform; transform: translateZ(0); contain: paint; }
   #noise.flash { opacity: 0.38; }
   :root { --grain-url: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
   @keyframes noiseShift { 0% { transform: translate(0,0); } 10% { transform: translate(-5%,-5%); } 20% { transform: translate(-10%,5%); } 30% { transform: translate(5%,-10%); } 40% { transform: translate(-5%,15%); } 50% { transform: translate(-10%,5%); } 60% { transform: translate(15%,0); } 70% { transform: translate(0,15%); } 80% { transform: translate(3%,35%); } 90% { transform: translate(-10%,10%); } 100% { transform: translate(0,0); } }
 
-  #mesh { position: fixed; inset: 0; z-index: -1; pointer-events: none; filter: blur(70px) saturate(160%); overflow: hidden; will-change: filter, transform; transform: translateZ(0); contain: paint; transition: filter 0.8s var(--ease), transform 0.8s var(--ease); }
-  #mesh.ripple { filter: blur(90px) saturate(200%) brightness(1.3); transform: scale(1.03); }
+  #mesh { position: fixed; inset: 0; z-index: -1; pointer-events: none; filter: blur(70px) saturate(160%); overflow: hidden; will-change: filter, transform; transform: translateZ(0); contain: paint; transition: filter 0.6s var(--ease), transform 0.6s var(--ease); }
+  #mesh.ripple { filter: blur(80px) saturate(180%) brightness(1.2); transform: scale(1.02); }
   #mesh-track { position: absolute; inset: -10%; }
   #mesh span { position: absolute; border-radius: 50%; will-change: transform; mix-blend-mode: screen; }
   #mesh .b1 { width: 85vw; height: 85vw; left: -10%; top: -10%; background: radial-gradient(circle, rgba(130,40,255,0.45), transparent 70%); animation: orbFloat1 22s infinite alternate var(--ease); }
@@ -91,7 +91,7 @@
   .stagger { opacity: 1 !important; transform: none !important; animation: riseIn 0.8s var(--spring) forwards; }
   @keyframes riseIn { 0% { opacity: 0; transform: translateY(30px) scale(0.95); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
 
-  /* ХЕДЕР И ЛОГОТИП */
+  /* Хедер и контейнер */
   .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; padding: 0 8px; }
   .brand { display: flex; align-items: center; gap: 12px; }
   .brand-logo-container { width: 44px; height: 44px; position: relative; flex-shrink: 0; display: block; }
@@ -109,7 +109,7 @@
   }
   .brand-mark:active:not(.saga-playing) { transform: scale(0.92) translateZ(0); }
 
-  /* СЮЖЕТНЫЙ РЕЖИМ */
+  /* Сюжетный режим — логотип в теле */
   .brand-mark.saga-playing {
     position: fixed !important;
     z-index: 999999 !important;
@@ -121,49 +121,50 @@
     pointer-events: none !important;
     will-change: transform, left, top, width, height, box-shadow, background;
     transition:
-      left 2.8s var(--saga-epic), top 2.8s var(--saga-epic),
-      width 2.8s var(--saga-epic), height 2.8s var(--saga-epic),
+      left 1.8s var(--saga-epic), top 1.8s var(--saga-epic),
+      width 1.8s var(--saga-epic), height 1.8s var(--saga-epic),
       box-shadow 1.2s var(--ease), background 1.2s var(--ease),
       border-radius 1.2s var(--ease);
   }
   .brand-mark .mark-letter { position: relative; z-index: 2; transition: opacity 0.4s ease; }
 
+  /* Сцены */
   .brand-mark.saga-liftoff {
     left: var(--saga-target-x, 50vw); top: var(--saga-target-y, 50vh);
-    width: 240px; height: 240px; border-radius: 40px;
+    width: 200px; height: 200px; border-radius: 40px;
     box-shadow: 0 50px 120px rgba(112,0,255,0.8), 0 0 60px rgba(157,77,255,0.5), inset 0 4px 10px rgba(255,255,255,0.5), inset 0 -10px 24px rgba(0,0,0,0.35);
   }
-  .brand-mark.saga-liftoff .mark-letter { font-size: 110px; }
+  .brand-mark.saga-liftoff .mark-letter { font-size: 90px; }
 
   .brand-mark.saga-rage {
     left: var(--saga-target-x, 50vw); top: var(--saga-target-y, 50vh);
-    width: 260px; height: 250px; border-radius: 36px;
+    width: 230px; height: 220px; border-radius: 36px;
     background: linear-gradient(135deg, #FF5C5C, #C41818);
     box-shadow: 0 50px 150px rgba(255,40,40,0.85), 0 0 80px rgba(255,100,100,0.4), inset 0 4px 10px rgba(255,255,255,0.4), inset 0 -12px 26px rgba(0,0,0,0.5);
     animation: rageShake 0.5s ease-in-out infinite;
   }
-  .brand-mark.saga-rage .mark-letter { font-size: 110px; text-shadow: 0 0 30px rgba(255,255,255,0.8); }
-  @keyframes rageShake { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 25% { transform: translate(-4px, 2px) rotate(-2deg); } 50% { transform: translate(4px, -3px) rotate(2deg); } 75% { transform: translate(-3px, -2px) rotate(-1deg); } }
+  .brand-mark.saga-rage .mark-letter { font-size: 96px; text-shadow: 0 0 25px rgba(255,255,255,0.7); }
+  @keyframes rageShake { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 25% { transform: translate(-3px, 2px) rotate(-1.5deg); } 50% { transform: translate(2px, -2px) rotate(1.5deg); } 75% { transform: translate(-2px, -1px) rotate(-1deg); } }
 
   .brand-mark.saga-smash {
     left: var(--saga-target-x, 50vw); top: var(--saga-target-y, 50vh);
-    width: 260px; height: 250px; border-radius: 36px;
+    width: 230px; height: 220px; border-radius: 36px;
     background: linear-gradient(135deg, #FF5C5C, #C41818);
     box-shadow: 0 60px 140px rgba(255,40,40,0.9), 0 0 100px rgba(255,50,50,0.5), inset 0 4px 10px rgba(255,255,255,0.35), inset 0 -12px 26px rgba(0,0,0,0.5);
-    animation: smashJolt 0.8s cubic-bezier(0.2,0.9,0.3,1) 2;
+    animation: smashJolt 0.6s cubic-bezier(0.2,0.9,0.3,1) 2;
   }
-  @keyframes smashJolt { 0% { transform: translateY(0) scale(1); } 25% { transform: translateY(20px) scale(1.05, 0.92); } 55% { transform: translateY(-6px) scale(0.96, 1.04); } 100% { transform: translateY(0) scale(1); } }
+  @keyframes smashJolt { 0% { transform: translateY(0) scale(1); } 25% { transform: translateY(18px) scale(1.04, 0.92); } 55% { transform: translateY(-5px) scale(0.97, 1.04); } 100% { transform: translateY(0) scale(1); } }
 
   .brand-mark.saga-oops {
     left: var(--saga-target-x, 50vw); top: var(--saga-target-y, 50vh);
-    width: 220px; height: 210px; border-radius: 38px;
+    width: 200px; height: 190px; border-radius: 38px;
     background: linear-gradient(135deg, #A855F7, var(--purple));
     box-shadow: 0 40px 90px var(--purple-glow), inset 0 4px 10px rgba(255,255,255,0.5), inset 0 -10px 22px rgba(0,0,0,0.35);
-    animation: oopsShake 0.7s ease-in-out infinite;
-    transition: background 1.2s var(--ease), box-shadow 1.2s var(--ease), left 2.8s var(--saga-epic), top 2.8s var(--saga-epic), width 2.8s var(--saga-epic), height 2.8s var(--saga-epic);
+    animation: oopsShake 0.6s ease-in-out infinite;
+    transition: background 1.2s var(--ease), box-shadow 1.2s var(--ease), left 1.8s var(--saga-epic), top 1.8s var(--saga-epic), width 1.8s var(--saga-epic), height 1.8s var(--saga-epic);
   }
-  @keyframes oopsShake { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(-2px, 2px) rotate(-1deg); } }
-  .brand-mark.saga-oops .mark-letter { font-size: 90px; }
+  @keyframes oopsShake { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(-1.5px, 1.5px) rotate(-0.8deg); } }
+  .brand-mark.saga-oops .mark-letter { font-size: 84px; }
 
   .brand-mark.saga-return {
     left: var(--saga-home-x, 0px); top: var(--saga-home-y, 0px);
@@ -173,7 +174,7 @@
   }
   .brand-mark.saga-return .mark-letter { font-size: 20px; }
 
-  /* МИМИКА ЛОГОТИПА (СЛОУ-МО И УСИЛЕНИЕ) */
+  /* Лицо и детали (Улучшенная мимика) */
   .mark-face { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; transition: opacity 0.4s ease; }
   .brand-mark.saga-rage .mark-face, .brand-mark.saga-smash .mark-face, .brand-mark.saga-oops .mark-face { opacity: 1; }
   .brand-mark.saga-liftoff .mark-face { opacity: 0; }
@@ -182,9 +183,10 @@
   .mark-eye.l { left: 30%; } .mark-eye.r { right: 30%; }
   .mark-eye .pupil { position: absolute; inset: 22%; border-radius: 50%; background: #2a0845; transition: transform 0.4s ease; }
   
-  .brand-mark.saga-rage .mark-eye, .brand-mark.saga-smash .mark-eye { background: #FF3B30; box-shadow: 0 0 25px #FF3B30; }
+  /* Микромимика: Красные глаза и тряска зрачков */
+  .brand-mark.saga-rage .mark-eye, .brand-mark.saga-smash .mark-eye { background: #FF3B30; box-shadow: 0 0 15px #FF3B30; }
   .brand-mark.saga-rage .mark-eye .pupil, .brand-mark.saga-smash .mark-eye .pupil { background: #4A0000; animation: pupilShake 0.15s ease-in-out infinite; }
-  @keyframes pupilShake { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(-3px, 2px); } 50% { transform: translate(3px, -2px); } 75% { transform: translate(-2px, 3px); } }
+  @keyframes pupilShake { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(-2px, 1px); } 50% { transform: translate(2px, -1px); } 75% { transform: translate(-1px, 2px); } }
 
   .mark-brow { position: absolute; top: 34%; width: 15%; height: 4px; border-radius: 4px; background: rgba(30,0,20,0.85); opacity: 0; transition: all 0.4s var(--ease); }
   .mark-brow.l { left: 29%; transform: rotate(18deg); }
@@ -197,10 +199,10 @@
   .mark-sweat { position: absolute; top: 20%; right: 14%; width: 8%; height: 12%; background: #8ED4FF; border-radius: 50% 50% 50% 0; transform: rotate(45deg) scale(0); opacity: 0; box-shadow: 0 0 8px rgba(142,212,255,0.9); transition: transform 0.4s var(--spring), opacity 0.4s ease; }
 
   .brand-mark.saga-rage .mark-brow, .brand-mark.saga-smash .mark-brow { opacity: 1; top: 38%; }
-  .brand-mark.saga-rage .mark-brow.l, .brand-mark.saga-smash .mark-brow.l { transform: rotate(30deg); left: 32%; }
-  .brand-mark.saga-rage .mark-brow.r, .brand-mark.saga-smash .mark-brow.r { transform: rotate(-30deg); right: 32%; }
+  .brand-mark.saga-rage .mark-brow.l, .brand-mark.saga-smash .mark-brow.l { transform: rotate(28deg); left: 32%; }
+  .brand-mark.saga-rage .mark-brow.r, .brand-mark.saga-smash .mark-brow.r { transform: rotate(-28deg); right: 32%; }
   .brand-mark.saga-rage .mark-eye, .brand-mark.saga-smash .mark-eye { height: 6%; border-radius: 3px; }
-  .brand-mark.saga-rage .mark-mouth, .brand-mark.saga-smash .mark-mouth { height: 15%; border-radius: 3px; background: #2a0845; clip-path: polygon(0 0,12% 60%,24% 0,36% 60%,48% 0,60% 60%,72% 0,84% 60%,100% 0,100% 100%,0 100%); }
+  .brand-mark.saga-rage .mark-mouth, .brand-mark.saga-smash .mark-mouth { height: 14%; border-radius: 3px; background: #2a0845; clip-path: polygon(0 0,12% 60%,24% 0,36% 60%,48% 0,60% 60%,72% 0,84% 60%,100% 0,100% 100%,0 100%); }
 
   .mark-vein { position: absolute; top: 8%; width: 4px; height: 30%; border-radius: 3px; background: linear-gradient(180deg, transparent, #6A0000, transparent); opacity: 0; transform: scaleY(0.4); transition: all 0.5s var(--ease); }
   .mark-vein.l { left: 12%; transform: rotate(-6deg) scaleY(0.4); }
@@ -219,49 +221,39 @@
   .brand-mark.saga-oops .mark-sweat { opacity: 1; transform: rotate(45deg) scale(1); animation: sweatDrop 1.2s ease-in infinite; }
   @keyframes sweatDrop { 0% { transform: rotate(45deg) scale(1) translateY(0); opacity: 1; } 100% { transform: rotate(45deg) scale(0.8) translateY(12px); opacity: 0; } }
 
-  /* РУКИ И УДАРЫ (МЕДЛЕННЫЕ И ТЯЖЕЛЫЕ) */
-  .mark-arm { position: absolute; top: 50%; width: 15%; height: 40px; margin-top: -20px; background: linear-gradient(180deg, #FF7A7A, #B21212); border-radius: 10px; opacity: 0; pointer-events: none; box-shadow: 0 5px 16px rgba(180,20,20,0.6), inset 0 2px 4px rgba(255,255,255,0.4); transition: opacity 0.35s ease, transform 0.5s var(--spring); }
+  /* Руки (Кулаки) */
+  .mark-arm { position: absolute; top: 50%; width: 15%; height: 36px; margin-top: -18px; background: linear-gradient(180deg, #FF7A7A, #B21212); border-radius: 10px; opacity: 0; pointer-events: none; box-shadow: 0 5px 16px rgba(180,20,20,0.6), inset 0 2px 4px rgba(255,255,255,0.4); transition: opacity 0.35s ease, transform 0.5s var(--spring); }
   .mark-arm.l { left: -10%; transform: translateX(-40px) rotate(-10deg) scale(0.6); transform-origin: right center; }
   .mark-arm.r { right: -10%; transform: translateX(40px) rotate(10deg) scale(0.6); transform-origin: left center; }
-  .mark-arm .fist { position: absolute; width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #FF7A7A, #B21212); box-shadow: inset 0 3px 6px rgba(255,255,255,0.5), inset 0 -4px 8px rgba(0,0,0,0.4), 0 5px 12px rgba(180,20,20,0.6); }
-  .mark-arm.l .fist { left: -20px; top: 50%; margin-top: -15px; }
-  .mark-arm.r .fist { right: -20px; top: 50%; margin-top: -15px; }
+  .mark-arm .fist { position: absolute; width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #FF7A7A, #B21212); box-shadow: inset 0 3px 6px rgba(255,255,255,0.5), inset 0 -4px 8px rgba(0,0,0,0.4), 0 5px 12px rgba(180,20,20,0.6); }
+  .mark-arm.l .fist { left: -19px; top: 50%; margin-top: -14px; }
+  .mark-arm.r .fist { right: -19px; top: 50%; margin-top: -14px; }
 
   .brand-mark.saga-rage .mark-arm, .brand-mark.saga-smash .mark-arm { opacity: 1; }
   .brand-mark.saga-rage .mark-arm.l, .brand-mark.saga-smash .mark-arm.l { transform: translateX(-6px) rotate(-16deg) scale(1); }
   .brand-mark.saga-rage .mark-arm.r, .brand-mark.saga-smash .mark-arm.r { transform: translateX(6px) rotate(16deg) scale(1); }
-  .brand-mark.saga-smash .mark-arm.l { animation: punchLeft 0.8s cubic-bezier(0.2,0.9,0.3,1) 2; }
-  .brand-mark.saga-smash .mark-arm.r { animation: punchRight 0.8s cubic-bezier(0.2,0.9,0.3,1) 2; }
-  @keyframes punchLeft { 0% { transform: translateX(-6px) rotate(-16deg) scale(1); } 40% { transform: translateX(14px) translateY(60px) rotate(6deg) scale(1.08); } 100% { transform: translateX(-6px) rotate(-16deg) scale(1); } }
-  @keyframes punchRight { 0% { transform: translateX(6px) rotate(16deg) scale(1); } 40% { transform: translateX(-14px) translateY(60px) rotate(-6deg) scale(1.08); } 100% { transform: translateX(6px) rotate(16deg) scale(1); } }
+  .brand-mark.saga-smash .mark-arm.l { animation: punchLeft 0.6s cubic-bezier(0.2,0.9,0.3,1) 2; }
+  .brand-mark.saga-smash .mark-arm.r { animation: punchRight 0.6s cubic-bezier(0.2,0.9,0.3,1) 2; }
+  @keyframes punchLeft { 0% { transform: translateX(-6px) rotate(-16deg) scale(1); } 40% { transform: translateX(12px) translateY(50px) rotate(6deg) scale(1.08); } 100% { transform: translateX(-6px) rotate(-16deg) scale(1); } }
+  @keyframes punchRight { 0% { transform: translateX(6px) rotate(16deg) scale(1); } 40% { transform: translateX(-12px) translateY(50px) rotate(-6deg) scale(1.08); } 100% { transform: translateX(6px) rotate(16deg) scale(1); } }
 
   .brand-mark.saga-oops .mark-arm { opacity: 0; transform: translateX(0) scale(0.6); transition: opacity 0.4s ease, transform 0.5s var(--ease); }
 
-  /* ВСПЫШКА УДАРА */
+  /* Вспышка удара */
   .brand-mark .impact-flash { position: absolute; left: 50%; bottom: -16px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: radial-gradient(circle, #fff, rgba(255,230,140,0.95) 40%, transparent 75%); opacity: 0; pointer-events: none; }
-  .brand-mark.saga-smash .impact-flash { animation: impactPulse 0.8s ease-out 2; }
-  @keyframes impactPulse { 0% { opacity: 0; transform: scale(0.3); } 30% { opacity: 1; transform: scale(8); } 100% { opacity: 0; transform: scale(12); } }
+  .brand-mark.saga-smash .impact-flash { animation: impactPulse 0.6s ease-out 2; }
+  @keyframes impactPulse { 0% { opacity: 0; transform: scale(0.3); } 30% { opacity: 1; transform: scale(7); } 100% { opacity: 0; transform: scale(10); } }
 
-  /* ============================================================
-     ГЛОБАЛЬНЫЙ РАЗЛЁТ БУКВ И ТЕКСТА (НОВОЕ)
-     ============================================================ */
-  .ui-scatter { animation: scatterOut 2.5s var(--epic) forwards; }
-  .ui-scatter.return { animation: scatterIn 2.5s var(--epic) forwards; }
-  @keyframes scatterOut {
-    0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
-    100% { transform: translate(var(--dx, -100px), var(--dy, -100px)) rotate(var(--rot, 15deg)) scale(0.7); opacity: 0.4; }
-  }
-  @keyframes scatterIn {
-    0% { transform: translate(var(--dx, -100px), var(--dy, -100px)) rotate(var(--rot, 15deg)) scale(0.7); opacity: 0.4; }
-    100% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
-  }
+  /* Текст (Детальный разлёт букв и дрожь) */
+  .brand-text { display: flex; flex-direction: column; gap: 2px; transition: transform 0.6s var(--spring), opacity 0.5s ease; }
+  .brand-name { font-weight: 900; font-size: 18px; letter-spacing: -0.03em; text-shadow: 0 2px 10px rgba(255,255,255,0.2); transition: color 0.5s ease, transform 0.4s ease; }
+  .brand-sub { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.15em; font-weight: 800; background: linear-gradient(90deg, var(--text-muted), #fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; transition: color 0.5s ease, transform 0.4s ease; }
+  .brand-text.saga-rage { animation: textDaze 0.3s ease-in-out infinite; }
+  .brand-text.saga-oops { animation: textDaze 0.6s ease-in-out infinite; }
+  .brand-text.saga-return { animation: none; transform: translateX(0) scale(1); }
+  @keyframes textDaze { 0% { transform: translateX(0) rotate(0deg); } 25% { transform: translateX(3px) rotate(0.8deg); } 50% { transform: translateX(-3px) rotate(-0.8deg); } 75% { transform: translateX(2px) rotate(0.5deg); } 100% { transform: translateX(0) rotate(0deg); } }
 
-  .ui-shake { animation: uiShake 0.8s cubic-bezier(0.2, 0.9, 0.3, 1) forwards !important; }
-  @keyframes uiShake { 0% { transform: translate(0, 0) rotate(0deg); } 25% { transform: translate(var(--sx, -8px), var(--sy, -4px)) rotate(var(--sr, -3deg)); } 50% { transform: translate(var(--sx, 6px), var(--sy, -6px)) rotate(var(--sr, 4deg)); } 75% { transform: translate(var(--sx, -4px), var(--sy, 3px)) rotate(var(--sr, -2deg)); } 100% { transform: translate(0, 0) rotate(0deg); } }
-
-  /* ============================================================
-     КИНЕМАТОГРАФИЧНЫЙ БЛИК И КАРТОЧКИ
-     ============================================================ */
+  /* Кинематографичный блик и Карточки */
   .cinematic-glare { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; padding: 1.5px; background: linear-gradient(110deg, transparent 20%, rgba(255,255,255,0.85) 40%, rgba(255,255,255,0.95) 50%, rgba(255,255,255,0.85) 60%, transparent 80%); background-size: 250% 100%; -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: cinematicSweep 8s cubic-bezier(0.3, 0, 0.7, 1) infinite; z-index: 10; opacity: 0.75; }
   @keyframes cinematicSweep { 0% { background-position: 250% 0; } 100% { background-position: -150% 0; } }
   .card { position: relative; background: var(--glass-bg); backdrop-filter: blur(40px) saturate(200%); -webkit-backdrop-filter: blur(40px) saturate(200%); border: 1px solid var(--glass-border-dark); border-top: 1px solid var(--glass-border-light); border-left: 1px solid rgba(255,255,255,0.18); border-radius: var(--r-xl); padding: 20px; box-shadow: 0 24px 48px -12px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.35); overflow: hidden; transform: translateZ(0); animation: floatCard 8s infinite ease-in-out; will-change: transform; }
@@ -278,48 +270,23 @@
   @keyframes cardSheen { 0%, 55% { transform: translateX(-20%) rotate(8deg); } 100% { transform: translateX(480%) rotate(8deg); } }
   .card.replay { animation: riseIn 0.7s var(--epic) forwards, floatCard 8s infinite ease-in-out 0.7s; }
 
-  /* ============================================================
-     РАЗЛОМ КНОПКИ (16 ОСКОЛКОВ)
-     ============================================================ */
-  .finish-slot { position: relative; overflow: hidden; border-radius: var(--r-lg); height: 56px; }
-  .finish-slot .btn.finish { position: relative; z-index: 1; height: 100%; display: flex; align-items: center; justify-content: center; }
-  .btn.finish.smashed { animation: none; transform: translateY(140%) rotate(4deg) scale(0.92); opacity: 0; transition: transform 0.3s cubic-bezier(0.5,0,0.85,0.35), opacity 0.3s ease 0.1s; box-shadow: none; }
-  
-  .finish-slot .shard { position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; border-radius: 2px; opacity: 0; pointer-events: none; transform: translate(-50%, -50%) scale(0.8) rotate(0deg); transition: transform 1.4s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.4s ease; box-shadow: 0 0 10px var(--green-glow); z-index: 0; }
-  .finish-slot.smashed .shard { opacity: 1; }
-  
-  /* Пути разлёта 16 осколков */
-  .finish-slot .shard-1 { background: #2EAB65; width: 12px; height: 20px; }.finish-slot.smashed .shard-1 { transform: translate(-150px, -100px) scale(1.4) rotate(360deg); }
-  .finish-slot .shard-2 { background: #4ADE80; width: 18px; height: 10px; }.finish-slot.smashed .shard-2 { transform: translate(180px, 70px) scale(0.9) rotate(420deg); }
-  .finish-slot .shard-3 { background: #38E888; width: 8px; height: 22px; }.finish-slot.smashed .shard-3 { transform: translate(-120px, 160px) scale(1.2) rotate(500deg); }
-  .finish-slot .shard-4 { background: #1F874C; width: 20px; height: 14px; }.finish-slot.smashed .shard-4 { transform: translate(200px, -120px) scale(0.8) rotate(240deg); }
-  .finish-slot .shard-5 { background: #5DF5A6; width: 14px; height: 18px; }.finish-slot.smashed .shard-5 { transform: translate(-30px, -130px) scale(1.5) rotate(310deg); }
-  .finish-slot .shard-6 { background: #0F9D58; width: 8px; height: 16px; }.finish-slot.smashed .shard-6 { transform: translate(50px, 140px) scale(1.1) rotate(600deg); }
-  .finish-slot .shard-7 { background: #6EE7B7; width: 16px; height: 10px; }.finish-slot.smashed .shard-7 { transform: translate(-220px, 50px) scale(0.9) rotate(180deg); }
-  .finish-slot .shard-8 { background: #34D399; width: 12px; height: 12px; }.finish-slot.smashed .shard-8 { transform: translate(110px, -140px) scale(1.3) rotate(450deg); }
-  .finish-slot .shard-9 { background: #10B981; width: 22px; height: 8px; }.finish-slot.smashed .shard-9 { transform: translate(-80px, 170px) scale(0.7) rotate(340deg); }
-  .finish-slot .shard-10 { background: #059669; width: 10px; height: 24px; }.finish-slot.smashed .shard-10 { transform: translate(140px, 110px) scale(1.6) rotate(200deg); }
-  .finish-slot .shard-11 { background: #8B5CF6; width: 16px; height: 10px; }.finish-slot.smashed .shard-11 { transform: translate(-160px, -70px) scale(0.8) rotate(150deg); }
-  .finish-slot .shard-12 { background: #7C3AED; width: 12px; height: 18px; }.finish-slot.smashed .shard-12 { transform: translate(80px, -170px) scale(1.2) rotate(280deg); }
-  .finish-slot .shard-13 { background: #6D28D9; width: 18px; height: 12px; }.finish-slot.smashed .shard-13 { transform: translate(-100px, 90px) scale(1.1) rotate(520deg); }
-  .finish-slot .shard-14 { background: #4C1D95; width: 10px; height: 16px; }.finish-slot.smashed .shard-14 { transform: translate(210px, -30px) scale(0.9) rotate(400deg); }
-  .finish-slot .shard-15 { background: #FFFFFF; width: 6px; height: 6px; }.finish-slot.smashed .shard-15 { transform: translate(-50px, -180px) scale(2) rotate(700deg); }
-  .finish-slot .shard-16 { background: #9D4DFF; width: 14px; height: 14px; }.finish-slot.smashed .shard-16 { transform: translate(160px, 30px) scale(1.5) rotate(90deg); }
-
-  /* ДЫРА */
-  .finish-hole { position: absolute; inset: 0; border-radius: var(--r-lg); display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; z-index: 0; background: radial-gradient(120% 140% at 50% 0%, rgba(0,0,0,0.9), rgba(10,2,20,0.95) 55%, rgba(3,0,8,0.98)), linear-gradient(180deg, rgba(112,0,255,0.15), transparent 40%); box-shadow: inset 0 18px 30px rgba(0,0,0,0.9), inset 0 2px 6px rgba(0,0,0,0.8), inset 0 0 0 1px rgba(157,77,255,0.15); transition: opacity 0.4s ease; }
-  .finish-hole.hole-active { opacity: 1; }
-  .hole-rim { position: absolute; inset: 0; border-radius: var(--r-lg); box-shadow: inset 0 0 0 1.5px rgba(157,77,255,0.35), inset 0 10px 22px rgba(0,0,0,0.85); background: radial-gradient(ellipse at 50% -10%, rgba(157,77,255,0.18), transparent 60%); }
-  .hole-debris { position: absolute; left: 50%; top: 30%; width: 60%; height: 40%; margin-left: -30%; background-image: radial-gradient(circle, rgba(157,77,255,0.5) 0 2px, transparent 3px), radial-gradient(circle, rgba(255,255,255,0.3) 0 1.5px, transparent 2.5px); background-size: 22px 18px, 14px 12px; background-position: 0 0, 8px 6px; opacity: 0.5; filter: blur(0.2px); }
-  .hole-dust { position: absolute; left: 50%; top: 10%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: radial-gradient(circle, rgba(220,200,255,0.55), transparent 70%); opacity: 0; filter: blur(2px); }
-  .finish-hole.hole-active .hole-dust { animation: dustPuff 1.6s ease-out; }
-  @keyframes dustPuff { 0% { opacity: 0; transform: scale(0.4) translateY(0); } 25% { opacity: 0.9; transform: scale(1.8) translateY(5px); } 100% { opacity: 0; transform: scale(3.2) translateY(22px); } }
-
-  /* ============================================================
-     ИНТЕРФЕЙСНЫЕ КНОПКИ (RU и ?)
-     ============================================================ */
+  /* Исправленные стили кнопок интерфейса (RU и ?) */
   .topbar-actions { display: flex; align-items: center; gap: 8px; }
-  .icon-btn, .lang-switch { height: 44px; border-radius: 14px; background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%); border: 1px solid var(--glass-border-dark); border-top: 1px solid var(--glass-border-light); color: var(--text-main); display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transition: all 0.3s var(--spring); cursor: pointer; position: relative; transform: translateZ(0); }
+  .icon-btn, .lang-switch {
+    height: 44px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.08); /* Стеклянная прозрачность */
+    backdrop-filter: blur(20px) saturate(150%); 
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    border: 1px solid var(--glass-border-dark);
+    border-top: 1px solid var(--glass-border-light);
+    color: var(--text-main);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    transition: all 0.3s var(--spring);
+    cursor: pointer;
+    position: relative; transform: translateZ(0);
+  }
   .icon-btn { width: 44px; font-size: 16px; font-weight: 900; }
   .lang-switch { padding: 0 14px; border-radius: 999px; gap: 6px; animation: langBreathe 4.5s ease-in-out infinite; }
   @keyframes langBreathe { 0%, 100% { box-shadow: 0 10px 30px rgba(0,0,0,0.5); } 50% { box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 0 1px rgba(157,77,255,0.35), 0 0 14px rgba(157,77,255,0.25); } }
@@ -329,9 +296,42 @@
   .lang-switch .lang-cur { font-weight: 900; font-size: 13px; letter-spacing: 0.05em; color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
   .lang-switch .lang-globe { font-size: 14px; display: inline-block; opacity: 0.9; }
 
-  /* ============================================================
-     БАЗОВЫЕ КНОПКИ И ТЕКСТ
-     ============================================================ */
+  /* Детальный разлом кнопки (16 осколков) */
+  .finish-slot { position: relative; overflow: hidden; border-radius: var(--r-lg); height: 56px; }
+  .finish-slot .btn.finish { position: relative; z-index: 1; height: 100%; display: flex; align-items: center; justify-content: center; }
+  .btn.finish.smashed { animation: none; transform: translateY(140%) rotate(4deg) scale(0.92); opacity: 0; transition: transform 0.3s cubic-bezier(0.5,0,0.85,0.35), opacity 0.3s ease 0.1s; box-shadow: none; }
+  
+  /* 16 осколков с разными размерами и траекториями для максимальной детализации */
+  .finish-slot .shard { position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; border-radius: 2px; opacity: 0; pointer-events: none; transform: translate(-50%, -50%) scale(0.8) rotate(0deg); transition: transform 1.2s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.4s ease; box-shadow: 0 0 10px var(--green-glow); z-index: 0; }
+  .finish-slot.smashed .shard { opacity: 1; }
+  
+  /* Пути разлёта осколков */
+  .finish-slot .shard-1 { background: #2EAB65; width: 12px; height: 20px; }.finish-slot.smashed .shard-1 { transform: translate(-130px, -80px) scale(1.4) rotate(360deg); }
+  .finish-slot .shard-2 { background: #4ADE80; width: 18px; height: 10px; }.finish-slot.smashed .shard-2 { transform: translate(150px, 60px) scale(0.9) rotate(420deg); }
+  .finish-slot .shard-3 { background: #38E888; width: 8px; height: 22px; }.finish-slot.smashed .shard-3 { transform: translate(-100px, 140px) scale(1.2) rotate(500deg); }
+  .finish-slot .shard-4 { background: #1F874C; width: 20px; height: 14px; }.finish-slot.smashed .shard-4 { transform: translate(180px, -100px) scale(0.8) rotate(240deg); }
+  .finish-slot .shard-5 { background: #5DF5A6; width: 14px; height: 18px; }.finish-slot.smashed .shard-5 { transform: translate(-20px, -110px) scale(1.5) rotate(310deg); }
+  .finish-slot .shard-6 { background: #0F9D58; width: 8px; height: 16px; }.finish-slot.smashed .shard-6 { transform: translate(40px, 120px) scale(1.1) rotate(600deg); }
+  .finish-slot .shard-7 { background: #6EE7B7; width: 16px; height: 10px; }.finish-slot.smashed .shard-7 { transform: translate(-200px, 40px) scale(0.9) rotate(180deg); }
+  .finish-slot .shard-8 { background: #34D399; width: 12px; height: 12px; }.finish-slot.smashed .shard-8 { transform: translate(90px, -120px) scale(1.3) rotate(450deg); }
+  .finish-slot .shard-9 { background: #10B981; width: 22px; height: 8px; }.finish-slot.smashed .shard-9 { transform: translate(-60px, 150px) scale(0.7) rotate(340deg); }
+  .finish-slot .shard-10 { background: #059669; width: 10px; height: 24px; }.finish-slot.smashed .shard-10 { transform: translate(120px, 90px) scale(1.6) rotate(200deg); }
+  .finish-slot .shard-11 { background: #8B5CF6; width: 16px; height: 10px; }.finish-slot.smashed .shard-11 { transform: translate(-140px, -60px) scale(0.8) rotate(150deg); }
+  .finish-slot .shard-12 { background: #7C3AED; width: 12px; height: 18px; }.finish-slot.smashed .shard-12 { transform: translate(70px, -150px) scale(1.2) rotate(280deg); }
+  .finish-slot .shard-13 { background: #6D28D9; width: 18px; height: 12px; }.finish-slot.smashed .shard-13 { transform: translate(-90px, 80px) scale(1.1) rotate(520deg); }
+  .finish-slot .shard-14 { background: #4C1D95; width: 10px; height: 16px; }.finish-slot.smashed .shard-14 { transform: translate(180px, -20px) scale(0.9) rotate(400deg); }
+  .finish-slot .shard-15 { background: #FFFFFF; width: 6px; height: 6px; }.finish-slot.smashed .shard-15 { transform: translate(-40px, -160px) scale(2) rotate(700deg); }
+  .finish-slot .shard-16 { background: #9D4DFF; width: 14px; height: 14px; }.finish-slot.smashed .shard-16 { transform: translate(140px, 20px) scale(1.5) rotate(90deg); }
+
+  .finish-hole { position: absolute; inset: 0; border-radius: var(--r-lg); display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; z-index: 0; background: radial-gradient(120% 140% at 50% 0%, rgba(0,0,0,0.9), rgba(10,2,20,0.95) 55%, rgba(3,0,8,0.98)), linear-gradient(180deg, rgba(112,0,255,0.15), transparent 40%); box-shadow: inset 0 18px 30px rgba(0,0,0,0.9), inset 0 2px 6px rgba(0,0,0,0.8), inset 0 0 0 1px rgba(157,77,255,0.15); transition: opacity 0.4s ease; }
+  .finish-hole.hole-active { opacity: 1; }
+  .hole-rim { position: absolute; inset: 0; border-radius: var(--r-lg); box-shadow: inset 0 0 0 1.5px rgba(157,77,255,0.35), inset 0 10px 22px rgba(0,0,0,0.85); background: radial-gradient(ellipse at 50% -10%, rgba(157,77,255,0.18), transparent 60%); }
+  .hole-debris { position: absolute; left: 50%; top: 30%; width: 60%; height: 40%; margin-left: -30%; background-image: radial-gradient(circle, rgba(157,77,255,0.5) 0 2px, transparent 3px), radial-gradient(circle, rgba(255,255,255,0.3) 0 1.5px, transparent 2.5px); background-size: 22px 18px, 14px 12px; background-position: 0 0, 8px 6px; opacity: 0.5; filter: blur(0.2px); }
+  .hole-dust { position: absolute; left: 50%; top: 10%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: radial-gradient(circle, rgba(220,200,255,0.55), transparent 70%); opacity: 0; filter: blur(2px); }
+  .finish-hole.hole-active .hole-dust { animation: dustPuff 1.6s ease-out; }
+  @keyframes dustPuff { 0% { opacity: 0; transform: scale(0.4) translateY(0); } 25% { opacity: 0.9; transform: scale(1.8) translateY(5px); } 100% { opacity: 0; transform: scale(3.2) translateY(22px); } }
+
+  /* Основные кнопки */
   .btn { border: none; border-radius: var(--r-lg); padding: 16px; font-weight: 900; font-size: 14px; letter-spacing: 0.02em; color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.2s var(--spring); width: 100%; position: relative; overflow: hidden; text-shadow: 0 2px 5px rgba(0,0,0,0.3); }
   .btn:active { transform: scale(0.96) translateY(2px); }
   .btn.primary { background: linear-gradient(135deg, var(--purple-light), var(--purple)); box-shadow: 0 12px 24px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5), inset 0 -4px 12px rgba(0,0,0,0.3); }
@@ -367,19 +367,18 @@
   .sheet-input { width: 100%; height: 180px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 16px; color: #fff; font-family: "SF Pro Display", "Inter", monospace; font-size: 14px; resize: none; margin-bottom: 16px; outline: none; box-shadow: inset 0 4px 10px rgba(0,0,0,0.5); }
   .sheet-input:focus { border-color: rgba(157,77,255,0.5); box-shadow: inset 0 4px 10px rgba(0,0,0,0.5), 0 0 15px rgba(157,77,255,0.3); }
 
-  /* ============================================================
-     МАСШТАБНЫЙ ВЗРЫВ (СОЧНЫЕ ВОЛНЫ И ЧАСТИЦЫ)
-     ============================================================ */
-  .impact-particle { position: fixed; pointer-events: none; z-index: 999998; border-radius: 2px; will-change: transform, opacity; animation: particleFly 2.5s cubic-bezier(0.2, 1.2, 0.6, 1) forwards; }
+  /* Взрывные частицы (до 80 штук) */
+  .impact-particle { position: fixed; pointer-events: none; z-index: 999998; border-radius: 2px; will-change: transform, opacity; animation: particleFly 1.2s cubic-bezier(0.2, 1.2, 0.6, 1) forwards; }
   @keyframes particleFly { 0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; } 100% { transform: translate(var(--px), var(--py)) scale(0.2) rotate(720deg); opacity: 0; } }
 
-  /* ЖИРНЫЕ РАЗРЫВНЫЕ ВОЛНЫ (Вместо тонких полосок) */
-  .impact-wave-ring { position: fixed; pointer-events: none; z-index: 999997; border-radius: 50%; transform: translate(-50%, -50%) scale(0); will-change: transform, opacity; animation: waveExpand 3s cubic-bezier(0.1, 0.8, 0.3, 1) forwards; }
-  @keyframes waveExpand { 0% { transform: translate(-50%, -50%) scale(0); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(25); opacity: 0; } }
+  /* Эпические ударные кольца (до 10 штук) */
+  .impact-wave-ring { position: fixed; pointer-events: none; z-index: 999997; border: 2px solid rgba(255, 255, 255, 0.6); border-radius: 50%; transform: translate(-50%, -50%); will-change: transform, opacity; animation: waveExpand 1.2s cubic-bezier(0.1, 0.8, 0.3, 1) forwards; }
+  @keyframes waveExpand { 0% { width: 0; height: 0; opacity: 1; border-width: 2px; } 100% { width: 100vmax; height: 100vmax; opacity: 0; border-width: 0.5px; } }
 
-  /* ============================================================
-     ДОПОЛНИТЕЛЬНЫЕ БЛОКИ
-     ============================================================ */
+  /* Детальная тряска UI */
+  .ui-shake { animation: uiShake 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) forwards !important; }
+  @keyframes uiShake { 0% { transform: translate(0, 0) rotate(0deg); } 25% { transform: translate(var(--sx, -6px), var(--sy, -3px)) rotate(var(--sr, -2deg)); } 50% { transform: translate(var(--sx, 4px), var(--sy, -5px)) rotate(var(--sr, 3deg)); } 75% { transform: translate(var(--sx, -3px), var(--sy, 2px)) rotate(var(--sr, -1deg)); } 100% { transform: translate(0, 0) rotate(0deg); } }
+
   .section-label { font-size: 11px; font-weight: 900; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 12px; }
   .hint-text { font-size: 13px; color: var(--text-hint); font-weight: 600; line-height: 1.6; position: relative; z-index: 2; }
   .hint-text .key { color: var(--accent-key); font-weight: 800; background: linear-gradient(90deg, var(--accent-key), #fff 120%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; text-shadow: none; position: relative; padding-bottom: 1px; border-bottom: 1.5px solid rgba(255, 168, 214, 0.35); animation: keyGlow 3.6s ease-in-out infinite; }
@@ -473,7 +472,7 @@
     </div>
   </div>
 
-  <!-- Карточка завершения (С разломом) -->
+  <!-- Карточка завершения (С 16 осколками) -->
   <div class="card stagger" style="animation-delay:0.2s">
     <div class="grain"></div>
     <div class="cinematic-glare"></div>
@@ -482,7 +481,7 @@
       Когда все <span class="key">ячейки склада</span> отсканированы и закрыты — завершите инвентаризацию.
     </div>
     <div class="finish-slot" id="finish-slot">
-      <!-- 16 осколков -->
+      <!-- 16 детализированных осколков -->
       <span class="shard shard-1"></span><span class="shard shard-2"></span><span class="shard shard-3"></span><span class="shard shard-4"></span>
       <span class="shard shard-5"></span><span class="shard shard-6"></span><span class="shard shard-7"></span><span class="shard shard-8"></span>
       <span class="shard shard-9"></span><span class="shard shard-10"></span><span class="shard shard-11"></span><span class="shard shard-12"></span>
@@ -685,7 +684,7 @@
   }
   document.querySelectorAll('.btn').forEach(btn => btn.addEventListener('pointerdown', spawnRipple));
 
-  // ===== ФОН =====
+  // ===== ФОН СТАЛ ИНТЕРАКТИВНЫМ =====
   const meshTrack = $('mesh-track');
   let mx = 0, my = 0, tx = 0, ty = 0, meshRaf = null;
   function tickMesh() {
@@ -715,7 +714,7 @@
   });
 
   // ============================================================
-  // BOTTOM-SHEET
+  // BOTTOM-SHEET (ШТОРКА)
   // ============================================================ 
   const sheetOverlay = $('sheet-overlay'), sheet = $('paste-sheet'), textarea = $('paste-textarea');
   let sheetCloseTimer = null;
@@ -806,7 +805,7 @@
   });
 
   // ============================================================
-  // ГЛОБАЛЬНАЯ САГА И РАЗЛЁТ ТЕКСТА
+  // САГА ЛОГОТИПА (САМАЯ ДЕТАЛЬНАЯ ВЕРСИЯ)
   // ============================================================
   (function initLogoSaga() {
     const mark = $('brand-mark');
@@ -817,109 +816,62 @@
     const slot = $('finish-slot');
     const meshBg = $('mesh');
 
-    // ============================================================
-    // СБОР ВСЕХ ТЕКСТОВЫХ ЭЛЕМЕНТОВ ДЛЯ РАЗЛЁТА (БУКВЫ ПО ВСЕМУ UI)
-    // ============================================================
-    const scatterTargets = [
-      document.querySelector('.brand-name'),
-      document.querySelector('.brand-sub'),
-      document.querySelector('#btn-paste-wms span'),
-      document.querySelector('#btn-finish span'),
-      document.querySelectorAll('.section-label'),
-      document.querySelectorAll('.hint-text'),
-      document.querySelector('.lang-cur'),
-      document.querySelector('.lang-globe'),
-      document.querySelector('#btn-info'),
-      document.querySelector('.footer-mark .fdot'),
-      document.querySelectorAll('.format-label'),
-      document.querySelectorAll('.format-val')
-    ].flat().filter(el => el);
-
     if (!mark || !container || !textBlock || !finishBtn || !hole || !slot || !meshBg) return;
 
     let playing = false;
 
     function setVar(el, name, val) { el.style.setProperty(name, val); }
 
-    // --- ЭПИЧЕСКИЙ ВЗРЫВ С РАЗЛЁТОМ БУКВ ---
+    // --- ЭПИЧЕСКИЙ УДАР С 10 ВОЛНАМИ И 80 ЧАСТИЦАМИ ---
     function triggerImpact(cx, cy) {
       // 1. Рябь на фоне
       meshBg.classList.add('ripple');
       setTimeout(() => meshBg.classList.remove('ripple'), 600);
 
-      // 2. Разлет ЧАСТИЦ (120 штук)
+      // 2. Разлет частиц (80 штук!)
       const colors = ['#9D4DFF', '#7000FF', '#38E888', '#FFD60A', '#ffffff', '#FF5C5C', '#C41818'];
-      for (let i = 0; i < 120; i++) {
+      for (let i = 0; i < 80; i++) {
         const p = document.createElement('div');
         p.className = 'impact-particle';
         const angle = Math.random() * 2 * Math.PI;
-        const dist = 120 + Math.random() * 350;
+        const dist = 120 + Math.random() * 280;
         p.style.setProperty('--px', (Math.cos(angle) * dist) + 'px');
         p.style.setProperty('--py', (Math.sin(angle) * dist) + 'px');
-        p.style.width = (4 + Math.random() * 16) + 'px';
+        p.style.width = (4 + Math.random() * 14) + 'px';
         p.style.height = p.style.width;
         p.style.background = colors[Math.floor(Math.random() * colors.length)];
         p.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
         p.style.left = cx + 'px'; p.style.top = cy + 'px';
-        p.style.animationDuration = (1.5 + Math.random() * 0.8) + 's';
+        p.style.animationDuration = (0.9 + Math.random() * 0.6) + 's';
         document.body.appendChild(p);
-        setTimeout(() => p.remove(), 3000);
+        setTimeout(() => p.remove(), 2000);
       }
 
-      // 3. СОЧНЫЕ РАЗРЫВНЫЕ ВОЛНЫ (20 штук)
-      for (let i = 0; i < 20; i++) {
+      // 3. Медленные, плавные волны (10 раз, расходящихся постепенно)
+      for (let i = 0; i < 10; i++) {
         setTimeout(() => {
           const ring = document.createElement('div');
           ring.className = 'impact-wave-ring';
           ring.style.left = cx + 'px'; ring.style.top = cy + 'px';
-          const hue = (i * 12 + 280) % 360;
-          // Делаем волны толстыми, слоистыми и сочными
-          ring.style.background = `radial-gradient(circle, rgba(255, ${100 + i * 5}, ${50 + i * 5}, 0.8) 0%, rgba(${200 - i * 8}, ${50 + i * 4}, 255, 0.5) 40%, transparent 70%)`;
-          ring.style.boxShadow = `0 0 120px rgba(255, ${100 + i * 5}, ${50 + i * 5}, 0.6)`;
-          ring.style.animationDuration = (3.5 + i * 0.05) + 's'; // Очень медленно!
-          ring.style.width = '100px'; ring.style.height = '100px'; // Начальный размер
+          const hue = (i * 15) % 360;
+          ring.style.borderColor = i % 2 === 0 ? `hsla(${hue}, 80%, 60%, 0.7)` : `rgba(255,255,255,0.5)`;
+          ring.style.animationDuration = (1.4 + i * 0.04) + 's';
           document.body.appendChild(ring);
-          setTimeout(() => ring.remove(), 5000);
-        }, i * 300); // Задержка между волнами
+          setTimeout(() => ring.remove(), 3500);
+        }, i * 280);
       }
 
-      // 4. РАЗЛЁТ БУКВ ПО ИНТЕРФЕЙСУ (ХАОС)
-      scatterTargets.forEach(el => {
-        if (!el) return;
-        // Назначаем рандомные векторы разлёта (во все стороны)
-        const dx = (Math.random() - 0.5) * 400;
-        const dy = (Math.random() - 0.5) * 400;
-        const rot = (Math.random() - 0.5) * 50;
-        el.style.setProperty('--dx', dx + 'px');
-        el.style.setProperty('--dy', dy + 'px');
-        el.style.setProperty('--rot', rot + 'deg');
-        
-        el.classList.remove('return', 'ui-scatter');
-        void el.offsetWidth;
-        el.classList.add('ui-scatter');
-      });
-
-      // 5. Тряска интерфейса (Карточки)
+      // 4. Тряска элементов интерфейса
       document.querySelectorAll('.card').forEach(card => {
-        const sx = (Math.random() - 0.5) * 20;
-        const sy = (Math.random() - 0.5) * 20;
-        const sr = (Math.random() - 0.5) * 8;
+        const sx = (Math.random() - 0.5) * 16;
+        const sy = (Math.random() - 0.5) * 16;
+        const sr = (Math.random() - 0.5) * 6;
         card.style.setProperty('--sx', sx + 'px');
         card.style.setProperty('--sy', sy + 'px');
         card.style.setProperty('--sr', sr + 'deg');
         card.classList.remove('ui-shake');
         void card.offsetWidth;
         card.classList.add('ui-shake');
-      });
-    }
-
-    // ВОЗВРАТ ТЕКСТА НА МЕСТО (ЧЕРЕЗ 4 СЕКУНДЫ)
-    function returnScatter() {
-      scatterTargets.forEach(el => {
-        if (!el) return;
-        el.classList.remove('ui-scatter');
-        void el.offsetWidth;
-        el.classList.add('return');
       });
     }
 
@@ -935,7 +887,7 @@
       const targetRect = slot.getBoundingClientRect();
 
       const targetCx = targetRect.left + targetRect.width / 2;
-      // Поднимаем взрыв выше над кнопкой
+      // Поднимаем взрыв выше над кнопкой (на 60px выше)
       const targetTopY = targetRect.top - 178; 
 
       setVar(mark, '--saga-home-x', startRect.left + 'px');
@@ -946,59 +898,66 @@
       setVar(mark, '--saga-target-y', targetTopY + 'px');
 
       const CLASSES = ['saga-liftoff', 'saga-rage', 'saga-smash', 'saga-oops', 'saga-return'];
+      const TEXT_CLASSES = ['saga-rage', 'saga-oops', 'saga-return'];
       const timers = [];
       const at = (fn, ms) => timers.push(setTimeout(fn, ms));
 
       mark.classList.add('saga-playing');
 
+      // Сцены
       at(() => { mark.classList.remove(...CLASSES); mark.classList.add('saga-liftoff'); }, 0);
       
       at(() => {
         mark.classList.remove(...CLASSES);
         mark.classList.add('saga-rage');
+        textBlock.classList.remove(...TEXT_CLASSES);
+        textBlock.classList.add('saga-rage'); // Детальный тряс текста
         haptic('warning');
-      }, 1200);
+      }, 950);
 
-      // САМЫЙ ЭПИЧНЫЙ УДАР
+      // ГЛАВНЫЙ УДАР И ВЗРЫВ
       at(() => {
         mark.classList.remove(...CLASSES);
         mark.classList.add('saga-smash');
         haptic('heavy');
+        // Рассчитываем позицию взрыва
         const smashRect = mark.getBoundingClientRect();
         const cx = smashRect.left + smashRect.width / 2;
-        const cy = smashRect.top + smashRect.height / 2;
-        triggerImpact(cx, cy); // Взрыв с разлётом букв
-      }, 2000);
+        const cy = smashRect.top + smashRect.height / 2 - 40; // Смещаем эффекты вверх
+        triggerImpact(cx, cy);
+      }, 1750);
 
-      // Кнопка ломается
+      // Ломается кнопка и появляется дыра
       at(() => {
         finishBtn.classList.add('smashed');
         slot.classList.add('smashed');
         hole.classList.add('hole-active');
         haptic('heavy');
-      }, 2400);
-
-      // Возврат букв на место (через 4 секунды после взрыва)
-      at(() => { returnScatter(); }, 4500);
+      }, 2000);
 
       // Неловкость
       at(() => {
         mark.classList.remove(...CLASSES);
         mark.classList.add('saga-oops');
+        textBlock.classList.remove(...TEXT_CLASSES);
+        textBlock.classList.add('saga-oops'); // Медленный тряс текста
         haptic('light');
-      }, 3500);
+      }, 2450);
 
-      // Возврат логотипа
+      // Возврат
       at(() => {
         mark.classList.remove(...CLASSES);
         mark.classList.add('saga-return');
-      }, 4500);
+        textBlock.classList.remove(...TEXT_CLASSES);
+        textBlock.classList.add('saga-return');
+      }, 3350);
 
-      // ФИНАЛ И СБРОС
+      // Финал и сброс состояния
       at(() => {
         mark.classList.remove(...CLASSES, 'saga-playing');
         mark.style.removeProperty('--saga-x');
         mark.style.removeProperty('--saga-y');
+        textBlock.classList.remove(...TEXT_CLASSES);
 
         slot.classList.remove('smashed');
         hole.classList.remove('hole-active');
@@ -1008,13 +967,13 @@
         finishBtn.classList.add('restore-in');
         setTimeout(() => { finishBtn.classList.remove('restoring', 'restore-in'); }, 600);
 
-        // --- ВОЗВРАЩАЕМ ЛОГОТИП ОБРАТНО ---
+        // --- ВОЗВРАЩАЕМ ЛОГОТИП ОБРАТНО В КОНТЕЙНЕР ---
         container.appendChild(mark);
         playing = false;
-      }, 6200);
+      }, 4250);
     }
 
-    // Фикс "СЗАДИ" (адаптация под resize)
+    // Если размер окна меняется во время анимации, обновляем цель
     window.addEventListener('resize', () => {
       if (!playing) return;
       const targetRect = slot.getBoundingClientRect();
