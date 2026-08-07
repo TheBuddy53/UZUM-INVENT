@@ -57,16 +57,6 @@
     perspective: 1200px;
   }
 
-  /* ФИКС КНОПОК */
-  button, [type="button"] {
-    background: transparent;
-    border: none;
-    font-family: inherit;
-    color: inherit;
-    cursor: pointer;
-    outline: none;
-  }
-
   /* Фоновые эффекты */
   #noise { position: fixed; inset: -50%; z-index: 999; pointer-events: none; opacity: 0.12; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); animation: noiseShift 8s steps(10) infinite; transition: opacity 0.4s ease; will-change: transform; transform: translateZ(0); contain: paint; }
   #noise.flash { opacity: 0.38; }
@@ -367,11 +357,11 @@
   .sheet-input { width: 100%; height: 180px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 16px; color: #fff; font-family: "SF Pro Display", "Inter", monospace; font-size: 14px; resize: none; margin-bottom: 16px; outline: none; box-shadow: inset 0 4px 10px rgba(0,0,0,0.5); }
   .sheet-input:focus { border-color: rgba(157,77,255,0.5); box-shadow: inset 0 4px 10px rgba(0,0,0,0.5), 0 0 15px rgba(157,77,255,0.3); }
 
-  /* Взрывные частицы (до 80 штук) */
+  /* Взрывные частицы (80 на ПК, 20 на телефоне) */
   .impact-particle { position: fixed; pointer-events: none; z-index: 999998; border-radius: 2px; will-change: transform, opacity; animation: particleFly 1.2s cubic-bezier(0.2, 1.2, 0.6, 1) forwards; }
   @keyframes particleFly { 0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; } 100% { transform: translate(var(--px), var(--py)) scale(0.2) rotate(720deg); opacity: 0; } }
 
-  /* Эпические ударные кольца (до 10 штук) */
+  /* Эпические ударные кольца (10 на ПК, 3 на телефоне) */
   .impact-wave-ring { position: fixed; pointer-events: none; z-index: 999997; border: 2px solid rgba(255, 255, 255, 0.6); border-radius: 50%; transform: translate(-50%, -50%); will-change: transform, opacity; animation: waveExpand 1.2s cubic-bezier(0.1, 0.8, 0.3, 1) forwards; }
   @keyframes waveExpand { 0% { width: 0; height: 0; opacity: 1; border-width: 2px; } 100% { width: 100vmax; height: 100vmax; opacity: 0; border-width: 0.5px; } }
 
@@ -409,6 +399,34 @@
   .btn.ghost { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); box-shadow: none; }
   .btn.confirm { background: linear-gradient(135deg, var(--purple-light), var(--purple)); box-shadow: 0 12px 24px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5); }
   .btn:disabled { opacity: 0.4; filter: grayscale(1); pointer-events: none; }
+
+  /* ============================================================
+     ТЕЛЕФОННЫЙ РЕЖИМ (Упрощение графики для 0 FPS)
+     ============================================================ */
+  body.mobile #mesh {
+    filter: blur(40px) saturate(100%) !important;
+    transform: none !important;
+  }
+  body.mobile #mesh .b1, body.mobile #mesh .b2, body.mobile #mesh .b3 {
+    animation-duration: 0.001ms !important;
+  }
+  body.mobile #noise {
+    animation: none !important;
+    opacity: 0.05 !important;
+  }
+  body.mobile .card {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(10, 2, 25, 0.6) !important;
+  }
+  body.mobile .icon-btn, body.mobile .lang-switch {
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+  }
+  body.mobile .impact-particle,
+  body.mobile .impact-wave-ring {
+    display: none !important; /* Защита от лишних элементов */
+  }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
@@ -541,6 +559,15 @@
   webApp.ready();
   webApp.expand();
   try { webApp.setHeaderColor('#030008'); webApp.setBackgroundColor('#030008'); } catch(e) {}
+
+  // ===== ДЕТЕКТОР УСТРОЙСТВА (Добавлено для плавности на телефонах) =====
+  const isMobile = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+  if (isMobile) {
+      document.body.classList.add('mobile');
+      console.log("📱 Загружена оптимизированная (упрощенная) версия для телефона.");
+  } else {
+      console.log("💻 Загружена топовая версия для ПК.");
+  }
 
   const $ = id => document.getElementById(id);
   const uid = webApp.initDataUnsafe?.user?.id || null;
@@ -805,7 +832,7 @@
   });
 
   // ============================================================
-  // САГА ЛОГОТИПА (САМАЯ ДЕТАЛЬНАЯ ВЕРСИЯ)
+  // САГА ЛОГОТИПА (САМАЯ ДЕТАЛЬНАЯ ВЕРСИЯ) + АДАПТИВНОСТЬ
   // ============================================================
   (function initLogoSaga() {
     const mark = $('brand-mark');
@@ -822,15 +849,16 @@
 
     function setVar(el, name, val) { el.style.setProperty(name, val); }
 
-    // --- ЭПИЧЕСКИЙ УДАР С 10 ВОЛНАМИ И 80 ЧАСТИЦАМИ ---
+    // --- ЭПИЧЕСКИЙ УДАР С АДАПТИВНЫМ КОЛИЧЕСТВОМ ЧАСТИЦ И ВОЛН ---
     function triggerImpact(cx, cy) {
       // 1. Рябь на фоне
       meshBg.classList.add('ripple');
       setTimeout(() => meshBg.classList.remove('ripple'), 600);
 
-      // 2. Разлет частиц (80 штук!)
+      // 2. Разлет частиц (80 на ПК, 20 на телефоне)
+      const particleCount = isMobile ? 20 : 80;
       const colors = ['#9D4DFF', '#7000FF', '#38E888', '#FFD60A', '#ffffff', '#FF5C5C', '#C41818'];
-      for (let i = 0; i < 80; i++) {
+      for (let i = 0; i < particleCount; i++) {
         const p = document.createElement('div');
         p.className = 'impact-particle';
         const angle = Math.random() * 2 * Math.PI;
@@ -847,8 +875,9 @@
         setTimeout(() => p.remove(), 2000);
       }
 
-      // 3. Медленные, плавные волны (10 раз, расходящихся постепенно)
-      for (let i = 0; i < 10; i++) {
+      // 3. Медленные, плавные волны (10 на ПК, 3 на телефоне)
+      const waveCount = isMobile ? 3 : 10;
+      for (let i = 0; i < waveCount; i++) {
         setTimeout(() => {
           const ring = document.createElement('div');
           ring.className = 'impact-wave-ring';
