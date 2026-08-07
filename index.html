@@ -91,123 +91,240 @@
 
   .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; padding: 0 8px; }
   .brand { display: flex; align-items: center; gap: 12px; }
-  .brand-mark { width: 44px; height: 44px; border-radius: 14px; background: linear-gradient(135deg, #A855F7, var(--purple)); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 20px; color: #fff; box-shadow: 0 10px 25px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 10px rgba(0,0,0,0.3); position: relative; overflow: visible; cursor: pointer; transition: transform 0.3s var(--spring); transform: translateZ(0) scale(1); }
-  .brand-mark::after { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(45deg, transparent, rgba(255,255,255,0.4), transparent); transform: rotate(45deg) translateY(-100%); animation: shine 6s infinite; border-radius: inherit; pointer-events: none; }
-  @keyframes shine { 0%, 20% { transform: rotate(45deg) translateY(-100%); } 40%, 100% { transform: rotate(45deg) translateY(100%); } }
-  .brand-mark:active { transform: scale(0.92) translateZ(0); }
+  .brand-mark {
+    width: 44px; height: 44px; border-radius: 14px;
+    background: linear-gradient(135deg, #A855F7, var(--purple));
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 20px; color: #fff;
+    box-shadow: 0 10px 25px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 10px rgba(0,0,0,0.3);
+    position: relative; overflow: visible; cursor: pointer;
+    transform: translateZ(0) scale(1);
+  }
+  .brand-mark:active:not(.saga-playing) { transform: scale(0.92) translateZ(0); }
 
   /* ============================================================
-     ЖИВОЙ ЛОГОТИП — по тапу проигрывает один цикл и сам возвращается.
-     Стадии (управляются JS через классы на .brand-mark, тайминги
-     синхронизированы с keyframes ниже):
-       1. expand   — значок "распахивается" вбок, буква U подвигается,
-                     с бока выезжает панель с глазками
-       2. blink    — глазки моргают
-       3. look     — зрачки смотрят по сторонам, потом останавливаются
-       4. point    — снизу выезжает "ручка-указатель" и качается вбок,
-                     будто показывает "туда-сюда"
-       5. wave     — ручка машет
-       6. return   — всё синхронно уезжает обратно, значок сжимается
-     Один проигрыш ~3.6s, дальше — пауза, повторный тап запускает заново.
+     СЮЖЕТНАЯ АНИМАЦИЯ ЛОГОТИПА — «месть за незавершённую инвентаризацию».
+     Один клик = один полный акт, ролью управляет JS через таймер,
+     переключающий классы на #brand-mark (сцены saga-*) и на кнопке/
+     дыре (.smashed / .hole-active). Вся геометрия — чистый CSS
+     (псевдоэлементы + span'ы), без картинок, полностью в токенах
+     фирменной палитры (--purple/--purple-light/--red/--green).
+
+     Сцены:
+       saga-liftoff  — логотип отрывается от хедера, летит вниз
+       saga-rage     — зависает над кнопкой, краснеет, "накачивается",
+                       выезжают руки
+       saga-smash    — руки бьют по кнопке
+       saga-oops     — кнопка провалилась, логотип пугается/смущается
+       saga-return   — летит обратно в хедер, сжимается
      ============================================================ */
-  .brand-mark .peek {
-    position: absolute; top: 50%; left: 100%; transform: translateY(-50%) translateX(-6px) scaleX(0.4);
-    transform-origin: left center;
-    width: 30px; height: 26px; opacity: 0; pointer-events: none;
-    display: flex; align-items: center; justify-content: center; gap: 3px;
-    transition: opacity 0.25s ease;
+
+  /* Пока идёт сценарий, логотип выходит из потока и позиционируется
+     fixed — так его можно свободно перемещать по всему экрану поверх
+     карточек, а после — просто убрать класс, и он вернётся в хедер. */
+  .brand-mark.saga-playing {
+    position: fixed; z-index: 900;
+    left: var(--saga-x, 0px); top: var(--saga-y, 0px);
+    width: var(--saga-w, 44px); height: var(--saga-h, 44px);
+    margin: 0; will-change: transform, left, top, width, height, box-shadow, background;
+    transition:
+      left 1.05s var(--epic), top 1.05s var(--epic),
+      width 1.05s var(--epic), height 1.05s var(--epic),
+      box-shadow 0.6s var(--ease), background 0.6s var(--ease),
+      border-radius 0.6s var(--ease);
   }
-  .brand-mark .eye {
-    width: 7px; height: 9px; border-radius: 50%; background: #fff;
-    box-shadow: 0 0 6px rgba(255,255,255,0.8); position: relative;
+  .brand-mark .mark-letter { position: relative; z-index: 2; transition: opacity 0.3s ease; }
+
+  /* --- Сцена 1: взлёт и полёт к кнопке --- */
+  .brand-mark.saga-liftoff {
+    left: var(--saga-target-x, 50vw); top: var(--saga-target-y, 50vh);
+    width: 200px; height: 200px; border-radius: 40px;
+    box-shadow: 0 40px 90px rgba(112,0,255,0.65), inset 0 4px 10px rgba(255,255,255,0.5), inset 0 -10px 24px rgba(0,0,0,0.35);
   }
-  .brand-mark .eye::after {
-    content: ''; position: absolute; width: 3.4px; height: 3.4px; border-radius: 50%;
-    background: var(--purple-dark); top: 2.5px; left: 1.7px;
-    transition: transform 0.35s var(--ease);
+  .brand-mark.saga-liftoff .mark-letter { font-size: 90px; }
+
+  /* --- Сцена 2: ярость — краснеет, "накачивается", выезжают вены и руки --- */
+  .brand-mark.saga-rage {
+    left: var(--saga-target-x, 50vw); top: var(--saga-target-y, 50vh);
+    width: 220px; height: 210px; border-radius: 36px;
+    background: linear-gradient(135deg, #FF5C5C, #C41818);
+    box-shadow: 0 40px 100px rgba(255,40,40,0.65), inset 0 4px 10px rgba(255,255,255,0.35), inset 0 -12px 26px rgba(0,0,0,0.45);
+    animation: rageShake 0.42s ease-in-out infinite;
   }
-  .brand-mark .lid {
-    position: absolute; inset: 0; border-radius: 50%; background: #A855F7;
-    transform: scaleY(0); transform-origin: top; opacity: 0;
+  .brand-mark.saga-rage .mark-letter { font-size: 92px; text-shadow: 0 0 20px rgba(255,255,255,0.6); }
+  @keyframes rageShake {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    25% { transform: translate(-3px, 1px) rotate(-1deg); }
+    50% { transform: translate(2px, -2px) rotate(1deg); }
+    75% { transform: translate(-2px, -1px) rotate(-0.6deg); }
   }
 
-  .brand-mark .pointer-arm {
-    position: absolute; bottom: -4px; left: 50%; width: 5px; height: 16px; margin-left: -2.5px;
-    transform-origin: top center; transform: translateY(6px) scaleY(0.3) rotate(0deg);
+  /* --- Сцена 3: удар --- */
+  .brand-mark.saga-smash {
+    left: var(--saga-target-x, 50vw); top: var(--saga-target-y, 50vh);
+    width: 220px; height: 210px; border-radius: 36px;
+    background: linear-gradient(135deg, #FF5C5C, #C41818);
+    box-shadow: 0 40px 100px rgba(255,40,40,0.7), inset 0 4px 10px rgba(255,255,255,0.35), inset 0 -12px 26px rgba(0,0,0,0.45);
+    animation: smashJolt 0.32s cubic-bezier(0.2,0.9,0.3,1) 2;
+  }
+  @keyframes smashJolt {
+    0% { transform: translateY(0) scale(1); }
+    30% { transform: translateY(14px) scale(1.03, 0.94); }
+    55% { transform: translateY(-4px) scale(0.98, 1.03); }
+    100% { transform: translateY(0) scale(1); }
+  }
+
+  /* --- Сцена 4: неловкость — краснота уходит, испуг --- */
+  .brand-mark.saga-oops {
+    left: var(--saga-target-x, 50vw); top: var(--saga-target-y, 50vh);
+    width: 200px; height: 190px; border-radius: 38px;
+    background: linear-gradient(135deg, #A855F7, var(--purple));
+    box-shadow: 0 36px 80px var(--purple-glow), inset 0 4px 10px rgba(255,255,255,0.5), inset 0 -10px 22px rgba(0,0,0,0.35);
+    transition: background 0.7s var(--ease), box-shadow 0.7s var(--ease), left 1.05s var(--epic), top 1.05s var(--epic), width 1.05s var(--epic), height 1.05s var(--epic);
+  }
+  .brand-mark.saga-oops .mark-letter { font-size: 84px; }
+
+  /* --- Сцена 5: возврат в хедер --- */
+  .brand-mark.saga-return {
+    left: var(--saga-home-x, 0px); top: var(--saga-home-y, 0px);
+    width: 44px; height: 44px; border-radius: 14px;
+    background: linear-gradient(135deg, #A855F7, var(--purple));
+    box-shadow: 0 10px 25px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 10px rgba(0,0,0,0.3);
+  }
+  .brand-mark.saga-return .mark-letter { font-size: 20px; }
+
+  /* ---------- ЛИЦО ---------- */
+  .mark-face { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; transition: opacity 0.3s ease; }
+  .brand-mark.saga-rage .mark-face,
+  .brand-mark.saga-smash .mark-face,
+  .brand-mark.saga-oops .mark-face { opacity: 1; }
+  .brand-mark.saga-liftoff .mark-face { opacity: 0; }
+
+  .mark-eye {
+    position: absolute; top: 46%; width: 15%; height: 15%; border-radius: 50%;
+    background: #fff; box-shadow: 0 0 10px rgba(255,255,255,0.7);
+    transition: all 0.35s var(--ease);
+  }
+  .mark-eye.l { left: 30%; } .mark-eye.r { right: 30%; }
+  .mark-eye .pupil { position: absolute; inset: 22%; border-radius: 50%; background: #2a0845; transition: transform 0.3s ease; }
+
+  .mark-brow {
+    position: absolute; top: 34%; width: 15%; height: 4px; border-radius: 4px;
+    background: rgba(30,0,20,0.8); opacity: 0; transition: all 0.35s var(--ease);
+  }
+  .mark-brow.l { left: 29%; transform: rotate(18deg); }
+  .mark-brow.r { right: 29%; transform: rotate(-18deg); }
+
+  .mark-mouth {
+    position: absolute; left: 50%; top: 62%; width: 22%; height: 10%;
+    margin-left: -11%; border-radius: 4px; background: #2a0845;
+    transition: all 0.35s var(--ease);
+  }
+
+  .mark-blush { position: absolute; top: 56%; width: 12%; height: 8%; border-radius: 50%; background: rgba(255,120,150,0); transition: background 0.4s ease; }
+  .mark-blush.l { left: 16%; } .mark-blush.r { right: 16%; }
+
+  .mark-sweat {
+    position: absolute; top: 20%; right: 14%; width: 8%; height: 12%;
+    background: #8ED4FF; border-radius: 50% 50% 50% 0; transform: rotate(45deg) scale(0);
+    opacity: 0; box-shadow: 0 0 6px rgba(142,212,255,0.8);
+    transition: transform 0.3s var(--spring), opacity 0.3s ease;
+  }
+
+  /* Ярость: брови сведены, глаза-щёлки, рот в оскале, вздутые вены */
+  .brand-mark.saga-rage .mark-brow,
+  .brand-mark.saga-smash .mark-brow { opacity: 1; top: 38%; }
+  .brand-mark.saga-rage .mark-brow.l,
+  .brand-mark.saga-smash .mark-brow.l { transform: rotate(28deg); left: 32%; }
+  .brand-mark.saga-rage .mark-brow.r,
+  .brand-mark.saga-smash .mark-brow.r { transform: rotate(-28deg); right: 32%; }
+  .brand-mark.saga-rage .mark-eye,
+  .brand-mark.saga-smash .mark-eye { height: 6%; border-radius: 3px; background: #fff; }
+  .brand-mark.saga-rage .mark-mouth,
+  .brand-mark.saga-smash .mark-mouth { height: 14%; border-radius: 3px; background: #2a0845; clip-path: polygon(0 0,12% 60%,24% 0,36% 60%,48% 0,60% 60%,72% 0,84% 60%,100% 0,100% 100%,0 100%); }
+
+  .mark-vein {
+    position: absolute; top: 8%; width: 3px; height: 30%; border-radius: 3px;
+    background: linear-gradient(180deg, transparent, #5A0000, transparent);
+    opacity: 0; transform: scaleY(0.4); transition: all 0.4s var(--ease);
+  }
+  .mark-vein.l { left: 12%; transform: rotate(-6deg) scaleY(0.4); }
+  .mark-vein.r { right: 12%; transform: rotate(6deg) scaleY(0.4); }
+  .brand-mark.saga-rage .mark-vein,
+  .brand-mark.saga-smash .mark-vein { opacity: 0.85; transform: scaleY(1) rotate(0deg); }
+  .brand-mark.saga-rage .mark-vein.l,
+  .brand-mark.saga-smash .mark-vein.l { transform: rotate(-4deg) scaleY(1); }
+  .brand-mark.saga-rage .mark-vein.r,
+  .brand-mark.saga-smash .mark-vein.r { transform: rotate(4deg) scaleY(1); }
+
+  /* Смущение: брови домиком, глаза расширены, испарина, лёгкий румянец */
+  .brand-mark.saga-oops .mark-brow { opacity: 1; top: 32%; }
+  .brand-mark.saga-oops .mark-brow.l { transform: rotate(-14deg); left: 30%; }
+  .brand-mark.saga-oops .mark-brow.r { transform: rotate(14deg); right: 30%; }
+  .brand-mark.saga-oops .mark-eye { height: 20%; width: 17%; top: 42%; }
+  .brand-mark.saga-oops .mark-eye .pupil { inset: 30%; transform: translateY(2px); }
+  .brand-mark.saga-oops .mark-mouth { width: 12%; height: 12%; margin-left: -6%; border-radius: 50%; top: 66%; background: #2a0845; clip-path: none; }
+  .brand-mark.saga-oops .mark-blush { background: rgba(255,140,170,0.55); }
+  .brand-mark.saga-oops .mark-sweat { opacity: 1; transform: rotate(45deg) scale(1); animation: sweatDrop 1.1s ease-in infinite; }
+  @keyframes sweatDrop { 0% { transform: rotate(45deg) scale(1) translateY(0); opacity: 1; } 100% { transform: rotate(45deg) scale(0.8) translateY(10px); opacity: 0; } }
+
+  /* ---------- РУКИ ---------- */
+  .mark-arm {
+    position: absolute; top: 50%; width: 15%; height: 34px; margin-top: -17px;
+    background: linear-gradient(180deg, #FF7A7A, #B21212);
+    border-radius: 10px; opacity: 0; pointer-events: none;
+    box-shadow: 0 4px 14px rgba(180,20,20,0.5), inset 0 2px 3px rgba(255,255,255,0.35);
+    transition: opacity 0.25s ease, transform 0.4s var(--spring);
+  }
+  .mark-arm.l { left: -10%; transform: translateX(-40px) rotate(-10deg) scale(0.6); transform-origin: right center; }
+  .mark-arm.r { right: -10%; transform: translateX(40px) rotate(10deg) scale(0.6); transform-origin: left center; }
+  .mark-arm .fist {
+    position: absolute; width: 26px; height: 26px; border-radius: 50%;
+    background: linear-gradient(135deg, #FF7A7A, #B21212);
+    box-shadow: inset 0 3px 5px rgba(255,255,255,0.4), inset 0 -4px 8px rgba(0,0,0,0.3), 0 4px 10px rgba(180,20,20,0.5);
+  }
+  .mark-arm.l .fist { left: -18px; top: 50%; margin-top: -13px; }
+  .mark-arm.r .fist { right: -18px; top: 50%; margin-top: -13px; }
+
+  .brand-mark.saga-rage .mark-arm,
+  .brand-mark.saga-smash .mark-arm { opacity: 1; }
+  .brand-mark.saga-rage .mark-arm.l,
+  .brand-mark.saga-smash .mark-arm.l { transform: translateX(-6px) rotate(-16deg) scale(1); }
+  .brand-mark.saga-rage .mark-arm.r,
+  .brand-mark.saga-smash .mark-arm.r { transform: translateX(6px) rotate(16deg) scale(1); }
+
+  .brand-mark.saga-smash .mark-arm.l { animation: punchLeft 0.32s cubic-bezier(0.2,0.9,0.3,1) 2; }
+  .brand-mark.saga-smash .mark-arm.r { animation: punchRight 0.32s cubic-bezier(0.2,0.9,0.3,1) 2; }
+  @keyframes punchLeft {
+    0% { transform: translateX(-6px) rotate(-16deg) scale(1); }
+    45% { transform: translateX(10px) translateY(46px) rotate(4deg) scale(1.06); }
+    100% { transform: translateX(-6px) rotate(-16deg) scale(1); }
+  }
+  @keyframes punchRight {
+    0% { transform: translateX(6px) rotate(16deg) scale(1); }
+    45% { transform: translateX(-10px) translateY(46px) rotate(-4deg) scale(1.06); }
+    100% { transform: translateX(6px) rotate(16deg) scale(1); }
+  }
+
+  .brand-mark.saga-oops .mark-arm { opacity: 0; transform: translateX(0) scale(0.6); transition: opacity 0.3s ease, transform 0.35s var(--ease); }
+
+  /* Импульсная вспышка удара — короткая, расходится от кулаков в момент контакта */
+  .brand-mark .impact-flash {
+    position: absolute; left: 50%; bottom: -14px; width: 10px; height: 10px; margin-left: -5px;
+    border-radius: 50%; background: radial-gradient(circle, #fff, rgba(255,220,120,0.9) 40%, transparent 72%);
     opacity: 0; pointer-events: none;
-    border-radius: 3px; background: linear-gradient(180deg, #C99BFF, #7000FF);
-    box-shadow: 0 2px 8px rgba(112,0,255,0.6);
   }
-  .brand-mark .pointer-arm::after {
-    content: ''; position: absolute; bottom: -4px; left: 50%; width: 9px; height: 9px; margin-left: -4.5px;
-    border-radius: 50%; background: #E9D5FF; box-shadow: 0 0 6px rgba(255,255,255,0.7);
-  }
-
-  /* --- Стадия 1: раскрытие бока значка и появление глазок ---
-     Масштаб держится на всех активных стадиях (не только в момент expand),
-     иначе после первых 260мс значок резко "сдувался" обратно, пока
-     глазки/ручка ещё были на сцене. */
-  .brand-mark.anim-expand,
-  .brand-mark.anim-blink,
-  .brand-mark.anim-look,
-  .brand-mark.anim-point,
-  .brand-mark.anim-wave {
-    transform: scale(1.08) translateZ(0);
-    transition: transform 0.35s var(--spring);
-  }
-  .brand-mark.anim-expand .peek,
-  .brand-mark.anim-blink .peek,
-  .brand-mark.anim-look .peek,
-  .brand-mark.anim-point .peek,
-  .brand-mark.anim-wave .peek {
-    opacity: 1; transform: translateY(-50%) translateX(2px) scaleX(1);
-    transition: opacity 0.3s var(--spring), transform 0.42s var(--spring);
+  .brand-mark.saga-smash .impact-flash { animation: impactPulse 0.32s ease-out 2; }
+  @keyframes impactPulse {
+    0% { opacity: 0; transform: scale(0.3); }
+    35% { opacity: 1; transform: scale(6); }
+    100% { opacity: 0; transform: scale(9); }
   }
 
-  /* --- Стадия 2: моргание --- */
-  .brand-mark.anim-blink .lid { animation: blinkOnce 0.5s var(--ease); }
-  @keyframes blinkOnce {
-    0%, 100% { transform: scaleY(0); opacity: 0; }
-    45%, 60% { transform: scaleY(1); opacity: 1; }
-  }
-
-  /* --- Стадия 3: взгляд по сторонам --- */
-  .brand-mark.anim-look .eye::after { animation: eyeLook 1.1s var(--ease); }
-  @keyframes eyeLook {
-    0%   { transform: translateX(0); }
-    25%  { transform: translateX(-1.6px); }
-    55%  { transform: translateX(1.8px); }
-    80%  { transform: translateX(0); }
-    100% { transform: translateX(0); }
-  }
-
-  /* --- Стадия 4 и 5: ручка выезжает, показывает "туда-сюда", машет --- */
-  .brand-mark.anim-point .pointer-arm,
-  .brand-mark.anim-wave .pointer-arm {
-    opacity: 1; transform: translateY(0) scaleY(1) rotate(0deg);
-    transition: opacity 0.25s var(--ease), transform 0.3s var(--spring);
-  }
-  .brand-mark.anim-point .pointer-arm { animation: pointSway 0.9s var(--ease) 0.05s; }
-  @keyframes pointSway {
-    0%, 100% { transform: translateY(0) scaleY(1) rotate(0deg); }
-    30% { transform: translateY(0) scaleY(1) rotate(-22deg); }
-    70% { transform: translateY(0) scaleY(1) rotate(20deg); }
-  }
-  .brand-mark.anim-wave .pointer-arm { animation: waveArm 0.7s ease-in-out; }
-  @keyframes waveArm {
-    0%, 100% { transform: translateY(0) scaleY(1) rotate(6deg); }
-    25% { transform: translateY(0) scaleY(1) rotate(-16deg); }
-    50% { transform: translateY(0) scaleY(1) rotate(14deg); }
-    75% { transform: translateY(0) scaleY(1) rotate(-10deg); }
-  }
-
-  /* --- Стадия 6: возврат --- */
-  .brand-mark.anim-return { transform: scale(1) translateZ(0); }
-  .brand-mark.anim-return .peek { opacity: 0; transform: translateY(-50%) translateX(-6px) scaleX(0.4); transition: opacity 0.3s var(--ease), transform 0.4s var(--epic-out); }
-  .brand-mark.anim-return .pointer-arm { opacity: 0; transform: translateY(6px) scaleY(0.3) rotate(0deg); transition: opacity 0.25s var(--ease), transform 0.35s var(--epic-out); }
   .brand-text { display: flex; flex-direction: column; gap: 2px; }
   .brand-name { font-weight: 900; font-size: 18px; letter-spacing: -0.03em; text-shadow: 0 2px 10px rgba(255,255,255,0.2); }
   .brand-sub { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.15em; font-weight: 800; background: linear-gradient(90deg, var(--text-muted), #fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
 
   .topbar-actions { display: flex; align-items: center; gap: 8px; }
 
@@ -271,6 +388,69 @@
   .btn.primary { background: linear-gradient(135deg, var(--purple-light), var(--purple)); box-shadow: 0 12px 24px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5), inset 0 -4px 12px rgba(0,0,0,0.3); }
   .btn.finish { background: linear-gradient(135deg, #38E888, #0F9D58); box-shadow: 0 12px 24px var(--green-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 12px rgba(0,0,0,0.3); animation: pulseFinish 3s infinite; will-change: box-shadow, transform; }
   @keyframes pulseFinish { 0%,100% { box-shadow: 0 12px 24px var(--green-glow), inset 0 2px 4px rgba(255,255,255,0.6); } 50% { box-shadow: 0 16px 32px rgba(52, 199, 123, 0.9), inset 0 2px 4px rgba(255,255,255,0.6); transform: scale(1.02); } }
+
+  /* ============================================================
+     СЛОТ КНОПКИ «ЗАВЕРШИТЬ» — кнопка и дыра занимают одну и ту же
+     ячейку (dyra рендерится под кнопкой и раскрывается, когда кнопка
+     проваливается вниз за пределы слота). Высота слота фиксируется
+     на высоту кнопки, чтобы карточка не "прыгала" во время сценария.
+     ============================================================ */
+  .finish-slot { position: relative; overflow: hidden; border-radius: var(--r-lg); }
+  .finish-slot .btn.finish { position: relative; z-index: 1; }
+  .btn.finish.smashed {
+    animation: none;
+    transition: transform 0.55s cubic-bezier(0.5,0,0.85,0.35), opacity 0.5s ease 0.15s, box-shadow 0.4s ease;
+    transform: translateY(140%) rotate(4deg) scale(0.92);
+    opacity: 0;
+    box-shadow: none;
+  }
+  .btn.finish.restoring {
+    animation: none;
+    transform: translateY(-24%) scale(0.96); opacity: 0;
+    transition: none;
+  }
+  .btn.finish.restore-in {
+    transition: transform 0.55s var(--spring), opacity 0.45s ease;
+    transform: translateY(0) scale(1); opacity: 1;
+  }
+
+  .finish-hole {
+    position: absolute; inset: 0; border-radius: var(--r-lg);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(120% 140% at 50% 0%, rgba(0,0,0,0.9), rgba(10,2,20,0.95) 55%, rgba(3,0,8,0.98)),
+      linear-gradient(180deg, rgba(112,0,255,0.15), transparent 40%);
+    box-shadow: inset 0 18px 30px rgba(0,0,0,0.9), inset 0 2px 6px rgba(0,0,0,0.8), inset 0 0 0 1px rgba(157,77,255,0.15);
+    transition: opacity 0.35s ease;
+  }
+  .finish-hole.hole-active { opacity: 1; }
+  .hole-rim {
+    position: absolute; inset: 0; border-radius: var(--r-lg);
+    box-shadow: inset 0 0 0 1.5px rgba(157,77,255,0.35), inset 0 10px 22px rgba(0,0,0,0.85);
+    background: radial-gradient(ellipse at 50% -10%, rgba(157,77,255,0.18), transparent 60%);
+  }
+  .hole-debris {
+    position: absolute; left: 50%; top: 30%; width: 60%; height: 40%; margin-left: -30%;
+    background-image:
+      radial-gradient(circle, rgba(157,77,255,0.5) 0 2px, transparent 3px),
+      radial-gradient(circle, rgba(255,255,255,0.3) 0 1.5px, transparent 2.5px);
+    background-size: 22px 18px, 14px 12px;
+    background-position: 0 0, 8px 6px;
+    opacity: 0.5; filter: blur(0.2px);
+  }
+  .hole-dust {
+    position: absolute; left: 50%; top: 10%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(220,200,255,0.55), transparent 70%);
+    opacity: 0; filter: blur(2px);
+  }
+  .finish-hole.hole-active .hole-dust { animation: dustPuff 1.4s ease-out; }
+  @keyframes dustPuff {
+    0% { opacity: 0; transform: scale(0.4) translateY(0); }
+    25% { opacity: 0.9; transform: scale(1.6) translateY(4px); }
+    100% { opacity: 0; transform: scale(2.6) translateY(18px); }
+  }
+
 
   /* КНОПКА "ВСТАВИТЬ СПИСОК" — эпичная, с автопульсом, бегущим бликом и ripple от тапа */
   #btn-paste-wms {
@@ -448,7 +628,21 @@
 <div class="wrap">
   <div class="topbar stagger" style="animation-delay:0s">
     <div class="brand">
-      <div class="brand-mark" id="brand-mark" role="button" tabindex="0" aria-label="Uzum">U<span class="peek"><span class="eye"><span class="lid"></span></span><span class="eye"><span class="lid"></span></span></span><span class="pointer-arm"></span></div>
+      <div class="brand-mark" id="brand-mark" role="button" tabindex="0" aria-label="Uzum">
+        <span class="mark-letter">U</span>
+        <span class="mark-face" id="mark-face">
+          <span class="mark-brow l"></span><span class="mark-brow r"></span>
+          <span class="mark-eye l"><span class="pupil"></span></span>
+          <span class="mark-eye r"><span class="pupil"></span></span>
+          <span class="mark-mouth"></span>
+          <span class="mark-blush l"></span><span class="mark-blush r"></span>
+          <span class="mark-sweat"></span>
+        </span>
+        <span class="mark-vein l"></span><span class="mark-vein r"></span>
+        <span class="mark-arm l" id="arm-l"><span class="fist"></span></span>
+        <span class="mark-arm r" id="arm-r"><span class="fist"></span></span>
+        <span class="impact-flash"></span>
+      </div>
       <div class="brand-text">
         <div class="brand-name">Uzum Inventory</div>
         <div class="brand-sub" data-i18n="brand_sub">Экосистема ПВЗ</div>
@@ -485,7 +679,14 @@
     <div class="hint-text" style="margin-bottom: 16px;" data-i18n="finish_hint">
       Когда все <span class="key">ячейки склада</span> отсканированы и закрыты — завершите инвентаризацию.
     </div>
-    <button class="btn finish" id="btn-finish"><span data-i18n="finish_btn">Завершить инвентаризацию</span></button>
+    <div class="finish-slot" id="finish-slot">
+      <button class="btn finish" id="btn-finish"><span data-i18n="finish_btn">Завершить инвентаризацию</span></button>
+      <div class="finish-hole" id="finish-hole">
+        <div class="hole-rim"></div>
+        <div class="hole-debris"></div>
+        <div class="hole-dust"></div>
+      </div>
+    </div>
   </div>
 
   <div class="footer stagger" style="animation-delay:0.3s">
@@ -812,48 +1013,124 @@
   });
 
   // ============================================================
-  // ЖИВОЙ ЛОГОТИП — по тапу один раз проигрывает цикл: расширился →
-  // выглянули глазки → моргнул → посмотрел по сторонам → высунулась
-  // ручка, показала "туда-сюда" → помахала → всё вернулось на место.
-  // Стадии переключаются классами, тайминги соответствуют keyframes
-  // в CSS. Пока проигрывается — повторный тап игнорируется, чтобы
-  // не ломать цикл.
+  // СЮЖЕТНАЯ АНИМАЦИЯ ЛОГОТИПА — «месть за незавершённую инвентаризацию».
+  // По клику логотип вылетает из хедера, зависает над кнопкой
+  // «Завершить инвентаризацию», злится, бьёт по ней руками, кнопка
+  // проваливается в дыру, логотип смущается и улетает обратно —
+  // после чего кнопка и дыра сами восстанавливаются.
+  //
+  // Тайминги стадий (мс от старта клика):
+  //   0     saga-liftoff  — логотип отрывается от хедера и летит к кнопке
+  //   950   saga-rage     — завис над кнопкой, краснеет, "качается", руки выезжают
+  //   1750  saga-smash    — двойной удар руками по кнопке
+  //   2000  --smashed--   — кнопка проваливается, открывается дыра
+  //   2450  saga-oops     — испуг/смущение, краснота уходит
+  //   3350  saga-return   — летит обратно в хедер, сжимается
+  //   4250  --restore--   — кнопка и дыра возвращаются, класс saga снят
   // ============================================================
-  (function initBrandMark() {
+  (function initLogoSaga() {
     const mark = $('brand-mark');
-    if (!mark) return;
-    let playing = false;
-    const STAGES = [
-      { cls: 'anim-expand', at: 0 },
-      { cls: 'anim-blink',  at: 260 },
-      { cls: 'anim-look',   at: 640 },
-      { cls: 'anim-point',  at: 1650 },
-      { cls: 'anim-wave',   at: 2500 },
-      { cls: 'anim-return', at: 3150 },
-    ];
-    const CLASSES = STAGES.map(s => s.cls);
-    const TOTAL = 3550;
+    const finishBtn = $('btn-finish');
+    const hole = $('finish-hole');
+    const slot = $('finish-slot');
+    if (!mark || !finishBtn || !hole || !slot) return;
 
-    function playCycle() {
+    let playing = false;
+
+    function setVar(el, name, val) { el.style.setProperty(name, val); }
+
+    function playSaga() {
       if (playing) return;
       playing = true;
-      haptic('light');
+      haptic('medium');
+
+      // Координаты старта (текущее место логотипа в хедере) и цели
+      // (по центру над кнопкой) считаем в момент запуска — так сценарий
+      // корректно работает при любой прокрутке и разрешении экрана.
+      const startRect = mark.getBoundingClientRect();
+      const targetRect = slot.getBoundingClientRect();
+
+      const targetCx = targetRect.left + targetRect.width / 2;
+      const targetTopY = targetRect.top - 118; // логотип зависает НАД кнопкой
+
+      setVar(mark, '--saga-home-x', startRect.left + 'px');
+      setVar(mark, '--saga-home-y', startRect.top + 'px');
+      setVar(mark, '--saga-x', startRect.left + 'px');
+      setVar(mark, '--saga-y', startRect.top + 'px');
+      setVar(mark, '--saga-target-x', (targetCx - 100) + 'px'); // 100 = половина ширины крупного значка (200px)
+      setVar(mark, '--saga-target-y', targetTopY + 'px');
+
+      const CLASSES = ['saga-liftoff', 'saga-rage', 'saga-smash', 'saga-oops', 'saga-return'];
       const timers = [];
-      STAGES.forEach(stage => {
-        timers.push(setTimeout(() => {
-          mark.classList.remove(...CLASSES);
-          mark.classList.add(stage.cls);
-        }, stage.at));
-      });
-      timers.push(setTimeout(() => {
+      const at = (fn, ms) => timers.push(setTimeout(fn, ms));
+
+      mark.classList.add('saga-playing');
+
+      // 1. Взлёт и полёт к кнопке
+      at(() => {
         mark.classList.remove(...CLASSES);
+        mark.classList.add('saga-liftoff');
+      }, 0);
+
+      // 2. Ярость над кнопкой
+      at(() => {
+        mark.classList.remove(...CLASSES);
+        mark.classList.add('saga-rage');
+        haptic('warning');
+      }, 950);
+
+      // 3. Удар
+      at(() => {
+        mark.classList.remove(...CLASSES);
+        mark.classList.add('saga-smash');
+        haptic('heavy');
+      }, 1750);
+
+      // 3.5 Кнопка проваливается, дыра раскрывается (чуть позже первого касания кулаков)
+      at(() => {
+        finishBtn.classList.add('smashed');
+        hole.classList.add('hole-active');
+        haptic('heavy');
+      }, 2000);
+
+      // 4. Смущение
+      at(() => {
+        mark.classList.remove(...CLASSES);
+        mark.classList.add('saga-oops');
+        haptic('light');
+      }, 2450);
+
+      // 5. Возврат в хедер
+      at(() => {
+        mark.classList.remove(...CLASSES);
+        mark.classList.add('saga-return');
+      }, 3350);
+
+      // 6. Логотип на месте — снимаем fixed-позиционирование, интерфейс восстанавливается
+      at(() => {
+        mark.classList.remove(...CLASSES, 'saga-playing');
+        mark.style.removeProperty('--saga-x');
+        mark.style.removeProperty('--saga-y');
+
+        // Кнопка и дыра синхронно "зарастают": сперва дыра гаснет,
+        // кнопка тихо всплывает обратно снизу под затемнением,
+        // затем плавно проявляется на исходном месте.
+        hole.classList.remove('hole-active');
+        finishBtn.classList.remove('smashed');
+        finishBtn.classList.add('restoring');
+        void finishBtn.offsetWidth;
+        finishBtn.classList.add('restore-in');
+        setTimeout(() => {
+          finishBtn.classList.remove('restoring', 'restore-in');
+        }, 600);
+
         playing = false;
-      }, TOTAL));
+      }, 4250);
     }
 
-    mark.addEventListener('click', playCycle);
+    mark.addEventListener('click', playSaga);
     mark.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); playCycle(); }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); playSaga(); }
     });
   })();
 </script>
