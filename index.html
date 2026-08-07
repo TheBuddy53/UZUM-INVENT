@@ -57,14 +57,6 @@
     perspective: 1000px;
   }
 
-  /* ============================================================
-     ПЕРФОМАНС: слои ниже сознательно переведены на собственные
-     композитные слои (translateZ(0) / will-change) и заключены
-     в contain, чтобы GPU кэшировал blur/backdrop-filter и не
-     пересчитывал их поверх всего документа на каждый кадр.
-     Ни один визуальный эффект не убран — только "удешевлён".
-     ============================================================ */
-
   #noise { position: fixed; inset: -50%; z-index: 999; pointer-events: none; opacity: 0.1; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); animation: noiseShift 8s steps(10) infinite; transition: opacity 0.3s ease; will-change: transform; transform: translateZ(0); contain: paint; }
   #noise.flash { opacity: 0.32; }
   :root { --grain-url: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
@@ -90,11 +82,46 @@
   .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; padding: 0 8px; }
   .brand { display: flex; align-items: center; gap: 12px; }
 
-  /* --- КОНТЕЙНЕР-ЯКОРЬ: удерживает место, когда логотип улетает --- */
   .brand-logo-container {
     width: 44px; height: 44px; position: relative; flex-shrink: 0; display: block;
   }
 
+  /* ============================================================
+     КИНЕМАТОГРАФИЧНЫЙ БЛИК ПО КРАЯМ РАМОК (ПРЕМИАЛЬНЫЙ СВЕТ)
+     ============================================================ */
+  .cinematic-glare {
+    position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    padding: 1.5px;
+    background: linear-gradient(110deg, transparent 20%, rgba(255,255,255,0.85) 40%, rgba(255,255,255,0.95) 50%, rgba(255,255,255,0.85) 60%, transparent 80%);
+    background-size: 250% 100%;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    animation: cinematicSweep 8s cubic-bezier(0.3, 0, 0.7, 1) infinite;
+    z-index: 10; opacity: 0.75;
+  }
+  @keyframes cinematicSweep {
+    0% { background-position: 250% 0; }
+    100% { background-position: -150% 0; }
+  }
+
+  .card { position: relative; background: var(--glass-bg); backdrop-filter: blur(40px) saturate(200%); -webkit-backdrop-filter: blur(40px) saturate(200%); border: 1px solid var(--glass-border-dark); border-top: 1px solid var(--glass-border-light); border-left: 1px solid rgba(255,255,255,0.18); border-radius: var(--r-xl); padding: 20px; box-shadow: 0 24px 48px -12px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.35); overflow: hidden; transform: translateZ(0); animation: floatCard 8s infinite ease-in-out; will-change: transform; }
+  .card:nth-child(2) { animation-delay: -2s; }
+  .card:nth-child(3) { animation-delay: -4s; }
+  @keyframes floatCard { 0%, 100% { transform: translateY(0) translateZ(0); } 50% { transform: translateY(-4px) translateZ(0); } }
+  
+  .card::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(800px circle at var(--mouse-x, 50%) var(--mouse-y, -20%), rgba(255,255,255,0.08), transparent 45%); transition: background 0.15s linear; z-index: 1; }
+  .card { isolation: isolate; }
+  .card .grain { content: ''; position: absolute; inset: 0; pointer-events: none; background-image: var(--grain-url); background-size: 180px 180px; opacity: 0.08; mix-blend-mode: overlay; border-radius: inherit; z-index: 1; }
+  .card > *:not(.grain):not(.cinematic-glare) { position: relative; z-index: 2; }
+  .card::after { content: ''; position: absolute; top: -60%; left: -40%; width: 45%; height: 220%; background: linear-gradient(75deg, transparent, rgba(255,255,255,0.07), transparent); transform: translateX(-20%) rotate(8deg); animation: cardSheen 9s ease-in-out infinite; pointer-events: none; will-change: transform; }
+  .card:nth-child(2)::after { animation-delay: -3s; }
+  .card:nth-child(3)::after { animation-delay: -6s; }
+  @keyframes cardSheen { 0%, 55% { transform: translateX(-20%) rotate(8deg); } 100% { transform: translateX(480%) rotate(8deg); } }
+  .card.replay { animation: riseIn 0.7s var(--epic) forwards, floatCard 8s infinite ease-in-out 0.7s; }
+
+  /* ============================================================
+     БРЕНД-МАРК И ЕГО СЮЖЕТНАЯ АНИМАЦИЯ
+     ============================================================ */
   .brand-mark {
     width: 44px; height: 44px; border-radius: 14px;
     background: linear-gradient(135deg, #A855F7, var(--purple));
@@ -104,27 +131,23 @@
     position: relative; overflow: visible; cursor: pointer;
     transform: translateZ(0) scale(1);
     transition: transform 0.4s var(--ease);
+    z-index: 2; /* Базовый Z-index в хедере */
   }
   .brand-mark:active:not(.saga-playing) { transform: scale(0.92) translateZ(0); }
 
-  /* ============================================================
-     СЮЖЕТНАЯ АНИМАЦИЯ ЛОГОТИПА — «месть за незавершённую инвентаризацию».
-     Один клик = один полный акт, ролью управляет JS через таймер,
-     переключающий классы на #brand-mark (сцены saga-*) и на кнопке/
-     дыре (.smashed / .hole-active). Вся геометрия — чистый CSS.
-     ============================================================ */
-
+  /* --- СЮЖЕТНЫЙ РЕЖИМ: ВЫХОД ИЗ ПОТОКА --- */
   .brand-mark.saga-playing {
-    position: fixed !important; 
-    z-index: 999999 !important;
+    position: fixed !important;
+    z-index: 99999 !important; /* Поверх всего */
     left: var(--saga-x, 0px); top: var(--saga-y, 0px);
     width: var(--saga-w, 44px); height: var(--saga-h, 44px);
-    margin: 0; will-change: transform, left, top, width, height, box-shadow, background;
+    margin: 0; pointer-events: none; /* Не блокирует нажатия */
+    will-change: transform, left, top, width, height, box-shadow, background;
     transition:
-      left 1.8s var(--saga-epic), top 1.8s var(--saga-epic),
-      width 1.8s var(--saga-epic), height 1.8s var(--saga-epic),
-      box-shadow 1.2s var(--ease), background 1.2s var(--ease),
-      border-radius 1.2s var(--ease);
+      left 1.6s var(--saga-epic), top 1.6s var(--saga-epic),
+      width 1.6s var(--saga-epic), height 1.6s var(--saga-epic),
+      box-shadow 1.0s var(--ease), background 1.0s var(--ease),
+      border-radius 1.0s var(--ease);
   }
   .brand-mark .mark-letter { position: relative; z-index: 2; transition: opacity 0.4s ease; }
 
@@ -167,13 +190,18 @@
     100% { transform: translateY(0) scale(1); }
   }
 
-  /* --- Сцена 4: неловкость --- */
+  /* --- Сцена 4: неловкость (Слоу-мо, капли, дрожь) --- */
   .brand-mark.saga-oops {
     left: var(--saga-target-x, 50vw); top: var(--saga-target-y, 50vh);
     width: 200px; height: 190px; border-radius: 38px;
     background: linear-gradient(135deg, #A855F7, var(--purple));
     box-shadow: 0 40px 90px var(--purple-glow), inset 0 4px 10px rgba(255,255,255,0.5), inset 0 -10px 22px rgba(0,0,0,0.35);
-    transition: background 1.2s var(--ease), box-shadow 1.2s var(--ease), left 1.8s var(--saga-epic), top 1.8s var(--saga-epic), width 1.8s var(--saga-epic), height 1.8s var(--saga-epic);
+    transition: background 1.2s var(--ease), box-shadow 1.2s var(--ease), left 1.6s var(--saga-epic), top 1.6s var(--saga-epic), width 1.6s var(--saga-epic), height 1.6s var(--saga-epic);
+    animation: oopsShake 0.5s ease-in-out infinite;
+  }
+  @keyframes oopsShake {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    50% { transform: translate(-1px, 1px) rotate(-0.5deg); }
   }
   .brand-mark.saga-oops .mark-letter { font-size: 84px; }
 
@@ -186,13 +214,16 @@
   }
   .brand-mark.saga-return .mark-letter { font-size: 20px; }
 
-  /* ---------- ЛИЦО ---------- */
+  /* ============================================================
+     ЛИЦО И ДЕТАЛИ (ГЛАЗА, БРОВИ, РОТ, ВЕНЫ, РУКИ)
+     ============================================================ */
   .mark-face { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; transition: opacity 0.4s ease; }
   .brand-mark.saga-rage .mark-face,
   .brand-mark.saga-smash .mark-face,
   .brand-mark.saga-oops .mark-face { opacity: 1; }
   .brand-mark.saga-liftoff .mark-face { opacity: 0; }
 
+  /* Глаза */
   .mark-eye {
     position: absolute; top: 46%; width: 15%; height: 15%; border-radius: 50%;
     background: #fff; box-shadow: 0 0 12px rgba(255,255,255,0.8);
@@ -201,6 +232,7 @@
   .mark-eye.l { left: 30%; } .mark-eye.r { right: 30%; }
   .mark-eye .pupil { position: absolute; inset: 22%; border-radius: 50%; background: #2a0845; transition: transform 0.4s ease; }
 
+  /* Брови */
   .mark-brow {
     position: absolute; top: 34%; width: 15%; height: 4px; border-radius: 4px;
     background: rgba(30,0,20,0.85); opacity: 0; transition: all 0.4s var(--ease);
@@ -208,15 +240,18 @@
   .mark-brow.l { left: 29%; transform: rotate(18deg); }
   .mark-brow.r { right: 29%; transform: rotate(-18deg); }
 
+  /* Рот */
   .mark-mouth {
     position: absolute; left: 50%; top: 62%; width: 22%; height: 10%;
     margin-left: -11%; border-radius: 4px; background: #2a0845;
     transition: all 0.4s var(--ease);
   }
 
+  /* Румянец */
   .mark-blush { position: absolute; top: 56%; width: 12%; height: 8%; border-radius: 50%; background: rgba(255,120,150,0); transition: background 0.6s ease; }
   .mark-blush.l { left: 16%; } .mark-blush.r { right: 16%; }
 
+  /* Капля пота (Слоу-мо неловкость) */
   .mark-sweat {
     position: absolute; top: 20%; right: 14%; width: 8%; height: 12%;
     background: #8ED4FF; border-radius: 50% 50% 50% 0; transform: rotate(45deg) scale(0);
@@ -236,6 +271,7 @@
   .brand-mark.saga-rage .mark-mouth,
   .brand-mark.saga-smash .mark-mouth { height: 14%; border-radius: 3px; background: #2a0845; clip-path: polygon(0 0,12% 60%,24% 0,36% 60%,48% 0,60% 60%,72% 0,84% 60%,100% 0,100% 100%,0 100%); }
 
+  /* Вены */
   .mark-vein {
     position: absolute; top: 8%; width: 4px; height: 30%; border-radius: 3px;
     background: linear-gradient(180deg, transparent, #6A0000, transparent);
@@ -261,7 +297,7 @@
   .brand-mark.saga-oops .mark-sweat { opacity: 1; transform: rotate(45deg) scale(1); animation: sweatDrop 1.2s ease-in infinite; }
   @keyframes sweatDrop { 0% { transform: rotate(45deg) scale(1) translateY(0); opacity: 1; } 100% { transform: rotate(45deg) scale(0.8) translateY(12px); opacity: 0; } }
 
-  /* ---------- РУКИ ---------- */
+  /* Руки (Кулаки) */
   .mark-arm {
     position: absolute; top: 50%; width: 15%; height: 36px; margin-top: -18px;
     background: linear-gradient(180deg, #FF7A7A, #B21212);
@@ -314,106 +350,73 @@
     100% { opacity: 0; transform: scale(10); }
   }
 
-  .brand-text { display: flex; flex-direction: column; gap: 2px; }
-  .brand-name { font-weight: 900; font-size: 18px; letter-spacing: -0.03em; text-shadow: 0 2px 10px rgba(255,255,255,0.2); }
-  .brand-sub { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.15em; font-weight: 800; background: linear-gradient(90deg, var(--text-muted), #fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-
-  .topbar-actions { display: flex; align-items: center; gap: 8px; }
-
-  /* icon-btn: overflow оставлен видимым намеренно — под кнопкой теперь
-     живёт мягкий дышащий ореол (::before), который не был бы виден,
-     если бы контейнер обрезал контент. Это "дефолтная" анимация
-     до нажатия, которую просили добавить. */
-  .icon-btn { width: 44px; height: 44px; border-radius: 14px; background: rgba(255,255,255,0.05); backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%); border: 1px solid var(--glass-border-dark); border-top: 1px solid var(--glass-border-light); color: var(--text-main); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 900; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transition: all 0.3s var(--spring); cursor: pointer; position: relative; transform: translateZ(0); }
-  .icon-btn::before { content: ''; position: absolute; inset: -7px; border-radius: inherit; background: radial-gradient(circle, rgba(157,77,255,0.55), transparent 70%); filter: blur(9px); z-index: -1; pointer-events: none; animation: iconIdle 3.4s ease-in-out infinite; will-change: opacity, transform; }
-  @keyframes iconIdle { 0%, 100% { opacity: 0.18; transform: scale(0.9); } 50% { opacity: 0.42; transform: scale(1.1); } }
-  .icon-btn:active { transform: scale(0.9) translateZ(0); }
-
-  .lang-switch {
-    position: relative; height: 44px; padding: 0 14px; border-radius: 999px;
-    display: flex; align-items: center; justify-content: center; gap: 6px;
-    background: rgba(255,255,255,0.05);
-    backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%);
-    border: 1px solid var(--glass-border-dark); border-top: 1px solid var(--glass-border-light);
-    cursor: pointer; overflow: hidden;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    transition: transform 0.25s var(--spring), box-shadow 0.3s var(--ease);
-    transform: translateZ(0);
-    animation: langBreathe 4.5s ease-in-out infinite;
-  }
-  @keyframes langBreathe {
-    0%, 100% { box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-    50% { box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 0 1px rgba(157,77,255,0.35), 0 0 14px rgba(157,77,255,0.25); }
-  }
-  .lang-switch:active { transform: scale(0.92) translateZ(0); }
-  .lang-switch .lang-cur { font-weight: 900; font-size: 13px; letter-spacing: 0.05em; color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
-  .lang-switch .lang-globe { font-size: 14px; display: inline-block; opacity: 0.9; }
-
   /* ============================================================
-     КИНЕМАТОГРАФИЧНЫЙ БЛИК ПО КРАЯМ РАМОК (ПРЕМИАЛЬНЫЙ СВЕТ)
-     Эффект скользящего дорогого света вдоль границ.
+     ТАНЕЦ ТЕКСТА РЯДОМ С ЛОГОТИПОМ
      ============================================================ */
-  .cinematic-glare {
-    position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-    padding: 1.5px;
-    background: linear-gradient(110deg, transparent 20%, rgba(255,255,255,0.85) 40%, rgba(255,255,255,0.95) 50%, rgba(255,255,255,0.85) 60%, transparent 80%);
-    background-size: 250% 100%;
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor; mask-composite: exclude;
-    animation: cinematicSweep 8s cubic-bezier(0.3, 0, 0.7, 1) infinite;
-    z-index: 10; opacity: 0.75;
-  }
-  @keyframes cinematicSweep {
-    0% { background-position: 250% 0; }
-    100% { background-position: -150% 0; }
-  }
-
-  .card { position: relative; background: var(--glass-bg); backdrop-filter: blur(40px) saturate(200%); -webkit-backdrop-filter: blur(40px) saturate(200%); border: 1px solid var(--glass-border-dark); border-top: 1px solid var(--glass-border-light); border-left: 1px solid rgba(255,255,255,0.18); border-radius: var(--r-xl); padding: 20px; box-shadow: 0 24px 48px -12px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.35); overflow: hidden; transform: translateZ(0); animation: floatCard 8s infinite ease-in-out; will-change: transform; }
-  .card:nth-child(2) { animation-delay: -2s; }
-  .card:nth-child(3) { animation-delay: -4s; }
-  @keyframes floatCard { 0%, 100% { transform: translateY(0) translateZ(0); } 50% { transform: translateY(-4px) translateZ(0); } }
+  .brand-text { display: flex; flex-direction: column; gap: 2px; transition: transform 0.6s var(--spring); }
   
-  .card::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(800px circle at var(--mouse-x, 50%) var(--mouse-y, -20%), rgba(255,255,255,0.08), transparent 45%); transition: background 0.15s linear; z-index: 1; }
-  .card { isolation: isolate; }
-  .card .grain { content: ''; position: absolute; inset: 0; pointer-events: none; background-image: var(--grain-url); background-size: 180px 180px; opacity: 0.08; mix-blend-mode: overlay; border-radius: inherit; z-index: 1; }
-  .card > *:not(.grain):not(.cinematic-glare) { position: relative; z-index: 2; }
-  .card::after { content: ''; position: absolute; top: -60%; left: -40%; width: 45%; height: 220%; background: linear-gradient(75deg, transparent, rgba(255,255,255,0.07), transparent); transform: translateX(-20%) rotate(8deg); animation: cardSheen 9s ease-in-out infinite; pointer-events: none; will-change: transform; }
-  .card:nth-child(2)::after { animation-delay: -3s; }
-  .card:nth-child(3)::after { animation-delay: -6s; }
-  @keyframes cardSheen { 0%, 55% { transform: translateX(-20%) rotate(8deg); } 100% { transform: translateX(480%) rotate(8deg); } }
-  .card.replay { animation: riseIn 0.7s var(--epic) forwards, floatCard 8s infinite ease-in-out 0.7s; }
+  .brand-name { font-weight: 900; font-size: 18px; letter-spacing: -0.03em; text-shadow: 0 2px 10px rgba(255,255,255,0.2); transition: color 0.5s ease; }
+  .brand-sub { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.15em; font-weight: 800; background: linear-gradient(90deg, var(--text-muted), #fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; transition: color 0.5s ease; }
 
-  .btn { border: none; border-radius: var(--r-lg); padding: 16px; font-weight: 900; font-size: 14px; letter-spacing: 0.02em; color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.2s var(--spring); width: 100%; position: relative; overflow: hidden; text-shadow: 0 2px 5px rgba(0,0,0,0.3); }
-  .btn:active { transform: scale(0.96) translateY(2px); }
-  .btn.primary { background: linear-gradient(135deg, var(--purple-light), var(--purple)); box-shadow: 0 12px 24px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5), inset 0 -4px 12px rgba(0,0,0,0.3); }
-  .btn.finish { background: linear-gradient(135deg, #38E888, #0F9D58); box-shadow: 0 12px 24px var(--green-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 12px rgba(0,0,0,0.3); animation: pulseFinish 3s infinite; will-change: box-shadow, transform; }
-  @keyframes pulseFinish { 0%,100% { box-shadow: 0 12px 24px var(--green-glow), inset 0 2px 4px rgba(255,255,255,0.6); } 50% { box-shadow: 0 16px 32px rgba(52, 199, 123, 0.9), inset 0 2px 4px rgba(255,255,255,0.6); transform: scale(1.02); } }
+  /* Реакция на сюжет */
+  .brand-text.saga-rage {
+    animation: textShake 0.3s ease-in-out infinite;
+  }
+  .brand-text.saga-oops {
+    animation: textShake 0.6s ease-in-out infinite;
+  }
+  .brand-text.saga-return {
+    animation: none;
+    transform: translateX(0) scale(1);
+  }
+
+  @keyframes textShake {
+    0% { transform: translateX(0) rotate(0deg); }
+    25% { transform: translateX(2px) rotate(0.5deg); }
+    50% { transform: translateX(-2px) rotate(-0.5deg); }
+    75% { transform: translateX(1px) rotate(0.3deg); }
+    100% { transform: translateX(0) rotate(0deg); }
+  }
 
   /* ============================================================
-     СЛОТ КНОПКИ «ЗАВЕРШИТЬ» — кнопка и дыра занимают одну и ту же
-     ячейку (дыра рендерится под кнопкой и раскрывается, когда кнопка
-     проваливается вниз за пределы слота). Высота слота фиксируется
-     на высоту кнопки, чтобы карточка не "прыгала" во время сценария.
+     РАЗЛОМ КНОПКИ (Детальная анимация по кадрам)
      ============================================================ */
-  .finish-slot { position: relative; overflow: hidden; border-radius: var(--r-lg); }
-  .finish-slot .btn.finish { position: relative; z-index: 1; }
+  .finish-slot { position: relative; overflow: hidden; border-radius: var(--r-lg); height: 56px; } /* Фиксированная высота, чтобы не прыгало */
+  .finish-slot .btn.finish { position: relative; z-index: 1; height: 100%; display: flex; align-items: center; justify-content: center; }
+
   .btn.finish.smashed {
     animation: none;
-    transition: transform 0.55s cubic-bezier(0.5,0,0.85,0.35), opacity 0.5s ease 0.15s, box-shadow 0.4s ease;
     transform: translateY(140%) rotate(4deg) scale(0.92);
     opacity: 0;
+    transition: transform 0.3s cubic-bezier(0.5,0,0.85,0.35), opacity 0.3s ease 0.1s;
     box-shadow: none;
   }
-  .btn.finish.restoring {
-    animation: none;
-    transform: translateY(-24%) scale(0.96); opacity: 0;
-    transition: none;
-  }
-  .btn.finish.restore-in {
-    transition: transform 0.55s var(--spring), opacity 0.45s ease;
-    transform: translateY(0) scale(1); opacity: 1;
-  }
 
+  /* Обломки кнопки (5 штук) */
+  .finish-slot .shard {
+    position: absolute; top: 50%; left: 50%; width: 15px; height: 15px;
+    background: var(--green); border-radius: 2px; opacity: 0; pointer-events: none;
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+    transition: transform 0.8s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.4s ease;
+    box-shadow: 0 0 10px var(--green-glow);
+    z-index: 0;
+  }
+  .finish-slot .shard:nth-child(1) { background: #2EAB65; width: 12px; height: 20px; }
+  .finish-slot .shard:nth-child(2) { background: #4ADE80; width: 18px; height: 12px; }
+  .finish-slot .shard:nth-child(3) { background: #38E888; width: 10px; height: 16px; }
+  .finish-slot .shard:nth-child(4) { background: #1F874C; width: 20px; height: 14px; }
+  .finish-slot .shard:nth-child(5) { background: #5DF5A6; width: 14px; height: 18px; }
+
+  .finish-slot.smashed .shard {
+    opacity: 1;
+  }
+  .finish-slot.smashed .shard:nth-child(1) { transform: translate(-120px, -60px) scale(1.2) rotate(240deg); }
+  .finish-slot.smashed .shard:nth-child(2) { transform: translate(130px, 70px) scale(0.9) rotate(150deg); }
+  .finish-slot.smashed .shard:nth-child(3) { transform: translate(-90px, 120px) scale(1.1) rotate(300deg); }
+  .finish-slot.smashed .shard:nth-child(4) { transform: translate(140px, -50px) scale(0.8) rotate(40deg); }
+  .finish-slot.smashed .shard:nth-child(5) { transform: translate(-10px, -80px) scale(1.3) rotate(190deg); }
+
+  /* Дыра (место провала) */
   .finish-hole {
     position: absolute; inset: 0; border-radius: var(--r-lg);
     display: flex; align-items: center; justify-content: center;
@@ -422,7 +425,7 @@
       radial-gradient(120% 140% at 50% 0%, rgba(0,0,0,0.9), rgba(10,2,20,0.95) 55%, rgba(3,0,8,0.98)),
       linear-gradient(180deg, rgba(112,0,255,0.15), transparent 40%);
     box-shadow: inset 0 18px 30px rgba(0,0,0,0.9), inset 0 2px 6px rgba(0,0,0,0.8), inset 0 0 0 1px rgba(157,77,255,0.15);
-    transition: opacity 0.35s ease;
+    transition: opacity 0.4s ease;
   }
   .finish-hole.hole-active { opacity: 1; }
   .hole-rim {
@@ -451,23 +454,30 @@
     100% { opacity: 0; transform: scale(3.2) translateY(22px); }
   }
 
-  /* КНОПКА "ВСТАВИТЬ СПИСОК" — эпичная, с автопульсом, бегущим бликом и ripple от тапа */
-  #btn-paste-wms {
-    position: relative;
-    animation: pasteBreathe 2.6s ease-in-out infinite;
-    will-change: box-shadow, transform;
-  }
-  @keyframes pasteBreathe {
-    0%, 100% { box-shadow: 0 12px 24px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5), inset 0 -4px 12px rgba(0,0,0,0.3); }
-    50% { box-shadow: 0 16px 40px rgba(157,77,255,0.95), 0 0 30px rgba(157,77,255,0.5), inset 0 2px 4px rgba(255,255,255,0.7), inset 0 -4px 12px rgba(0,0,0,0.3); transform: scale(1.015); }
-  }
-  #btn-paste-wms::after {
-    content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    background: linear-gradient(100deg, transparent 35%, rgba(255,255,255,0.45) 48%, rgba(255,255,255,0.65) 50%, rgba(255,255,255,0.45) 52%, transparent 65%);
-    background-size: 300% 100%; background-position: 130% 0;
-    animation: pasteShine 3.6s linear infinite;
-    mix-blend-mode: overlay; pointer-events: none;
-  }
+  /* ============================================================
+     ОСТАЛЬНОЙ UI (БЕЗ ИЗМЕНЕНИЙ)
+     ============================================================ */
+  .topbar-actions { display: flex; align-items: center; gap: 8px; }
+  .icon-btn { width: 44px; height: 44px; border-radius: 14px; background: rgba(255,255,255,0.05); backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%); border: 1px solid var(--glass-border-dark); border-top: 1px solid var(--glass-border-light); color: var(--text-main); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 900; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transition: all 0.3s var(--spring); cursor: pointer; position: relative; transform: translateZ(0); }
+  .icon-btn::before { content: ''; position: absolute; inset: -7px; border-radius: inherit; background: radial-gradient(circle, rgba(157,77,255,0.55), transparent 70%); filter: blur(9px); z-index: -1; pointer-events: none; animation: iconIdle 3.4s ease-in-out infinite; will-change: opacity, transform; }
+  @keyframes iconIdle { 0%, 100% { opacity: 0.18; transform: scale(0.9); } 50% { opacity: 0.42; transform: scale(1.1); } }
+  .icon-btn:active { transform: scale(0.9) translateZ(0); }
+
+  .lang-switch { position: relative; height: 44px; padding: 0 14px; border-radius: 999px; display: flex; align-items: center; justify-content: center; gap: 6px; background: rgba(255,255,255,0.05); backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%); border: 1px solid var(--glass-border-dark); border-top: 1px solid var(--glass-border-light); cursor: pointer; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transition: transform 0.25s var(--spring), box-shadow 0.3s var(--ease); transform: translateZ(0); animation: langBreathe 4.5s ease-in-out infinite; }
+  @keyframes langBreathe { 0%, 100% { box-shadow: 0 10px 30px rgba(0,0,0,0.5); } 50% { box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 0 1px rgba(157,77,255,0.35), 0 0 14px rgba(157,77,255,0.25); } }
+  .lang-switch:active { transform: scale(0.92) translateZ(0); }
+  .lang-switch .lang-cur { font-weight: 900; font-size: 13px; letter-spacing: 0.05em; color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
+  .lang-switch .lang-globe { font-size: 14px; display: inline-block; opacity: 0.9; }
+
+  .btn { border: none; border-radius: var(--r-lg); padding: 16px; font-weight: 900; font-size: 14px; letter-spacing: 0.02em; color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.2s var(--spring); width: 100%; position: relative; overflow: hidden; text-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+  .btn:active { transform: scale(0.96) translateY(2px); }
+  .btn.primary { background: linear-gradient(135deg, var(--purple-light), var(--purple)); box-shadow: 0 12px 24px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5), inset 0 -4px 12px rgba(0,0,0,0.3); }
+  .btn.finish { background: linear-gradient(135deg, #38E888, #0F9D58); box-shadow: 0 12px 24px var(--green-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 12px rgba(0,0,0,0.3); animation: pulseFinish 3s infinite; will-change: box-shadow, transform; }
+  @keyframes pulseFinish { 0%,100% { box-shadow: 0 12px 24px var(--green-glow), inset 0 2px 4px rgba(255,255,255,0.6); } 50% { box-shadow: 0 16px 32px rgba(52, 199, 123, 0.9), inset 0 2px 4px rgba(255,255,255,0.6); transform: scale(1.02); } }
+
+  #btn-paste-wms { position: relative; animation: pasteBreathe 2.6s ease-in-out infinite; will-change: box-shadow, transform; }
+  @keyframes pasteBreathe { 0%, 100% { box-shadow: 0 12px 24px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5), inset 0 -4px 12px rgba(0,0,0,0.3); } 50% { box-shadow: 0 16px 40px rgba(157,77,255,0.95), 0 0 30px rgba(157,77,255,0.5), inset 0 2px 4px rgba(255,255,255,0.7), inset 0 -4px 12px rgba(0,0,0,0.3); transform: scale(1.015); } }
+  #btn-paste-wms::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(100deg, transparent 35%, rgba(255,255,255,0.45) 48%, rgba(255,255,255,0.65) 50%, rgba(255,255,255,0.45) 52%, transparent 65%); background-size: 300% 100%; background-position: 130% 0; animation: pasteShine 3.6s linear infinite; mix-blend-mode: overlay; pointer-events: none; }
   @keyframes pasteShine { 0% { background-position: 160% 0; } 100% { background-position: -60% 0; } }
   .ripple { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.6); transform: scale(0); pointer-events: none; animation: rippleOut 0.7s var(--ease) forwards; }
   @keyframes rippleOut { to { transform: scale(1); opacity: 0; } }
@@ -483,40 +493,15 @@
   #sheet-overlay { position: fixed; inset: 0; z-index: 300; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); opacity: 0; pointer-events: none; transition: opacity 0.5s var(--ease); transform: translateZ(0); }
   #sheet-overlay.show { opacity: 1; pointer-events: auto; }
 
-  #paste-sheet {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 301; max-width: 480px; margin: 0 auto;
-    background: linear-gradient(180deg, rgba(30,15,50,0.95), rgba(10,2,20,0.98));
-    backdrop-filter: blur(40px) saturate(220%); -webkit-backdrop-filter: blur(40px) saturate(220%);
-    border: 1px solid var(--glass-border-dark); border-top: 1px solid rgba(255,255,255,0.25);
-    border-radius: 32px 32px 0 0; padding: 12px 20px calc(24px + env(safe-area-inset-bottom, 0px));
-    box-shadow: 0 -20px 60px rgba(0,0,0,0.9), inset 0 2px 10px rgba(255,255,255,0.1);
-    transform: translateY(100%); max-height: 80vh; display: flex; flex-direction: column;
-    transform-origin: center bottom; visibility: hidden; pointer-events: none;
-  }
+  #paste-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 301; max-width: 480px; margin: 0 auto; background: linear-gradient(180deg, rgba(30,15,50,0.95), rgba(10,2,20,0.98)); backdrop-filter: blur(40px) saturate(220%); -webkit-backdrop-filter: blur(40px) saturate(220%); border: 1px solid var(--glass-border-dark); border-top: 1px solid rgba(255,255,255,0.25); border-radius: 32px 32px 0 0; padding: 12px 20px calc(24px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -20px 60px rgba(0,0,0,0.9), inset 0 2px 10px rgba(255,255,255,0.1); transform: translateY(100%); max-height: 80vh; display: flex; flex-direction: column; transform-origin: center bottom; visibility: hidden; pointer-events: none; }
   #paste-sheet.show { visibility: visible; animation: sheetEpicIn 0.85s var(--epic) forwards; }
   #paste-sheet.closing { visibility: visible; animation: sheetEpicOut 0.5s var(--epic-out) forwards; }
-  @keyframes sheetEpicIn {
-    0%   { transform: translateY(65%) scale(0.92) rotateX(6deg); filter: blur(22px) brightness(0.5) saturate(1.4); opacity: 0; }
-    40%  { transform: translateY(-3%) scale(1.015) rotateX(-1deg); filter: blur(3px) brightness(1.4) saturate(1.6); opacity: 1; }
-    68%  { transform: translateY(1.5%) scale(0.997) rotateX(0.4deg); filter: blur(0px) brightness(1.08) saturate(1.1); }
-    100% { transform: translateY(0) scale(1) rotateX(0deg); filter: blur(0) brightness(1) saturate(1); }
-  }
-  @keyframes sheetEpicOut {
-    0%   { transform: translateY(0) scale(1) rotateX(0deg); filter: blur(0) brightness(1) saturate(1); opacity: 1; }
-    35%  { transform: translateY(4%) scale(0.985) rotateX(1.5deg); filter: blur(2px) brightness(0.85) saturate(1.05); opacity: 1; }
-    100% { transform: translateY(100%) scale(0.93) rotateX(5deg); filter: blur(14px) brightness(0.5) saturate(1.2); opacity: 0.2; }
-  }
-  #paste-sheet::before {
-    content: ''; position: absolute; left: 50%; top: 0; width: 10px; height: 10px; margin-left: -5px; margin-top: -5px;
-    border-radius: 50%; background: radial-gradient(circle, rgba(157,77,255,0.9), transparent 70%);
-    opacity: 0; pointer-events: none;
-  }
+  @keyframes sheetEpicIn { 0% { transform: translateY(65%) scale(0.92) rotateX(6deg); filter: blur(22px) brightness(0.5) saturate(1.4); opacity: 0; } 40% { transform: translateY(-3%) scale(1.015) rotateX(-1deg); filter: blur(3px) brightness(1.4) saturate(1.6); opacity: 1; } 68% { transform: translateY(1.5%) scale(0.997) rotateX(0.4deg); filter: blur(0px) brightness(1.08) saturate(1.1); } 100% { transform: translateY(0) scale(1) rotateX(0deg); filter: blur(0) brightness(1) saturate(1); } }
+  @keyframes sheetEpicOut { 0% { transform: translateY(0) scale(1) rotateX(0deg); filter: blur(0) brightness(1) saturate(1); opacity: 1; } 35% { transform: translateY(4%) scale(0.985) rotateX(1.5deg); filter: blur(2px) brightness(0.85) saturate(1.05); opacity: 1; } 100% { transform: translateY(100%) scale(0.93) rotateX(5deg); filter: blur(14px) brightness(0.5) saturate(1.2); opacity: 0.2; } }
+  #paste-sheet::before { content: ''; position: absolute; left: 50%; top: 0; width: 10px; height: 10px; margin-left: -5px; margin-top: -5px; border-radius: 50%; background: radial-gradient(circle, rgba(157,77,255,0.9), transparent 70%); opacity: 0; pointer-events: none; }
   #paste-sheet.show::before { animation: ringPulse 0.9s var(--ease) forwards; }
   @keyframes ringPulse { 0% { opacity: 0.9; transform: scale(1); } 100% { opacity: 0; transform: scale(60); } }
-  #paste-sheet::after {
-    content: ''; position: absolute; inset: 0; pointer-events: none; background-image: var(--grain-url);
-    background-size: 180px 180px; opacity: 0.045; mix-blend-mode: overlay; border-radius: inherit;
-  }
+  #paste-sheet::after { content: ''; position: absolute; inset: 0; pointer-events: none; background-image: var(--grain-url); background-size: 180px 180px; opacity: 0.045; mix-blend-mode: overlay; border-radius: inherit; }
 
   .sheet-handle { width: 40px; height: 5px; border-radius: 999px; background: rgba(255,255,255,0.3); margin: 0 auto 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.5); animation: handlePulse 2.2s ease-in-out infinite; }
   @keyframes handlePulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
@@ -525,14 +510,8 @@
   .sheet-close { width: 32px; height: 32px; border-radius: 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; font-weight: 900; transition: all 0.2s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
   .sheet-close:active { transform: scale(0.9) rotate(90deg); }
 
-  .format-example {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;
-  }
-  .format-col {
-    background: rgba(0,0,0,0.45); border: 1px solid rgba(157,77,255,0.25); border-top: 1px solid rgba(255,255,255,0.15);
-    border-radius: var(--r-md); padding: 10px 12px; box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
-    transition: border-color 0.3s var(--ease);
-  }
+  .format-example { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .format-col { background: rgba(0,0,0,0.45); border: 1px solid rgba(157,77,255,0.25); border-top: 1px solid rgba(255,255,255,0.15); border-radius: var(--r-md); padding: 10px 12px; box-shadow: inset 0 2px 8px rgba(0,0,0,0.5); transition: border-color 0.3s var(--ease); }
   .format-label { display: block; font-size: 9px; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 4px; }
   .format-val { display: block; font-family: "SF Mono", "Menlo", monospace; font-size: 14px; font-weight: 800; color: #E2D4FF; animation: valGlow 3s ease-in-out infinite; }
   @keyframes valGlow { 0%, 100% { text-shadow: 0 0 8px rgba(157,77,255,0.4); } 50% { text-shadow: 0 0 16px rgba(157,77,255,0.85); } }
@@ -552,42 +531,15 @@
 
   .section-label { font-size: 11px; font-weight: 900; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 12px; }
   .hint-text { font-size: 13px; color: var(--text-hint); font-weight: 600; line-height: 1.6; position: relative; z-index: 2; }
-  .hint-text .key {
-    color: var(--accent-key);
-    font-weight: 800;
-    background: linear-gradient(90deg, var(--accent-key), #fff 120%);
-    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
-    text-shadow: none;
-    position: relative;
-    padding-bottom: 1px;
-    border-bottom: 1.5px solid rgba(255, 168, 214, 0.35);
-    animation: keyGlow 3.6s ease-in-out infinite;
-  }
-  @keyframes keyGlow {
-    0%, 100% { filter: drop-shadow(0 0 0px var(--accent-key-glow)); }
-    50% { filter: drop-shadow(0 0 6px var(--accent-key-glow)); }
-  }
+  .hint-text .key { color: var(--accent-key); font-weight: 800; background: linear-gradient(90deg, var(--accent-key), #fff 120%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; text-shadow: none; position: relative; padding-bottom: 1px; border-bottom: 1.5px solid rgba(255, 168, 214, 0.35); animation: keyGlow 3.6s ease-in-out infinite; }
+  @keyframes keyGlow { 0%, 100% { filter: drop-shadow(0 0 0px var(--accent-key-glow)); } 50% { filter: drop-shadow(0 0 6px var(--accent-key-glow)); } }
 
-  #lang-wash {
-    position: fixed; top: 0; left: 0; width: 40px; height: 40px; margin-left: -20px; margin-top: -20px;
-    border-radius: 50%; z-index: 600; pointer-events: none; opacity: 0;
-    background: radial-gradient(circle, rgba(200,150,255,0.95), rgba(112,0,255,0.6) 40%, rgba(3,0,8,0.97) 78%);
-    transform: translate(var(--wx, 50vw), var(--wy, 50vh)) scale(0);
-  }
+  #lang-wash { position: fixed; top: 0; left: 0; width: 40px; height: 40px; margin-left: -20px; margin-top: -20px; border-radius: 50%; z-index: 600; pointer-events: none; opacity: 0; background: radial-gradient(circle, rgba(200,150,255,0.95), rgba(112,0,255,0.6) 40%, rgba(3,0,8,0.97) 78%); transform: translate(var(--wx, 50vw), var(--wy, 50vh)) scale(0); }
   #lang-wash.active { animation: langWash 1.15s cubic-bezier(0.7,0,0.2,1) forwards; }
-  @keyframes langWash {
-    0%   { opacity: 0; transform: translate(var(--wx),var(--wy)) scale(0); }
-    10%  { opacity: 1; }
-    52%  { opacity: 0.97; transform: translate(var(--wx),var(--wy)) scale(var(--ws, 50)); }
-    78%  { opacity: 0.55; transform: translate(var(--wx),var(--wy)) scale(calc(var(--ws, 50) * 1.25)); }
-    100% { opacity: 0; transform: translate(var(--wx),var(--wy)) scale(calc(var(--ws, 50) * 1.4)); }
-  }
+  @keyframes langWash { 0% { opacity: 0; transform: translate(var(--wx),var(--wy)) scale(0); } 10% { opacity: 1; } 52% { opacity: 0.97; transform: translate(var(--wx),var(--wy)) scale(var(--ws, 50)); } 78% { opacity: 0.55; transform: translate(var(--wx),var(--wy)) scale(calc(var(--ws, 50) * 1.25)); } 100% { opacity: 0; transform: translate(var(--wx),var(--wy)) scale(calc(var(--ws, 50) * 1.4)); } }
 
   .confetti-piece { position: fixed; width: 7px; height: 7px; border-radius: 2px; z-index: 700; pointer-events: none; left: 0; top: 0; transform: translate(-50%,-50%); animation: confettiFly 0.85s cubic-bezier(0.2,0.8,0.3,1) forwards; box-shadow: 0 0 6px rgba(255,255,255,0.5); }
-  @keyframes confettiFly {
-    0%   { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; }
-    100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.35) rotate(300deg); opacity: 0; }
-  }
+  @keyframes confettiFly { 0% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; } 100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.35) rotate(300deg); opacity: 0; } }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
@@ -621,7 +573,7 @@
           <span class="impact-flash"></span>
         </div>
       </div>
-      <div class="brand-text">
+      <div class="brand-text" id="brand-text">
         <div class="brand-name">Uzum Inventory</div>
         <div class="brand-sub" data-i18n="brand_sub">Экосистема ПВЗ</div>
       </div>
@@ -651,7 +603,7 @@
     </div>
   </div>
 
-  <!-- Карточка завершения -->
+  <!-- Карточка завершения (С разломом) -->
   <div class="card stagger" style="animation-delay:0.2s">
     <div class="grain"></div>
     <div class="cinematic-glare"></div>
@@ -660,6 +612,8 @@
       Когда все <span class="key">ячейки склада</span> отсканированы и закрыты — завершите инвентаризацию.
     </div>
     <div class="finish-slot" id="finish-slot">
+      <!-- Обломки -->
+      <span class="shard"></span><span class="shard"></span><span class="shard"></span><span class="shard"></span><span class="shard"></span>
       <button class="btn finish" id="btn-finish"><span data-i18n="finish_btn">Завершить инвентаризацию</span></button>
       <div class="finish-hole" id="finish-hole">
         <div class="hole-rim"></div>
@@ -841,7 +795,7 @@
     el._hideTimer = setTimeout(() => el.classList.remove('show'), 3000);
   }
 
-  // ===== УНИВЕРСАЛЬНЫЙ RIPPLE — теперь на всех .btn, а не только на "Вставить список" =====
+  // ===== УНИВЕРСАЛЬНЫЙ RIPPLE — теперь на всех .btn =====
   function spawnRipple(e) {
     const btn = e.currentTarget;
     const r = btn.getBoundingClientRect();
@@ -859,7 +813,6 @@
   document.querySelectorAll('.btn').forEach(btn => btn.addEventListener('pointerdown', spawnRipple));
 
   // ===== ФОН СТАЛ ИНТЕРАКТИВНЫМ =====
-  // 1) Лёгкий параллакс туманных пятен вслед за пальцем/курсором (демпфированный lerp через rAF).
   const meshTrack = $('mesh-track');
   let mx = 0, my = 0, tx = 0, ty = 0, meshRaf = null;
   function tickMesh() {
@@ -878,7 +831,6 @@
     if (!meshRaf) meshRaf = requestAnimationFrame(tickMesh);
   }, { passive: true });
 
-  // 2) Прожектор на карточках — оживляет ранее не используемые --mouse-x/--mouse-y.
   document.querySelectorAll('.card').forEach(card => {
     card.addEventListener('pointermove', (e) => {
       const r = card.getBoundingClientRect();
@@ -891,15 +843,10 @@
     });
   });
 
-  // Ripple-эффект от тапа на кнопке "Вставить список" (плюс лёгкий хаптик)
   $('btn-paste-wms').addEventListener('pointerdown', () => haptic('light'));
 
   // ============================================================
-  // BOTTOM-SHEET — переписан на маленький стейт-машин.
-  // closing — переходное состояние с зеркальной анимацией sheetEpicOut.
-  // visibility/pointer-events всегда явно выставлены в JS, поэтому
-  // панель физически не может "висеть" или перехватывать тапы,
-  // если её не открыли кнопкой "Вставить список".
+  // BOTTOM-SHEET
   // ============================================================
   const sheetOverlay = $('sheet-overlay'), sheet = $('paste-sheet'), textarea = $('paste-textarea');
   let sheetCloseTimer = null;
@@ -959,7 +906,7 @@
     webApp.sendData(JSON.stringify({ action: 'bulk_load', payload: { text } }));
   });
 
-  // ===== КОНФЕТТИ на успешное завершение — разовый всплеск, без непрерывной анимации =====
+  // ===== КОНФЕТТИ на успешное завершение =====
   function burstConfetti(originEl) {
     const rect = originEl.getBoundingClientRect();
     const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
@@ -993,28 +940,16 @@
   });
 
   // ============================================================
-  // СЮЖЕТНАЯ АНИМАЦИЯ ЛОГОТИПА — «месть за незавершённую инвентаризацию».
-  // По клику логотип вылетает из хедера, зависает над кнопкой
-  // «Завершить инвентаризацию», злится, бьёт по ней руками, кнопка
-  // проваливается в дыру, логотип смущается и улетает обратно —
-  // после чего кнопка и дыра сами восстанавливаются.
-  //
-  // Тайминги стадий (мс от старта клика):
-  //   0     saga-liftoff  — логотип отрывается от хедера и летит к кнопке
-  //   950   saga-rage     — завис над кнопкой, краснеет, "качается", руки выезжают
-  //   1750  saga-smash    — двойной удар руками по кнопке
-  //   2000  --smashed--   — кнопка проваливается, открывается дыра
-  //   2450  saga-oops     — испуг/смущение, краснота уходит
-  //   3350  saga-return   — летит обратно в хедер, сжимается
-  //   4250  --restore--   — кнопка и дыра возвращаются, класс saga снят
+  // СЮЖЕТНАЯ АНИМАЦИЯ ЛОГОТИПА И ТЕКСТА
   // ============================================================
   (function initLogoSaga() {
     const mark = $('brand-mark');
     const container = $('brand-logo-container');
+    const textBlock = $('brand-text'); // Текст рядом
     const finishBtn = $('btn-finish');
     const hole = $('finish-hole');
     const slot = $('finish-slot');
-    if (!mark || !container || !finishBtn || !hole || !slot) return;
+    if (!mark || !container || !textBlock || !finishBtn || !hole || !slot) return;
 
     let playing = false;
 
@@ -1025,21 +960,21 @@
       playing = true;
       haptic('medium');
 
-      // Координаты старта (текущее место логотипа в контейнере) и цели
       const startRect = container.getBoundingClientRect();
       const targetRect = slot.getBoundingClientRect();
 
       const targetCx = targetRect.left + targetRect.width / 2;
-      const targetTopY = targetRect.top - 118; // логотип зависает НАД кнопкой
+      const targetTopY = targetRect.top - 118;
 
       setVar(mark, '--saga-home-x', startRect.left + 'px');
       setVar(mark, '--saga-home-y', startRect.top + 'px');
       setVar(mark, '--saga-x', startRect.left + 'px');
       setVar(mark, '--saga-y', startRect.top + 'px');
-      setVar(mark, '--saga-target-x', (targetCx - 100) + 'px'); // 100 = половина ширины крупного значка (200px)
+      setVar(mark, '--saga-target-x', (targetCx - 100) + 'px');
       setVar(mark, '--saga-target-y', targetTopY + 'px');
 
       const CLASSES = ['saga-liftoff', 'saga-rage', 'saga-smash', 'saga-oops', 'saga-return'];
+      const TEXT_CLASSES = ['saga-rage', 'saga-oops', 'saga-return'];
       const timers = [];
       const at = (fn, ms) => timers.push(setTimeout(fn, ms));
 
@@ -1055,6 +990,8 @@
       at(() => {
         mark.classList.remove(...CLASSES);
         mark.classList.add('saga-rage');
+        textBlock.classList.remove(...TEXT_CLASSES);
+        textBlock.classList.add('saga-rage'); // Текст трясётся
         haptic('warning');
       }, 950);
 
@@ -1065,9 +1002,10 @@
         haptic('heavy');
       }, 1750);
 
-      // 3.5 Кнопка проваливается, дыра раскрывается
+      // 3.5 Кнопка проваливается, разлетается на куски
       at(() => {
         finishBtn.classList.add('smashed');
+        slot.classList.add('smashed'); // Активирует разлёт обломков
         hole.classList.add('hole-active');
         haptic('heavy');
       }, 2000);
@@ -1076,6 +1014,8 @@
       at(() => {
         mark.classList.remove(...CLASSES);
         mark.classList.add('saga-oops');
+        textBlock.classList.remove(...TEXT_CLASSES);
+        textBlock.classList.add('saga-oops'); // Текст трясётся, но медленнее
         haptic('light');
       }, 2450);
 
@@ -1083,15 +1023,18 @@
       at(() => {
         mark.classList.remove(...CLASSES);
         mark.classList.add('saga-return');
+        textBlock.classList.remove(...TEXT_CLASSES);
+        textBlock.classList.add('saga-return'); // Текст успокаивается
       }, 3350);
 
-      // 6. Логотип на месте — снимаем fixed-позиционирование, интерфейс восстанавливается
+      // 6. Финал
       at(() => {
         mark.classList.remove(...CLASSES, 'saga-playing');
         mark.style.removeProperty('--saga-x');
         mark.style.removeProperty('--saga-y');
+        textBlock.classList.remove(...TEXT_CLASSES); // Текст полностью успокоился
 
-        // Кнопка и дыра синхронно "зарастают"
+        slot.classList.remove('smashed');
         hole.classList.remove('hole-active');
         finishBtn.classList.remove('smashed');
         finishBtn.classList.add('restoring');
