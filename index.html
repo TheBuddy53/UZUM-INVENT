@@ -284,6 +284,10 @@
     #paste-sheet { backdrop-filter: blur(20px) saturate(200%); -webkit-backdrop-filter: blur(20px) saturate(200%); }
     #sheet-overlay { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
     #toast { backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+    /* Изолируем repaint каждой карточки (важно на replay при смене языка, когда riseIn
+       перезапускается одновременно с растущей волной lang-wash) от reflow остального
+       документа — тот же приём, что уже применён к логотипу в саге. */
+    .card { contain: layout paint style; }
   }
   .card:nth-child(2) { animation-delay: -2s; }
   .card:nth-child(3) { animation-delay: -4s; }
@@ -420,9 +424,18 @@
   .hint-text .key { color: var(--accent-key); font-weight: 800; background: linear-gradient(90deg, var(--accent-key), #fff 120%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; text-shadow: none; position: relative; padding-bottom: 1px; border-bottom: 1.5px solid rgba(255, 168, 214, 0.35); animation: keyGlow 3.6s ease-in-out infinite; }
   @keyframes keyGlow { 0%, 100% { filter: drop-shadow(0 0 0px var(--accent-key-glow)); } 50% { filter: drop-shadow(0 0 6px var(--accent-key-glow)); } }
 
-  #lang-wash { position: fixed; top: 0; left: 0; width: 40px; height: 40px; margin-left: -20px; margin-top: -20px; border-radius: 50%; z-index: 600; pointer-events: none; opacity: 0; background: radial-gradient(circle, rgba(200,150,255,0.95), rgba(112,0,255,0.6) 40%, rgba(3,0,8,0.97) 78%); transform: translate(var(--wx, 50vw), var(--wy, 50vh)) scale(0); }
+  #lang-wash { position: fixed; top: 0; left: 0; width: 40px; height: 40px; margin-left: -20px; margin-top: -20px; border-radius: 50%; z-index: 600; pointer-events: none; opacity: 0; background: radial-gradient(circle, rgba(200,150,255,0.95), rgba(112,0,255,0.6) 40%, rgba(3,0,8,0.97) 78%); transform: translate(var(--wx, 50vw), var(--wy, 50vh)) scale(0); will-change: transform, opacity; }
   #lang-wash.active { animation: langWash 1.15s cubic-bezier(0.7,0,0.2,1) forwards; }
   @keyframes langWash { 0% { opacity: 0; transform: translate(var(--wx),var(--wy)) scale(0); } 10% { opacity: 1; } 52% { opacity: 0.97; transform: translate(var(--wx),var(--wy)) scale(var(--ws, 50)); } 78% { opacity: 0.55; transform: translate(var(--wx),var(--wy)) scale(calc(var(--ws, 50) * 1.25)); } 100% { opacity: 0; transform: translate(var(--wx),var(--wy)) scale(calc(var(--ws, 50) * 1.4)); } }
+  /* На мобильных заменяем radial-gradient (WebView на слабом Android часто не кеширует
+     градиент как битмап при transform: scale и пересчитывает его программно на каждый
+     кадр растущего в 50+ раз элемента — это и была причина 3-5 FPS) на сплошной цвет
+     с тем же итоговым тоном по центру волны. Внешний вид волны почти не отличается —
+     то же движение, тот же цвет заливки в момент максимального охвата экрана, просто
+     без дорогого пересчёта градиента; на ПК radial-gradient остаётся как был. */
+  @media (max-width: 767px) {
+    #lang-wash { background: rgba(112,0,255,0.75); }
+  }
 
   .confetti-piece { position: fixed; width: 7px; height: 7px; border-radius: 2px; z-index: 700; pointer-events: none; left: 0; top: 0; transform: translate(-50%,-50%); animation: confettiFly 0.85s cubic-bezier(0.2,0.8,0.3,1) forwards; box-shadow: 0 0 6px rgba(255,255,255,0.5); }
   @keyframes confettiFly { 0% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; } 100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.35) rotate(300deg); opacity: 0; } }
@@ -467,9 +480,15 @@
     body.saga-active .format-val {
       animation-play-state: paused;
     }
-    /* floatCard крутится на самих .card, которые не участвуют в саге — тоже пауза */
+    /* floatCard крутится на самих .card, которые не участвуют в саге — тоже пауза.
+       Но .card.replay (смена языка) должна доиграть свой riseIn — снимаем паузу для неё,
+       иначе animation-play-state (общий для всех анимаций в animation-shorthand карточки)
+       заморозил бы и replay тоже. */
     body.saga-active .card {
       animation-play-state: paused;
+    }
+    body.saga-active .card.replay {
+      animation-play-state: running;
     }
   }
 
@@ -607,6 +626,10 @@
 
   const $ = id => document.getElementById(id);
   const uid = webApp.initDataUnsafe?.user?.id || null;
+  // Общий флаг "мобильное устройство" — используется и логотип-сагой, и сменой языка,
+  // чтобы на время тяжёлых сцен ставить на паузу фоновые decorative-анимации
+  // (см. body.saga-active в CSS). На ПК не используется — там ничего не приостанавливается.
+  const isMobileUI = window.matchMedia('(max-width: 767px)').matches;
 
   function haptic(type) {
     try {
@@ -703,12 +726,17 @@
     const btn = $('btn-lang');
     const rect = btn.getBoundingClientRect();
     const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+    // На мобильных приглушаем фоновые decorative-анимации на время волны + replay карточек —
+    // тот же приём, что и в саге логотипа (см. body.saga-active в CSS), тут была вторая
+    // по значимости причина проседания FPS при смене языка.
+    if (isMobileUI) document.body.classList.add('saga-active');
     playWash(cx, cy, washScaleFrom(cx, cy), () => {
       applyLang(nextLang);
       document.querySelectorAll('.card').forEach(card => {
         card.classList.remove('replay'); void card.offsetWidth; card.classList.add('replay');
       });
     });
+    if (isMobileUI) setTimeout(() => document.body.classList.remove('saga-active'), 1300);
   }
 
   $('btn-lang').addEventListener('click', switchLang);
