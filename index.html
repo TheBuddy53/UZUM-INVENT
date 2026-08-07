@@ -57,14 +57,37 @@
     perspective: 1200px;
   }
 
+  /* ФИКС КНОПОК */
+  button, [type="button"] {
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    color: inherit;
+    cursor: pointer;
+    outline: none;
+  }
+
   /* Фоновые эффекты */
   #noise { position: fixed; inset: -50%; z-index: 999; pointer-events: none; opacity: 0.12; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); animation: noiseShift 8s steps(10) infinite; transition: opacity 0.4s ease; will-change: transform; transform: translateZ(0); contain: paint; }
   #noise.flash { opacity: 0.38; }
   :root { --grain-url: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
   @keyframes noiseShift { 0% { transform: translate(0,0); } 10% { transform: translate(-5%,-5%); } 20% { transform: translate(-10%,5%); } 30% { transform: translate(5%,-10%); } 40% { transform: translate(-5%,15%); } 50% { transform: translate(-10%,5%); } 60% { transform: translate(15%,0); } 70% { transform: translate(0,15%); } 80% { transform: translate(3%,35%); } 90% { transform: translate(-10%,10%); } 100% { transform: translate(0,0); } }
+  /* Мобильная оптимизация шума: та же текстура и амплитуда, но более дешёвая анимация —
+     steps(10) на каждый кадр пересчитывает blend/paint слоя; linear даёт браузеру компоузить
+     плавный transform-тур, а не 10 дискретных перерисовок в секунду. */
+  @media (max-width: 480px) {
+    #noise { animation-timing-function: linear; }
+  }
 
   #mesh { position: fixed; inset: 0; z-index: -1; pointer-events: none; filter: blur(70px) saturate(160%); overflow: hidden; will-change: filter, transform; transform: translateZ(0); contain: paint; transition: filter 0.6s var(--ease), transform 0.6s var(--ease); }
   #mesh.ripple { filter: blur(80px) saturate(180%) brightness(1.2); transform: scale(1.02); }
+  /* На мобильных большой blur-радиус на весь fixed-слой — самая дорогая операция в композиторе
+     (GPU считает blur на полноэкранной area каждый кадр анимации орбов). Уменьшаем радиус —
+     свечение остаётся тем же по ощущению, просто чуть менее "растянутым". */
+  @media (max-width: 480px) {
+    #mesh { filter: blur(38px) saturate(160%); }
+    #mesh.ripple { filter: blur(44px) saturate(180%) brightness(1.2); }
+  }
   #mesh-track { position: absolute; inset: -10%; }
   #mesh span { position: absolute; border-radius: 50%; will-change: transform; mix-blend-mode: screen; }
   #mesh .b1 { width: 85vw; height: 85vw; left: -10%; top: -10%; background: radial-gradient(circle, rgba(130,40,255,0.45), transparent 70%); animation: orbFloat1 22s infinite alternate var(--ease); }
@@ -247,6 +270,16 @@
   .cinematic-glare { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; padding: 1.5px; background: linear-gradient(110deg, transparent 20%, rgba(255,255,255,0.85) 40%, rgba(255,255,255,0.95) 50%, rgba(255,255,255,0.85) 60%, transparent 80%); background-size: 250% 100%; -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: cinematicSweep 8s cubic-bezier(0.3, 0, 0.7, 1) infinite; z-index: 10; opacity: 0.75; }
   @keyframes cinematicSweep { 0% { background-position: 250% 0; } 100% { background-position: -150% 0; } }
   .card { position: relative; background: var(--glass-bg); backdrop-filter: blur(40px) saturate(200%); -webkit-backdrop-filter: blur(40px) saturate(200%); border: 1px solid var(--glass-border-dark); border-top: 1px solid var(--glass-border-light); border-left: 1px solid rgba(255,255,255,0.18); border-radius: var(--r-xl); padding: 20px; box-shadow: 0 24px 48px -12px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.35); overflow: hidden; transform: translateZ(0); animation: floatCard 8s infinite ease-in-out; will-change: transform; }
+  /* backdrop-filter пересчитывается для каждого пикселя ЗА карточкой на каждый кадр —
+     на нескольких карточках одновременно это главный "жор" GPU в Telegram WebView на Android.
+     Снижаем радиус blur на мобильных: карточки всё ещё стеклянные, просто чуть менее
+     "молочные" — фон, у который свой сниженный blur (см. #mesh), скрывает разницу. */
+  @media (max-width: 480px) {
+    .card, .icon-btn, .lang-switch { backdrop-filter: blur(18px) saturate(180%); -webkit-backdrop-filter: blur(18px) saturate(180%); }
+    #paste-sheet { backdrop-filter: blur(20px) saturate(200%); -webkit-backdrop-filter: blur(20px) saturate(200%); }
+    #sheet-overlay { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+    #toast { backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+  }
   .card:nth-child(2) { animation-delay: -2s; }
   .card:nth-child(3) { animation-delay: -4s; }
   @keyframes floatCard { 0%, 100% { transform: translateY(0) translateZ(0); } 50% { transform: translateY(-4px) translateZ(0); } }
@@ -292,26 +325,26 @@
   .btn.finish.smashed { animation: none; transform: translateY(140%) rotate(4deg) scale(0.92); opacity: 0; transition: transform 0.3s cubic-bezier(0.5,0,0.85,0.35), opacity 0.3s ease 0.1s; box-shadow: none; }
   
   /* 16 осколков с разными размерами и траекториями для максимальной детализации */
-  .finish-slot .shard { position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; border-radius: 2px; opacity: 0; pointer-events: none; transform: translate(-50%, -50%) scale(0.8) rotate(0deg); transition: transform 1.2s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.4s ease; box-shadow: 0 0 10px var(--green-glow); z-index: 0; }
+  .finish-slot .shard { position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; border-radius: 2px; opacity: 0; pointer-events: none; transform: translate3d(-50%, -50%, 0) scale(0.8) rotate(0deg); transition: transform 1.2s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.4s ease; box-shadow: 0 0 10px var(--green-glow); z-index: 0; will-change: transform, opacity; }
   .finish-slot.smashed .shard { opacity: 1; }
   
   /* Пути разлёта осколков */
-  .finish-slot .shard-1 { background: #2EAB65; width: 12px; height: 20px; }.finish-slot.smashed .shard-1 { transform: translate(-130px, -80px) scale(1.4) rotate(360deg); }
-  .finish-slot .shard-2 { background: #4ADE80; width: 18px; height: 10px; }.finish-slot.smashed .shard-2 { transform: translate(150px, 60px) scale(0.9) rotate(420deg); }
-  .finish-slot .shard-3 { background: #38E888; width: 8px; height: 22px; }.finish-slot.smashed .shard-3 { transform: translate(-100px, 140px) scale(1.2) rotate(500deg); }
-  .finish-slot .shard-4 { background: #1F874C; width: 20px; height: 14px; }.finish-slot.smashed .shard-4 { transform: translate(180px, -100px) scale(0.8) rotate(240deg); }
-  .finish-slot .shard-5 { background: #5DF5A6; width: 14px; height: 18px; }.finish-slot.smashed .shard-5 { transform: translate(-20px, -110px) scale(1.5) rotate(310deg); }
-  .finish-slot .shard-6 { background: #0F9D58; width: 8px; height: 16px; }.finish-slot.smashed .shard-6 { transform: translate(40px, 120px) scale(1.1) rotate(600deg); }
-  .finish-slot .shard-7 { background: #6EE7B7; width: 16px; height: 10px; }.finish-slot.smashed .shard-7 { transform: translate(-200px, 40px) scale(0.9) rotate(180deg); }
-  .finish-slot .shard-8 { background: #34D399; width: 12px; height: 12px; }.finish-slot.smashed .shard-8 { transform: translate(90px, -120px) scale(1.3) rotate(450deg); }
-  .finish-slot .shard-9 { background: #10B981; width: 22px; height: 8px; }.finish-slot.smashed .shard-9 { transform: translate(-60px, 150px) scale(0.7) rotate(340deg); }
-  .finish-slot .shard-10 { background: #059669; width: 10px; height: 24px; }.finish-slot.smashed .shard-10 { transform: translate(120px, 90px) scale(1.6) rotate(200deg); }
-  .finish-slot .shard-11 { background: #8B5CF6; width: 16px; height: 10px; }.finish-slot.smashed .shard-11 { transform: translate(-140px, -60px) scale(0.8) rotate(150deg); }
-  .finish-slot .shard-12 { background: #7C3AED; width: 12px; height: 18px; }.finish-slot.smashed .shard-12 { transform: translate(70px, -150px) scale(1.2) rotate(280deg); }
-  .finish-slot .shard-13 { background: #6D28D9; width: 18px; height: 12px; }.finish-slot.smashed .shard-13 { transform: translate(-90px, 80px) scale(1.1) rotate(520deg); }
-  .finish-slot .shard-14 { background: #4C1D95; width: 10px; height: 16px; }.finish-slot.smashed .shard-14 { transform: translate(180px, -20px) scale(0.9) rotate(400deg); }
-  .finish-slot .shard-15 { background: #FFFFFF; width: 6px; height: 6px; }.finish-slot.smashed .shard-15 { transform: translate(-40px, -160px) scale(2) rotate(700deg); }
-  .finish-slot .shard-16 { background: #9D4DFF; width: 14px; height: 14px; }.finish-slot.smashed .shard-16 { transform: translate(140px, 20px) scale(1.5) rotate(90deg); }
+  .finish-slot .shard-1 { background: #2EAB65; width: 12px; height: 20px; }.finish-slot.smashed .shard-1 { transform: translate3d(-130px, -80px, 0) scale(1.4) rotate(360deg); }
+  .finish-slot .shard-2 { background: #4ADE80; width: 18px; height: 10px; }.finish-slot.smashed .shard-2 { transform: translate3d(150px, 60px, 0) scale(0.9) rotate(420deg); }
+  .finish-slot .shard-3 { background: #38E888; width: 8px; height: 22px; }.finish-slot.smashed .shard-3 { transform: translate3d(-100px, 140px, 0) scale(1.2) rotate(500deg); }
+  .finish-slot .shard-4 { background: #1F874C; width: 20px; height: 14px; }.finish-slot.smashed .shard-4 { transform: translate3d(180px, -100px, 0) scale(0.8) rotate(240deg); }
+  .finish-slot .shard-5 { background: #5DF5A6; width: 14px; height: 18px; }.finish-slot.smashed .shard-5 { transform: translate3d(-20px, -110px, 0) scale(1.5) rotate(310deg); }
+  .finish-slot .shard-6 { background: #0F9D58; width: 8px; height: 16px; }.finish-slot.smashed .shard-6 { transform: translate3d(40px, 120px, 0) scale(1.1) rotate(600deg); }
+  .finish-slot .shard-7 { background: #6EE7B7; width: 16px; height: 10px; }.finish-slot.smashed .shard-7 { transform: translate3d(-200px, 40px, 0) scale(0.9) rotate(180deg); }
+  .finish-slot .shard-8 { background: #34D399; width: 12px; height: 12px; }.finish-slot.smashed .shard-8 { transform: translate3d(90px, -120px, 0) scale(1.3) rotate(450deg); }
+  .finish-slot .shard-9 { background: #10B981; width: 22px; height: 8px; }.finish-slot.smashed .shard-9 { transform: translate3d(-60px, 150px, 0) scale(0.7) rotate(340deg); }
+  .finish-slot .shard-10 { background: #059669; width: 10px; height: 24px; }.finish-slot.smashed .shard-10 { transform: translate3d(120px, 90px, 0) scale(1.6) rotate(200deg); }
+  .finish-slot .shard-11 { background: #8B5CF6; width: 16px; height: 10px; }.finish-slot.smashed .shard-11 { transform: translate3d(-140px, -60px, 0) scale(0.8) rotate(150deg); }
+  .finish-slot .shard-12 { background: #7C3AED; width: 12px; height: 18px; }.finish-slot.smashed .shard-12 { transform: translate3d(70px, -150px, 0) scale(1.2) rotate(280deg); }
+  .finish-slot .shard-13 { background: #6D28D9; width: 18px; height: 12px; }.finish-slot.smashed .shard-13 { transform: translate3d(-90px, 80px, 0) scale(1.1) rotate(520deg); }
+  .finish-slot .shard-14 { background: #4C1D95; width: 10px; height: 16px; }.finish-slot.smashed .shard-14 { transform: translate3d(180px, -20px, 0) scale(0.9) rotate(400deg); }
+  .finish-slot .shard-15 { background: #FFFFFF; width: 6px; height: 6px; }.finish-slot.smashed .shard-15 { transform: translate3d(-40px, -160px, 0) scale(2) rotate(700deg); }
+  .finish-slot .shard-16 { background: #9D4DFF; width: 14px; height: 14px; }.finish-slot.smashed .shard-16 { transform: translate3d(140px, 20px, 0) scale(1.5) rotate(90deg); }
 
   .finish-hole { position: absolute; inset: 0; border-radius: var(--r-lg); display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; z-index: 0; background: radial-gradient(120% 140% at 50% 0%, rgba(0,0,0,0.9), rgba(10,2,20,0.95) 55%, rgba(3,0,8,0.98)), linear-gradient(180deg, rgba(112,0,255,0.15), transparent 40%); box-shadow: inset 0 18px 30px rgba(0,0,0,0.9), inset 0 2px 6px rgba(0,0,0,0.8), inset 0 0 0 1px rgba(157,77,255,0.15); transition: opacity 0.4s ease; }
   .finish-hole.hole-active { opacity: 1; }
@@ -357,13 +390,21 @@
   .sheet-input { width: 100%; height: 180px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 16px; color: #fff; font-family: "SF Pro Display", "Inter", monospace; font-size: 14px; resize: none; margin-bottom: 16px; outline: none; box-shadow: inset 0 4px 10px rgba(0,0,0,0.5); }
   .sheet-input:focus { border-color: rgba(157,77,255,0.5); box-shadow: inset 0 4px 10px rgba(0,0,0,0.5), 0 0 15px rgba(157,77,255,0.3); }
 
-  /* Взрывные частицы (80 на ПК, 20 на телефоне) */
-  .impact-particle { position: fixed; pointer-events: none; z-index: 999998; border-radius: 2px; will-change: transform, opacity; animation: particleFly 1.2s cubic-bezier(0.2, 1.2, 0.6, 1) forwards; }
-  @keyframes particleFly { 0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; } 100% { transform: translate(var(--px), var(--py)) scale(0.2) rotate(720deg); opacity: 0; } }
+  /* Взрывные частицы (до 80 штук, переиспользуются из пула — см. JS) */
+  .impact-particle { position: fixed; pointer-events: none; z-index: 999998; border-radius: 2px; will-change: transform, opacity; opacity: 0; }
+  .impact-particle.pooled { transform: translate3d(0,0,0) scale(1) rotate(0deg); }
+  .impact-particle.fly { animation: particleFly 1.2s cubic-bezier(0.2, 1.2, 0.6, 1) forwards; }
+  @keyframes particleFly { 0% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); opacity: 1; } 100% { transform: translate3d(var(--px), var(--py), 0) scale(0.2) rotate(720deg); opacity: 0; } }
 
-  /* Эпические ударные кольца (10 на ПК, 3 на телефоне) */
-  .impact-wave-ring { position: fixed; pointer-events: none; z-index: 999997; border: 2px solid rgba(255, 255, 255, 0.6); border-radius: 50%; transform: translate(-50%, -50%); will-change: transform, opacity; animation: waveExpand 1.2s cubic-bezier(0.1, 0.8, 0.3, 1) forwards; }
-  @keyframes waveExpand { 0% { width: 0; height: 0; opacity: 1; border-width: 2px; } 100% { width: 100vmax; height: 100vmax; opacity: 0; border-width: 0.5px; } }
+  /* Эпические ударные кольца (до 10 штук, переиспользуются из пула — см. JS).
+     Раньше кольцо росло через width/height (0 → 100vmax) — это layout-свойства, браузер
+     обязан пересчитывать геометрию и перерисовывать на каждый кадр растущего на весь экран
+     элемента, самая тяжёлая анимация в файле. Теперь у кольца фиксированный посадочный
+     размер, а "рост" делает transform: scale (чисто GPU, без reflow/repaint) — конечный
+     видимый диаметр (100vmax) и вся синхронизация с частицами/тряской не меняются. */
+  .impact-wave-ring { position: fixed; pointer-events: none; z-index: 999997; border: 2px solid rgba(255, 255, 255, 0.6); border-radius: 50%; width: 100vmax; height: 100vmax; margin-left: -50vmax; margin-top: -50vmax; will-change: transform, opacity; transform: translate3d(0,0,0) scale(0); opacity: 0; }
+  .impact-wave-ring.fly { animation: waveExpand 1.2s cubic-bezier(0.1, 0.8, 0.3, 1) forwards; }
+  @keyframes waveExpand { 0% { transform: translate3d(0,0,0) scale(0.0001); opacity: 1; border-width: 2px; } 100% { transform: translate3d(0,0,0) scale(1); opacity: 0; border-width: 0.5px; } }
 
   /* Детальная тряска UI */
   .ui-shake { animation: uiShake 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) forwards !important; }
@@ -399,34 +440,6 @@
   .btn.ghost { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); box-shadow: none; }
   .btn.confirm { background: linear-gradient(135deg, var(--purple-light), var(--purple)); box-shadow: 0 12px 24px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5); }
   .btn:disabled { opacity: 0.4; filter: grayscale(1); pointer-events: none; }
-
-  /* ============================================================
-     ТЕЛЕФОННЫЙ РЕЖИМ (Упрощение графики для 0 FPS)
-     ============================================================ */
-  body.mobile #mesh {
-    filter: blur(40px) saturate(100%) !important;
-    transform: none !important;
-  }
-  body.mobile #mesh .b1, body.mobile #mesh .b2, body.mobile #mesh .b3 {
-    animation-duration: 0.001ms !important;
-  }
-  body.mobile #noise {
-    animation: none !important;
-    opacity: 0.05 !important;
-  }
-  body.mobile .card {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    background: rgba(10, 2, 25, 0.6) !important;
-  }
-  body.mobile .icon-btn, body.mobile .lang-switch {
-    backdrop-filter: blur(10px) !important;
-    -webkit-backdrop-filter: blur(10px) !important;
-  }
-  body.mobile .impact-particle,
-  body.mobile .impact-wave-ring {
-    display: none !important; /* Защита от лишних элементов */
-  }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
@@ -559,15 +572,6 @@
   webApp.ready();
   webApp.expand();
   try { webApp.setHeaderColor('#030008'); webApp.setBackgroundColor('#030008'); } catch(e) {}
-
-  // ===== ДЕТЕКТОР УСТРОЙСТВА (Добавлено для плавности на телефонах) =====
-  const isMobile = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
-  if (isMobile) {
-      document.body.classList.add('mobile');
-      console.log("📱 Загружена оптимизированная (упрощенная) версия для телефона.");
-  } else {
-      console.log("💻 Загружена топовая версия для ПК.");
-  }
 
   const $ = id => document.getElementById(id);
   const uid = webApp.initDataUnsafe?.user?.id || null;
@@ -832,7 +836,7 @@
   });
 
   // ============================================================
-  // САГА ЛОГОТИПА (САМАЯ ДЕТАЛЬНАЯ ВЕРСИЯ) + АДАПТИВНОСТЬ
+  // САГА ЛОГОТИПА (САМАЯ ДЕТАЛЬНАЯ ВЕРСИЯ)
   // ============================================================
   (function initLogoSaga() {
     const mark = $('brand-mark');
@@ -849,44 +853,81 @@
 
     function setVar(el, name, val) { el.style.setProperty(name, val); }
 
-    // --- ЭПИЧЕСКИЙ УДАР С АДАПТИВНЫМ КОЛИЧЕСТВОМ ЧАСТИЦ И ВОЛН ---
+    // --- ЭПИЧЕСКИЙ УДАР С 10 ВОЛНАМИ И 80 ЧАСТИЦАМИ ---
+    // --- ПУЛ ОБЪЕКТОВ ДЛЯ ЧАСТИЦ И КОЛЕЦ ---
+    // Раньше каждый удар создавал 80 + 10 новых DOM-узлов и удалял их через setTimeout —
+    // это создание/удаление элементов, стили и лэйаут на каждый узел, плюс нагрузка на GC
+    // от мусора. Вместо этого создаём фиксированный пул скрытых элементов один раз при
+    // загрузке страницы и на каждый удар просто переиспользуем нужное количество, меняя
+    // им transform/opacity через CSS-переменные и перезапуская анимацию. Ноль новых узлов
+    // после первого кадра — только переиспользование того, что уже есть в DOM.
+    const isMobile = window.matchMedia('(max-width: 767px)').matches;
+    const MAX_PARTICLES = 80;
+    const MAX_RINGS = 10;
+    const PARTICLE_COUNT = isMobile ? 40 : MAX_PARTICLES;
+    const RING_COUNT = isMobile ? 6 : MAX_RINGS;
+
+    const particlePool = [];
+    const ringPool = [];
+    const impactColors = ['#9D4DFF', '#7000FF', '#38E888', '#FFD60A', '#ffffff', '#FF5C5C', '#C41818'];
+
+    function buildPools() {
+      const pFrag = document.createDocumentFragment();
+      for (let i = 0; i < MAX_PARTICLES; i++) {
+        const p = document.createElement('div');
+        p.className = 'impact-particle pooled';
+        pFrag.appendChild(p);
+        particlePool.push(p);
+      }
+      document.body.appendChild(pFrag);
+
+      const rFrag = document.createDocumentFragment();
+      for (let i = 0; i < MAX_RINGS; i++) {
+        const ring = document.createElement('div');
+        ring.className = 'impact-wave-ring pooled';
+        rFrag.appendChild(ring);
+        ringPool.push(ring);
+      }
+      document.body.appendChild(rFrag);
+    }
+    buildPools();
+
     function triggerImpact(cx, cy) {
       // 1. Рябь на фоне
       meshBg.classList.add('ripple');
       setTimeout(() => meshBg.classList.remove('ripple'), 600);
 
-      // 2. Разлет частиц (80 на ПК, 20 на телефоне)
-      const particleCount = isMobile ? 20 : 80;
-      const colors = ['#9D4DFF', '#7000FF', '#38E888', '#FFD60A', '#ffffff', '#FF5C5C', '#C41818'];
-      for (let i = 0; i < particleCount; i++) {
-        const p = document.createElement('div');
-        p.className = 'impact-particle';
+      // 2. Разлет частиц — переиспользуем элементы из пула вместо create/remove
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        const p = particlePool[i];
         const angle = Math.random() * 2 * Math.PI;
         const dist = 120 + Math.random() * 280;
         p.style.setProperty('--px', (Math.cos(angle) * dist) + 'px');
         p.style.setProperty('--py', (Math.sin(angle) * dist) + 'px');
-        p.style.width = (4 + Math.random() * 14) + 'px';
-        p.style.height = p.style.width;
-        p.style.background = colors[Math.floor(Math.random() * colors.length)];
+        const size = (4 + Math.random() * 14) + 'px';
+        p.style.width = size;
+        p.style.height = size;
+        p.style.background = impactColors[Math.floor(Math.random() * impactColors.length)];
         p.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
         p.style.left = cx + 'px'; p.style.top = cy + 'px';
         p.style.animationDuration = (0.9 + Math.random() * 0.6) + 's';
-        document.body.appendChild(p);
-        setTimeout(() => p.remove(), 2000);
+        // Перезапуск анимации на переиспользуемом узле: снять класс, форсировать reflow, вернуть класс
+        p.classList.remove('fly');
+        void p.offsetWidth;
+        p.classList.add('fly');
       }
 
-      // 3. Медленные, плавные волны (10 на ПК, 3 на телефоне)
-      const waveCount = isMobile ? 3 : 10;
-      for (let i = 0; i < waveCount; i++) {
+      // 3. Медленные, плавные волны — тоже из пула, расходятся постепенно
+      for (let i = 0; i < RING_COUNT; i++) {
         setTimeout(() => {
-          const ring = document.createElement('div');
-          ring.className = 'impact-wave-ring';
+          const ring = ringPool[i];
           ring.style.left = cx + 'px'; ring.style.top = cy + 'px';
           const hue = (i * 15) % 360;
           ring.style.borderColor = i % 2 === 0 ? `hsla(${hue}, 80%, 60%, 0.7)` : `rgba(255,255,255,0.5)`;
           ring.style.animationDuration = (1.4 + i * 0.04) + 's';
-          document.body.appendChild(ring);
-          setTimeout(() => ring.remove(), 3500);
+          ring.classList.remove('fly');
+          void ring.offsetWidth;
+          ring.classList.add('fly');
         }, i * 280);
       }
 
