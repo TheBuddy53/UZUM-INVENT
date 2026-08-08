@@ -124,7 +124,7 @@
   /* Канвас волновой ряби: лежит поверх #mesh (тот же слой глубины, z-index: -2),
      ловит движение курсора/пальца поверх всего интерфейса (pointer-events: none — сам
      канвас не блокирует клики) и рисует букву U, деформированную картой высот. */
-  #liquid-ripple { position: fixed; inset: 0; z-index: -2; pointer-events: none; width: 100%; height: 100%; display: block; }
+  #liquid-ripple { position: fixed; inset: 0; z-index: -2; width: 100%; height: 100%; display: block; touch-action: none; }
 
   .wrap { max-width: 480px; margin: 0 auto; position: relative; z-index: 1; display: flex; flex-direction: column; gap: 16px; }
   .stagger { opacity: 1 !important; transform: none !important; animation: riseIn 0.8s var(--spring) forwards; }
@@ -763,239 +763,61 @@
   </div>
 </div>
 
-<script>
-/* ===================== ЖИДКАЯ РЯБЬ С ОТСКОКОМ ОТ КРАЁВ =====================
-   Классический 2D water-ripple (height-field на низком разрешении, апскейл через canvas
-   scale) — без WebGL, дёшево для слабых Android:
-   - Курсор/палец добавляет "каплю" (импульс) в карту высот.
-   - Волна физически распространяется по сетке и ОТРАЖАЕТСЯ от краёв сетки (края экрана) —
-     сама природа алгоритма (соседи на границе берутся из "внутри") даёт упругий отскок,
-     без отдельной физики стен.
-   - Буква "U" рисуется как часть той же сцены: каждый столбец её силуэта смещается по
-     высоте волны под ним — как будто буква сделана из той же жидкости и всплеск её толкает.
-   Всё считается на редком гриде (~110×190), апскейлится — стоимость на кадр минимальна. */
-(function () {
-  const canvas = document.getElementById('liquid-ripple');
-  if (!canvas || !canvas.getContext) return;
-  const ctx = canvas.getContext('2d', { alpha: true });
-  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  document.body.classList.add('ripple-active');
-  if (reduceMotion) return; // оставляем статичный CSS-watermark вместо анимации
-
-  const isMobileDevice = window.matchMedia('(max-width: 767px)').matches;
-  // Разрешение симуляции адаптируется под реальное соотношение сторон экрана (а не
-  // фиксированное портретное 0.62) — иначе на широких desktop-окнах волновое поле и буква
-  // растягивались по горизонтали и искажались. База — короткая сторона, чтобы плотность
-  // сетки (и значит "детальность" ряби) была одинаковой что в портрете, что в альбоме.
-  // Аспект берётся один раз при загрузке — Telegram Mini App почти никогда не меняет
-  // ориентацию на лету, а пересоздание буферов волн на resize добавляло бы риск дёрганий.
-  const GRID_BASE = isMobileDevice ? 90 : 150;
-  const startAspect = window.innerWidth / window.innerHeight;
-  const GRID_W = startAspect >= 1 ? GRID_BASE : Math.round(GRID_BASE * startAspect);
-  const GRID_H = startAspect >= 1 ? Math.round(GRID_BASE / startAspect) : GRID_BASE;
-  const DAMPING = 0.988; // затухание волны со временем (иначе рябь звенела бы вечно) —
-                          // чуть медленнее, чтобы волна успевала долететь до края и отразиться
-  const SPREAD = 0.55;   // упругость отскока от границ экрана (0..1, 1 = идеальный отскок)
-
-  const bufA0 = new Float32Array(GRID_W * GRID_H);
-  const bufB0 = new Float32Array(GRID_W * GRID_H);
-  let bufA = bufA0, bufB = bufB0;
-  let cw = 0, ch = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
-
-  function resize() {
-    cw = window.innerWidth;
-    ch = window.innerHeight;
-    canvas.width = Math.round(cw * dpr);
-    canvas.height = Math.round(ch * dpr);
-    canvas.style.width = cw + 'px';
-    canvas.style.height = ch + 'px';
+<script type="module">
+/* ===================== ЖИДКОЕ СТЕКЛО (настоящий three.js/WebGL шейдер) =====================
+   Взамен прежней самодельной 2D-имитации ряби — честный GPU liquid-шейдер из того же пакета,
+   что и в референсе (threejs-components/backgrounds/liquid1), с той же настройкой
+   metalness/roughness/displacementScale. Даёт точную физически смоделированную рябь с
+   преломлением света, а не приближение через height-field на canvas 2D.
+   Текстура — сгенерированная буква "U" на фиолетовом градиенте (совпадает с палитрой
+   интерфейса), встроена как data-URL, чтобы не зависеть от внешнего хостинга картинки.
+   Graceful fallback: если WebGL недоступен (очень старые/слабые Android-браузеры), скрипт
+   тихо не запускается — остаётся статичный CSS-watermark (#watermark) без ошибок. */
+(function checkWebGLSupport() {
+  try {
+    const testCanvas = document.createElement('canvas');
+    const gl = testCanvas.getContext('webgl2') || testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl');
+    if (!gl) { document.body.classList.add('liquid-webgl-unavailable'); return false; }
+    return true;
+  } catch (e) {
+    document.body.classList.add('liquid-webgl-unavailable');
+    return false;
   }
-  resize();
-  window.addEventListener('resize', resize);
-
-  // ---- Ввод: курсор (ПК) и касание (моб.) добавляют возмущение в буфер волн ----
-  let lastPX = -1, lastPY = -1;
-  function addRipple(px, py, strength) {
-    const gx = Math.round((px / cw) * (GRID_W - 1));
-    const gy = Math.round((py / ch) * (GRID_H - 1));
-    if (gx < 1 || gx >= GRID_W - 1 || gy < 1 || gy >= GRID_H - 1) return;
-    // Небольшое пятно 3x3, а не одна точка — даёт более гладкий, "жидкий" импульс
-    for (let oy = -1; oy <= 1; oy++) {
-      for (let ox = -1; ox <= 1; ox++) {
-        const idx = (gy + oy) * GRID_W + (gx + ox);
-        if (idx >= 0 && idx < bufA.length) bufA[idx] += strength * (ox === 0 && oy === 0 ? 1 : 0.4);
-      }
-    }
-  }
-
-  function pointerMove(x, y) {
-    if (lastPX >= 0) {
-      const dx = x - lastPX, dy = y - lastPY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      // Сила импульса зависит от скорости движения — резкий свайп даёт волну сильнее лёгкого дрейфа
-      const strength = Math.min(dist * 0.9, 26);
-      if (strength > 0.6) addRipple(x, y, strength);
-    }
-    lastPX = x; lastPY = y;
-  }
-  window.addEventListener('pointermove', (e) => pointerMove(e.clientX, e.clientY), { passive: true });
-  window.addEventListener('pointerdown', (e) => { addRipple(e.clientX, e.clientY, 34); lastPX = e.clientX; lastPY = e.clientY; }, { passive: true });
-  window.addEventListener('pointerleave', () => { lastPX = -1; lastPY = -1; }, { passive: true });
-  window.addEventListener('touchmove', (e) => {
-    if (e.touches[0]) pointerMove(e.touches[0].clientX, e.touches[0].clientY);
-  }, { passive: true });
-
-  // ---- Физика: распространение + отскок от краёв (границы буфера = стены экрана) ----
-  function step() {
-    for (let y = 1; y < GRID_H - 1; y++) {
-      const row = y * GRID_W;
-      const rowU = row - GRID_W, rowD = row + GRID_W;
-      for (let x = 1; x < GRID_W - 1; x++) {
-        const i = row + x;
-        const neighborSum = bufA[i - 1] + bufA[i + 1] + bufA[rowU + x] + bufA[rowD + x];
-        bufB[i] = (neighborSum / 2 - bufB[i]) * DAMPING;
-      }
-    }
-    // Отскок от краёв: краевые ячейки отражают энергию соседней внутренней ячейки —
-    // упругая "стена" вместо утечки волны за пределы экрана.
-    for (let x = 0; x < GRID_W; x++) {
-      bufB[x] = bufB[x + GRID_W] * SPREAD;
-      bufB[(GRID_H - 1) * GRID_W + x] = bufB[(GRID_H - 2) * GRID_W + x] * SPREAD;
-    }
-    for (let y = 0; y < GRID_H; y++) {
-      bufB[y * GRID_W] = bufB[y * GRID_W + 1] * SPREAD;
-      bufB[y * GRID_W + GRID_W - 1] = bufB[y * GRID_W + GRID_W - 2] * SPREAD;
-    }
-    const tmp = bufA; bufA = bufB; bufB = tmp;
-  }
-
-  // ---- Буква "U" как офскрин-маска: рисуем один раз в СВОЕЙ подсетке (не во весь экран),
-  // семплируем альфу построчно. Подсетка примерно квадратная, ~62% высоты grid — совпадает
-  // с прежним визуальным размером div#watermark. ----
-  const GRID_H_LETTER = Math.round(Math.min(GRID_W, GRID_H) * 0.62);
-  const GRID_W_LETTER = GRID_H_LETTER; // буква примерно квадратная по bounding box
-  const letterCanvas = document.createElement('canvas');
-  const letterCtx = letterCanvas.getContext('2d');
-  let letterImgData = null;
-  function buildLetterMask() {
-    letterCanvas.width = GRID_W_LETTER;
-    letterCanvas.height = GRID_H_LETTER;
-    letterCtx.clearRect(0, 0, GRID_W_LETTER, GRID_H_LETTER);
-    letterCtx.fillStyle = '#fff';
-    letterCtx.textAlign = 'center';
-    letterCtx.textBaseline = 'middle';
-    letterCtx.font = `900 ${GRID_H_LETTER * 0.9}px Arial, sans-serif`;
-    letterCtx.fillText('U', GRID_W_LETTER / 2, GRID_H_LETTER * 0.52);
-    letterImgData = letterCtx.getImageData(0, 0, GRID_W_LETTER, GRID_H_LETTER).data;
-  }
-  buildLetterMask();
-
-  // ---- Рендер: рисуем волновую подсветку + деформированную букву U на маленьком канвасе,
-  // затем апскейлим на реальный canvas одним drawImage (дёшево). ----
-  const smallCanvas = document.createElement('canvas');
-  smallCanvas.width = GRID_W;
-  smallCanvas.height = GRID_H;
-  const smallCtx = smallCanvas.getContext('2d');
-  const smallImg = smallCtx.createImageData(GRID_W, GRID_H);
-
-  // Буква рисуется в своей собственной подобласти сетки (letterGX0..1 / letterGY0..1,
-  // по центру экрана), а рябь от курсора считается и видна ПО ВСЕМУ экрану — так волна,
-  // запущенная где угодно, реально видно как она едет через весь фон, доходит до буквы,
-  // толкает её и летит дальше к краям, отражаясь от них.
-  const letterGX0 = Math.round(GRID_W * 0.5 - GRID_W_LETTER * 0.5);
-  const letterGY0 = Math.round(GRID_H * 0.5 - GRID_H_LETTER * 0.5);
-  function render() {
-    const data = smallImg.data;
-    for (let y = 0; y < GRID_H; y++) {
-      const row = y * GRID_W;
-      const rowU = row - GRID_W, rowD = row + GRID_W;
-      for (let x = 0; x < GRID_W; x++) {
-        const i = row + x;
-        const h = bufA[i]; // высота волны в точке, обычно в диапазоне ~[-20, 20]
-        const p = i * 4;
-
-        // ---- Градиент высоты (нормаль поверхности) — ключ к "стеклянности" ----
-        // Разница высот соседних точек = наклон поверхности в этой точке. Как в честном
-        // water-shader: наклон определяет, куда "смотрит" микро-грань жидкости, и от этого
-        // считаем псевдо-освещение (диффуз + резкий specular-блик от условного источника
-        // сверху-слева) — именно это даёт объём и "стекло", а не плоскую подсветку пятна.
-        const xL = x > 0 ? bufA[i - 1] : h;
-        const xR = x < GRID_W - 1 ? bufA[i + 1] : h;
-        const yU = y > 0 ? bufA[rowU + x] : h;
-        const yD = y < GRID_H - 1 ? bufA[rowD + x] : h;
-        const slopeX = (xR - xL) * 0.5;
-        const slopeY = (yD - yU) * 0.5;
-        // Диффузное освещение: скалярное произведение нормали с направлением света (0.6,0.6,1)
-        const diffuse = Math.max(0, 0.72 - slopeX * 0.09 - slopeY * 0.09);
-        // Specular: узкий яркий блик там, где наклон близок к "зеркальному" углу к свету —
-        // именно это даёт те резкие белые полосы преломления, как на референсе.
-        const slopeMag = Math.sqrt(slopeX * slopeX + slopeY * slopeY);
-        const specular = Math.pow(Math.max(0, 1 - Math.abs(slopeX + slopeY) * 0.35), 8) * Math.min(1, slopeMag * 0.4);
-
-        // Сэмплируем букву только внутри её локальной подобласти сетки, сдвигая выборку
-        // по высоте волны — так буква "плывёт" вместе с рябью, проходящей под ней.
-        const lx = x - letterGX0 + Math.round(h * 0.3);
-        const ly = y - letterGY0 + Math.round(h * 0.3);
-        const inLetterBox = lx >= 0 && lx < GRID_W_LETTER && ly >= 0 && ly < GRID_H_LETTER;
-        const letterAlpha = inLetterBox ? letterImgData[(ly * GRID_W_LETTER + lx) * 4 + 3] / 255 : 0;
-
-        if (letterAlpha > 0.02) {
-          // Буква: та же диффуз+specular модель, что и у фоновой ряби — буква выглядит
-          // сделанной из того же "жидкого стекла", что и волны под ней. Specular немного
-          // усилен и ближе к чистому белому (не только фиолетовому) — как резкие блики
-          // преломления света на мокром стекле, где яркость "пробивает" собственный цвет.
-          const litten = Math.max(0, Math.min(1, diffuse + specular * 0.85));
-          data[p] = 110 + 130 * litten;
-          data[p + 1] = 55 + 130 * litten;
-          data[p + 2] = 210 + 45 * litten;
-          data[p + 3] = letterAlpha * (150 + h * 3 + specular * 90);
-        } else {
-          // Фон: рябь-подсветка волны по всему экрану, теперь с объёмным светотеневым
-          // рисунком (diffuse) и точечными яркими бликами преломления (specular) поверх —
-          // видно, как импульс от курсора реально бежит по фону, отражается от краёв,
-          // и на гребнях волны вспыхивают острые светлые блики, как на мокром стекле.
-          const glow = Math.abs(h) * 1.5 * diffuse;
-          const specGlow = specular * 260;
-          data[p] = 150 + specGlow * 0.75; data[p + 1] = 100 + specGlow * 0.9; data[p + 2] = 255;
-          data[p + 3] = Math.min(82, glow + specGlow);
-        }
-      }
-    }
-    smallCtx.putImageData(smallImg, 0, 0);
-
-    ctx.save();
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, cw, ch);
-    ctx.imageSmoothingEnabled = true;
-    // Теперь весь grid = весь экран (1:1 по пропорциям viewport), не только область буквы.
-    ctx.filter = 'blur(0.5px)';
-    ctx.drawImage(smallCanvas, 0, 0, cw, ch);
-    ctx.restore();
-  }
-
-  let rafId = null;
-  let tick = 0;
-  function loop() {
-    step();
-    render();
-    rafId = requestAnimationFrame(loop);
-  }
-  // На мобильных считаем физику через кадр (эффект тот же по ощущению, вдвое дешевле CPU) —
-  // единая функция цикла, чтобы возврат из visibilitychange не мог случайно выбрать другую.
-  function loopMobile() {
-    tick++;
-    if (tick % 2 === 0) step();
-    render();
-    rafId = requestAnimationFrame(loopMobile);
-  }
-  const activeLoop = isMobileDevice ? loopMobile : loop;
-  rafId = requestAnimationFrame(activeLoop);
-
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden && rafId) { cancelAnimationFrame(rafId); rafId = null; }
-    else if (!rafId) { rafId = requestAnimationFrame(activeLoop); }
-  });
 })();
+
+if (!document.body.classList.contains('liquid-webgl-unavailable')) {
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!reduceMotion) {
+    document.body.classList.add('ripple-active');
+    import('https://cdn.jsdelivr.net/npm/threejs-components@0.0.22/build/backgrounds/liquid1.min.js')
+      .then((mod) => {
+        const LiquidBackground = mod.default;
+        const canvas = document.getElementById('liquid-ripple');
+        if (!canvas) return;
+        const app = LiquidBackground(canvas);
+        app.loadImage('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAD0eNT6AABJ3ElEQVR42u3dabQk6V3f+d/zxJN3q6qurt7VLYlubUiN2kgt2SBMY8lik43Zj1lsQGADh2Ns4wVr5gUzOuNzZrA5x4DHgA+2gMFgYw2DMQaakeVBIEtCtiVEa+luoV7V1UtVd9d618yIZ15E5r1568bNjFwi4nkivsFpVPdm1Y288UTG5/n/4xcR5l9/nfcqWvyEbxX/i0Pf9yV+3vhrvuR72P/2lJ9X+CNK/JuZ3kfJ91D19vO+/HuYuv38hC+XOIazbj8/wxjOtP38hB+54BhWuf1m+QzMuv2W8tmdtP0qGMOZP7sVjeHSPrs1b79ZxnDuz+6Sx3DWY99Cx5CGPgNVbz+rkkupjTfP4pf8I/38/8Yv+efNu/1mPQDP/NYqGMOl/hO/5Lfj51jVEra5r2gMtcgBZMnbfK7JUwX7mK/xODHzMWRJ+5if4ef5Cn9fX+NxYuKPq/A45mf4N77CfcxXuc9KclT+VP5U/lT+VP5U/lT+3an8/fBFC/7gD/7gD/7gD/7dwv/wBAD8wR/8wR/8wR/8O4G/VHQKAPzBH/zBH/zBH/xbjL8fTgCo/MEf/MEf/MEf/DtT+R/bAQB/8Ad/8Ad/8Af/9lb+o8WCP/iDP/iDP/iDf7fwl/zBBAD8wR/8wR/8wR/8u4G/H3UAwB/8wR/8wR/8wb87+EuSBX/wB3/wB3/wB/9u4S+NQoDgD/7gD/7gD/7g3xH8R3cCBH/wB3/wB3/wB//OVP6HOwDgD/7gD/7gD/7g34nKf7RY8Ad/8Ad/8Ad/8O8W/ocuAwR/8Ad/8Ad/8Af/buB/uAMA/uAP/uAP/uAP/p3A36vgFAD4gz/4gz/4gz/4txt/6ZqHAYE/+IM/+IM/+IN/2/G/5hQA+IM/+IM/+IM/+Le/8td+B2DGNwD+4A/+4A/+4A/+8Vb++xMAKn/wB3/wB3/wB/9u4T/xMkDwB3/wB3/wB3/wbyf+0jGXAYI/+IM/+IM/+IN/e/GXjssAgD/4gz/4gz/4g38r8S+8DBD8wR/8wR/8wR/82135Hz0FAP7gD/7gD/7gD/6txn/8FQf+4A/+4A/+4A/+7ca/6DUL/uAP/uAP/uAP/u2u/Itec+AP/uAP/uAP/uDfncq/8DJA8Ad/8Ad/8Ad/8G935T9aLPiDP/iDP/iDP/i3D38/cWIwvAwQ/MEf/MEf/MEf/NuBf9mJgQV/8Ad/8Ad/8Af/9lT+mlL5H3QAwB/8wR/8wR/8wb/1lf+1a7cLf3DBH/zBH/zBH/zBP/DK/9pEgJ/+MCDwB3/wB3/wB3/wDxt/PyP+0pSHAYE/+IM/+IM/+IN/uPgvMjFwVP7gD/7gD/7gD/5xVv6LhAEd+IM/+IM/+IM/+KvVgb9STwMEf/AHf/AHf/AH/7grfz/ljfprOwDgD/7gD/7gD/7gHzb+fsHKf/QdB/7gD/7gD/7gD/7h47/oxODav21V4QCCP/iDP/iDP/iD/3Iq/0Vfu3b9btJ2A3/wB3/wB3/wB/+wK/9Z2v6lLgMEf/AHf/AHf/AH//Ar/3nwzycA4A/+4A/+4A/+4B8k/r4S/CfdCRD8wR/8wR/8wR/8WxP4K1oc+IM/+IM/+IM/+IdV+S878KeC7zrwB3/wB3/wB3/wj6PyX7TtP/63LPiDP/iDP/iDP/jHUfkvC39pdCtg8Ad/8Ad/8Ad/8G9t4K/obznwB3/wB3/wB3/wVwsDf8fjn08AwB/8wR/8wR/8wb+xyr+OwF+5ywDBH/zBH/zBH/zBv/HKv4q2/6EOAJU/+IM/+IM/+IN/eJX/8vE//BPtQh9c8Ad/8Ad/8Ad/8J8Zf98w/l5+wq2AwR/8wR/8wR/8wX+p+DcT+POFv4Gj8gd/8Ad/8Ad/8K+n8m8q8Ff0G7iZP7jgD/7gD/7gD/7gv9TKv662//hiwR/8wR/8wR/8wb/dgb+iUwsW/MEf/MEf/MEf/KvD3weIv3TMw4DAH/zBH/zBH/zBvz2Bv6LXLfiDP/iDP/iDP/i3O/BX9LoDf/AHf/AHf/AH//oq/ybb/uOvWfAHf/AHf/AHf/Cvr/JvEv8jHQDwB3/wB3/wB3/wb2/gr+hVB/7gD/7gD/7gD/7tDvzNdBkg+IM/+IM/+IM/+Lch8DfDZYDgD/7gD/7gD/7g357AX9FrdpkfAPAHf/AHf/AHfyr/MPDXLJcBgj/4gz/4gz/4g3/7An9FP8eBP/iDP/iDP/iDf3n8Ywz8FX3lwB/8wR/8wR/8wb888DEG/opec+AP/uAP/uAP/uDf7sBf0fot+IM/+IM/+IM/+Lc58Fe8fgv+4A/+4A/+4A/+kxGNPfBXtH6naQv4gz/4gz/4g39H8Y878DdpYiA5Kn/wB3/wB3/wB//JiM/7WiiBv+LLAMEf/MEf/MEf/MF/5olBTIG/osWBP/iDP/iDP/iD/2wVdGyBv6L126XsfOAP/uAP/uAP/i3Bv42Bv6L1u4V3PvAHf/AHf/AH/xbg397AX/H6LfiDP/iDP/iDP5X/4q+FHPgrWr8Df/AHf/AHf/Cn8m9j4G/S+o95GBD4gz/4gz/4gz+Vf/P4V9l5sOAP/uAP/uAP/l3FvyuBv6LFgT/4gz/4gz/4dw3/rgX+itZvwR/8wR/8wR/8u1b5dy3wV7R+B/7gD/7gD/7gT+VfvrqOL/BXvH4L/uAP/uAP/uBP5d88/nV3Hiz4gz/4gz/4g38X8O9e4G/y+h34gz/4gz/4g3+b8SfwV7x9LfiDP/iDP/iDf5srfwJ/ZZ8GCP7gD/7gD/7g34HKv0uBv6LXLPiDP/iDP/iDfxcr/y4F/orWZ8Ef/MEf/MEf/NuGP4G/6dvXTR0v8Ad/8Ad/8Af/SPCn7V9++zoqf/AHf/AHf/BvS+VP27/s9h3rAIA/+IM/+IM/+FP5t7/yP3QZIPiDP/iDP/iDP5V/Nyr//Q4A+IM/+IM/+IM/gb/q8A8h8Ff0mgN/8Ad/8Ad/8I8Rf9r+i21fC/7gD/7gD/7gH2PlT9t/se3rwB/8wR/8wR/8qfy7U/mPvmPBH/zBH/zBH/yp/LtT+Y8WB/7gD/7gD/7gHwv+BP6Wt30d+IM/+IM/+IN/6PjT9l9O239iBwD8wR/8wR/8wZ+2fxvb/hNOAYA/+IM/+IM/+NP2b2PlP+EyQPAHf/AHf/AHf/Bvf+Vf7jJA8Ad/8Ad/8Af/BvAP/Zx/bIG/op/jqPzBH/zBH/zBH/y70fYf/5MDf/AHf/AHf/APBX+VeI22f/n3MmkC48Af/MEf/MEf/EPBn8Bf9ZX/aHFNHvjAH/zBH/zBH/xjwL9Nlf/RCQD4gz/4gz/4g38D+BP4a2JyNeFWwOAP/uAP/uAP/l3Hvx1t/+MuA6TyB3/wB3/wB/8G8FeJ12j7l38vZSv/iR0A8Ad/8Ad/8Ad/An/trPxHiwV/8Ad/8Ad/8Af/tlf+R9fvwB/8wR/8wR/868KfwF/Tk6uC+wCAP/iDP/iDP/gT+AsX/2W0/cdft+AP/uAP/uAP/nVUpgT+mm/7jy8O/MEf/MEf/MGfwF93Kv/Raxb8wR/8wR/8wb+r+Hex8t/vAIA/+IM/+IM/+FeBP4G/cAJ/Ra+5ZR74wB/8wR/8wR/8Y8C/q23/8a8t+IM/+IM/+IP/sitTAn8htf2L1+/AH/zBH/zBH/yXiT+Bv7Ar/9F37NT9BvzBH/zBH/zBn8Bfayr/0eKo/MEf/MEf/MGfwF+7A39F63fgD/7gD/7gD/4E/prDv862vw51AMAf/MEf/MEf/BcEPuTKP2T8y7zPZVf+RyYA4A/+4A/+4A/+s+JP4C+Wyv/oa47KH/zBH/zBH/zbhj+V//T1O/AHf/AHf/AH/1nwJ/AXX+CvaP1O0xbwB3/wB3/wB38Cf0vZvk23/ce/66j8wR/8wR/8wZ/AXz2Vfxj4F1wGCP7gD/7gD/7gP291TeUfR+Wv/Q4A+IM/+IM/+IN/xPhT+c83vg78wR/8wR/8wZ/AX7sDf4WXAYI/+IM/+IM/+MeIP23/xcbXgj/4gz/4gz/4awqUIVb+IeNf5n02ib80OgUA/uDfFF6jxUg2aR4On7+VUu8hG4B/0/jbZGzArtl+ZobtZyqcfJprXjuy33DOn8q/ZvynXwYI/uBfU+UvI/V3pb1NyZjAKv8iHXz+GVg5KbmVgs8D+Nc2gdu+Kg2uGaJpc03V8HePO/RaSevm6KQF/Kn8m+jsOCp/8G8Ufyv1t6Xb75Fe9VYp3TuuHCsoq/wMf63kvym9His9eL/0/CNSsjL2d8C/NvyzVHrjN0u3vk7q70jGzj6+3kjGz/DPZtiPrt3/bCLtXJE++otS2j+Y7HLOn8Bfves/WNxSPrjgD/6a75y/NdJgN58AfOX/JO1eGR7IQ158jv75z0rPPSi51eFnA/xrw98YyafSG/+q9MXfJu1eKjiFFNIu46XeqnThKel//Ko02Bv+DuBfGn/a/ssfXwf+4N8U/uMH8/6utHle2r0axwTA9vKDuAyVf934jy/bl6Stc/n/hj4BcCv5Pq4Zg6N1VYYE/rrR9h//2i30wQV/8Ndy0v7GSNbl/0UxAXCT8wrgXzH+w46LTQ72m9AnAKP3OdfVJh0/5x9y2z/Gyv/oZYDgD/4N4T9zuiqwyQD4q7FL/Vqz24B/lPjHWvmPFkflD/7gD/4x4u/bsttwzn+uiUkI+Icf+Ju8fgf+4A/+Szywgz/4LziJBH8Cf3WNrwV/8Ad/8Ad/8A8FfwJ/VQc6x28EBP7gD/7gD/4B7U/dTvsT+KtvcmfBH/zBv5IiDvyrxt+3b6ch8EflX+fkzoE/+IeAv4/5YO6b+wyAP5U/5/zrwT/uwF/x+LqpnyXwB/8K8feSspZdCQD+FeI/9vwI8Af/OvBvW9t//DXrS1Yw4A/+VeAv37pjOfhXjT+Vf2vwJ/DXZKZjwmWA4A/+deDfwqM5+IN/qcVIygj8Ufk3OLmz4A/+4A/+0eIf8X6UEfij8m+o8h99x5U+gIA/+IP/8aUc+DeCf7y7Euf8Q8a/jYG/oi3nwB/8wX9B/DPwB/9Z6M8P0Ab8Rdu/2fG14A/+jePvI54YgD/4L3Vq0F78CfyFl+lw4A/+VP5zH6/BvyH8TZt2nkBxWDb+BP7Cm9xZ8Ad/Kv/lHsrBn8q/zso/PHzjwr+Llf9oceAP/o3h364mAPiD/xx7Def8Cfw1N7lz4A/+TePf+ue6gz/4FyxGfixCAv5149/Vtv+xHQDwB/8m8G/FwR38wR/8J2IYWuUfMv6qaXytrxAO8Af/Nlb+s0wKwL8i/H3cO8Yi+NeFQ5sDfyG3/X2N29fOUtmAP/hXgn+sB3MzoYUB/uA/89sn8EflX+/kzlH5gz/4z7lkVP7gv6xpAOf868C/y4G/or/lZv7ggj/4g/9S8QL/ruE/e+UP/gT+lj++JR4GBP7gD/7gHyL+bXoOAIG/aiv/kPFXI+Obf+3AH/zBH/zBP8zKvxkcuMNf2yv/4scBgz/4g//CNR34V4t/W/YYIwJ/VP7N4S+NZwDAH/zBf7bFzLY/g//yjiEm8ssADx4iyTn/pvDtWuCv6HU39TMH/uBfNf6x3g3I54jOtP3AfzmfgcifBpSpKIAF/svAl7Z/+cmHo/IH/8bxj9d/Kv8m8I98IfBXbeUfMv5qZHyP/1cO/MEf/KufFYA/+JfbATjnT+VffeU/Wiz4gz/4gz/417mT+DlwAn8q/+XiL3k58Af/JvGP/FQu+IP/wjsN5/wJ/DWBv1T2aYDgD/5U/rMf3sG/ls9ArPhPuxIA/KfjS9t/scmHBX/wbxz/mA/mx1zBAP7gX+4XIPC3CL4h49/M+M72+zvwB38q/yUcx8Ef/GdcsikTA875U/lXhb/fvxMg+IN/k5V/y84FgH99+MfdOPITcAR/Kv9qK//DHQDwB3/R9gd/8G+mccQ5/2XiS+Cv/Pod+IM/+IN/bPibqPelMCt/An/daPuPv2bBH/zBf9kVHfhT+c8+ESDwV/69hFj5K/DKv+g1B/7gHwT+kR7Zl779wH/x/Q/81bZz/iG3/WOs/EeLnfp5An/wrwH/aJ8FAP7gD/7q8jn/GCv/0eKo/MG/Sfy9b8Hx3IA/+M+322QN4s85/24F/orW4cAf/JvEvzW3AgZ/8J9xRwH/ePGPue0//h0L/uDfFP6tQx/8wX+ueSL4a8r6Qqv84237+0P/2oE/+IP/gosBf/Cfl3/S/rPiS+W/vMmdBX/wB/+llnPgD/5zTwQI/FH5V1f5H12TA3/wB//lHcfBvyb8o3+2BG3/WWAOAf/YA39F63fgD/6N4x/rUdyDf+34j7afKXqYTrwTAfAPF/+2tf3HFwf+4N84/rF3Bgz414n/2GZvQfVP4C/0yr9tbf/xPzvwB//GK/82XQsI/tVW/q3ZZfw19wEg8EflX1/lf9ABAH/wbxL/FnjvKxhD8C+5/SJeqsafwB+V/7T1O/AHf/Cn8gf/+ncXUxH+nPMn8Fd2/W6Wgxj4g38V+Md4cDfg3yz+Ec8ICPyFi3972/7F67e+QjjAH/xLb7+WXAkA/uAP/tMRDbXy70Lbv9RlgOAP/nXgb2I+oB+XSAN/8C85DSDwR+Xf3OTumMsAwR/8qfwXO7aDP/jPvtsQ+KPyr3dy58Af/BvDv51HcfAH/5m6AJzzJ/BX//p1zAQA/MEf/MEf/MFfBP7a1/Y//DMt+IM/+IN/jPj7VpxDIvDXVOXf1bb/+Pod+IM/+C/3MA7+deEvxXpPQD8FOAJ/VP51jK+d+rkDf/CvGv+YJwZ+9t8J/JeFf5w7D4E/Kv9QJneOyh/8wX/+I7lf1vYD/znxN3HuOHPgzzl/An/Lvo+EA3/wB/8lFv/gXxP+7VvAn7Z/3ePrwB/8m8Y/xigX+DeNf5vCfwT+aPvXW/kf6gCAP/g3iX9LyjfwrwV/37qdhcAflX9T4+vAH/ybxD/+57qDf3P4x78H0fYPF/9pE4Om8Z829mW2rwV/8A+i8m/h6V3wrxb/+HcZ8K+y87Bo5V8l/svo7GgJ4+vAH/zBf/nVP/iD/7TK34N/kJX/fNu3vsp/meNrwR/8wZ/KP07849x5CPwR+AtjfI97GBD4gz/4gz+Vfw0tIwJ/VP7Nja8Df/AHf/CPD/92XQ1A25/AX9WBv6JPjAV/8Af/xRYD/jXi76dUzeDfNfzLdE8I/BV/fhz4gz/4L7Zk4F8j/m3YmcA/lMp/vu1bX+Vf9fha8Af/IPCP9FhO5d8s/u2aTxL4q7vy707gr/i9OPAHf/CffaHtD/7Lwz5MHAj8tbfyH33Hzfo4U/AH/2VuP+9bVsWBf234+4gvA/RaLPRF25/A3+KdHcnO8jhT8Af/peKvli3gT+W/0E4D/mWBX6TyrxL/8AJ/k7avL7gMEPzBH/zBP3j82/ZQIPCvuvKfb/vWV/nXN74HiwN/8Ad/8I8Hf9/CnYbAXx2Vf9cDf0WvOfAHf/Cv6NAO/jXiAP5Vbt+m8fdU/hV0dibdChj8wb8u/EcvxPZkVyp/8F/qbkTbf56uAIG/+be9o/IH/yDwp/IH/07hzzn/qvFXidfaHvib9nlx4A/+4A/+seF/cBmgj3lvAX8Cfw2Ob8GzAMAf/MF/Scd18Kfyn7BZPfjPXV0T+Jun8j+6fgf+4A/+SziQg39tOHhJRj66yMhxh+HwcCDw1/bK/8jjgMEf/JvEv7VXB4D/0nBo+2WAXa/8CfzVi7+kww8DAn/wbwz/mI/rGfg3jwP4E/irDv94A3+Tf39H5Q/+4L/gYsAf/JcxJQD/efGn7T8r/n7YAQB/8G8K/1hD3MehD/7gPxP5vvP4l6loCfwtv/Lf7wCAP/g3hn8bF/CvFYfYdxICf1T+TVT+kycA4A/+4A/+gVf+Wdt2Gtr+pfEn8LcY/qPXLPiDP/iDf2z4+8hPA/gp2xD8F+sIEfgr93cd+IM/+IN/PPj74X0AymzkkHcX8J8Xf9r+i+Hvy1wGCP7gXyv+LZgcgH+TOMS6pxD4CwX/dgb+JnfOHPiDP/jPeQyn8g8Eh7Y0kgj8UfnXU/kf+zRA8Af/2vCP+TLAeSYz4N/xyr8afGn7E/jzM2+b8Q4A+IN/E/i35DDuG/4MdBd/35J9CPybwr9Lgb+i1xz4g38I+Ef/UFfwp/KfY88B/3gr/zL4htj2H//agj/4N4l/K84CgH8D+LftNACBv9gq/7gCf8Xrd+AP/k3iP7qcK9ZHu047voN/dTj4qHeNxYEn8Eflv+j6XdlJKviD/7Lxj7qYM1T+TbaFTcRdANr+8eIfX+DPT9z7HJU/+IM/lX/cOLRnxwH/6vDveuCvaP1THwYE/uAP/uAP/hXsKOAfTeVfBt9Y2v461AEAf/AHf/CPHAcqfwJ/VVb+bQj8Fb3mwB/8wR/848OhLdU/gT8q/2bwl3zxw4DAH/zBH/zDbvv7FuxOtP0J/M2P/2yBv2lPAwR/8G8S/5ZODMC/bhzi7AKA/3LxJ/BXbnwd+IM/lf9ilb+vYAzBv934+wnbCfxp+1edORh914I/+DeGv5+CaJxFPviDv8pu/djwV2PjS+Bv+ePrJ18FAP7gXyn+bWwMEPgD/7l2FAJ/VP71Vf6jxVH5g3+T+LfqFsBU/jXj0I3LAEPAn8Bf/IG/ou1rwR/8qfzBn7Z/UzsL+C+j87Bo5V8l/uU6O/O/t0XG14E/+IM/+MeMA5U/lX+VnaV2tP2nXQYI/uAP/subD4C/aPuX7wKEiL8aGd96K//uBP6K1++o/MEf/ME/DhwmHRzBf9njS+CvvZX/9McBgz/414FXi2YFVP7gX3Y/Kd71afvXgX9XA39FP9OCP/g3hn9LFgP+4D/3NAD85wF+kfVXiX+5zs787205nZ2DxYE/+IP//Idw8G8a/3bdEwD8afvXOb4W/MEf/Ber/D34g/+c4BP4I/DX5Pg68Af/IPCP8Fg+NcJA4K9i/GOfTRL4a2793a78j1wGCP7g3xxekR7K/eFOAJU/lX9s+BP4a3fgr9RlgOAP/o3hNYZoaxbwrw3/OG8nDf514F+mk9X2wN+0G2g58Af/JvFvFfzgXxv+oz+ZFu884F/n/tWdtv/4zy/9NEDwB/8qKn/wB/95Kv/xv+Gj3FUmbUMu9QsZ/2VU/r7hyv/4GwGBP/iDf2fxL3PQaxZ/f6jt7+PfVUTan8BfU5M7B/7gD/7gH0Plf+1rRl7GxL7DUPnP0hUg8Lfc8bXgD/5B4N+imwOBf/X4j75OXJv2HfBfZP1VT64WrfwVYGfHgT/4U/nPh7yx4N8E/qMPgikYg1jbRuBf5/7V7bb/+GsW/MG/MfwjvpeLsZJNwL8R/Mf+nKwMLwWM5FRAOvBHPg8E/sLFfxmVf7iZjoIQIPiDf234x7yYgwkAgb9q8D/2vRnJe6/ESKsbVsoi2WWMlA285H3evZCUEfij8m9wcufAH/xDwN/H1A3weQfArV1jD5V/TZX/ENRE6m1IPotjn5GR0oGUDX+VjLb/3Osn8LdY5X/kMkDwB/8mK/90EE9OwHspsdLKxvDXMeBfH/4HP9k6o7VTNgc1mlMAo8+1H3vL4D8P8AT+5h9fjU8AwB/8G6v8RwfGVFEtxkluvdw+C/7LxT+vnqXeqrR+yshHsu+MTgH4jMq/vv2Ltv+k7WunFl3gD/4V4y9JWX/Yyo2hkhueAlg7Pce+B/5LwcEr08YZ5SHASG4pbYy0u5UpzYbVv1en8CfwF16mw05MYoM/+NeAv6S8ioslA2Dy97txWkpUcA6awN/M+M+Eg8n/fPKmRG7FRHHqyA8njTtXMx00AHzk4zsb/qEH/qb/fs1W/lVsX0vlD/6N4e9zPI2k/o6UZfE83CVLpY3r8wlA0ec+tMrfB175z7J+Y7xSSadvS+RW4+kcGSvtXvHKlMlYH/n4lsfftzzt7wPv3Pljt+9xEwDwB/8a8B8r6LS3KfnBxClpOAfyYQfg5K2Ss2MA0fafC3/Nun4jpfK67iVGvTVFkgHIb1u8czVTGv34zoa/at2/CPyV+3f51xb8wb9J/Eeg7l7Ng4Bm2vYNYgaQv9dTt0lu5fA2AP+K8R/+0crrhpcm0dwAyPv8vhE7V1OlymSsAX/R9m+ms3PwtQV/8G8Sf3lJidTflLKB4mjlKu9WnLghDwJ6ScaDfy34S8pSr1VZ3XRXorQfR9dolFu4+kI6vCUAgT8Cf9VW/mXWb8Ef/BvDf7QTDjsAPo3nlq6Zz28EdOblylu6Jhz8qzt4NBD4u/Y1k//kXs/opruc0n4c+4w1RoNd6fK5VFZS5n1k4zsb/gT+wq78R9+1U49Z4A/+FeE/Xh3tbUs7V/I9MvhQ9zADsHpiwgSAwN+xcCyyfjM8/3/6dqvTtyVKB5FcAmilwa505fxg7DQXgb8m8F+k8o858Hd0Hf7wZYDgD/614+/zDkDalzafl5JEUVwO6LP8GvQb7xreDtiEgX872/6HE6N9ed1xt9PaqfxqjOBnAMM7FQ760uXnBzIyBbsI5/zrqLwXwb/Mzwk58Ff0XUvlD/5N4j86ETXYla6+kN/fPYrF5JmFW14rrWgsiQ7+leOQyesldzutrMdxBYCXZK002PG69NxgeOmoB/+aK3/a/uMH3WsmAOAP/rXjP4ZpOpC2XsyT0jHc2MVYabAn3fpaaXU1v4fBZATAf+H1Gy+fSWsy+oJ7e3kAMJLMiHXSpWcH2rqUZwB8i/An8BdH4K/wMkBfIRzgD/5ltp8x0kDS1fPDR+zGMAEw+e2LT98u3XBXngMwDeBf3cEjgMBfwd9KvXTyTKI77umpv5NX1jG0ABInPf/Envp9fyQDQOCPyr8J/I92AMAf/GvGf9QBkKSLTymqqi5NpbXrpJe+IZ/AFJ2+IPC3vPVbK+0p0533Ol13s82frBfBvuIzr6QnPf9kX7tK80kugb9a8F+k8m9X4K/451jwB/9G8ZekLL+l7qWnpP72sAsQw5Llrd2X3Zt/kK59JgBt/ypwkl5z32r+KOaYniDppRc+31emg8sWOedfbeW9CP5lfk4cgb/Jv78Ff/BvFP/h8wASI138fP5MAGMUx2kAm09Y7nyLtDHKARjwrwQHI6Wp14me0au/YlX97Xz7x7AYZ7SzKT33p3tykrz34F9x5U/bv8z4ji4DBH/wbwj/0f+YRLp8Ttq9Es+VAMZK6Z50w53S7fdI/eH3wH/567fWa8943fnmFd32hU793UgmAD4/dbF71evph3bkZIaBUQJ/oVb+bQ38Ff0rC/7g3yT++zvi8HbALzwmJb04rgSQ8uvQV09Jr/6Lw/sBEPirbP3ee93zjjWtnhjeNjoG/73kenkA8PL5yfcAaGZ8Z8OfwF87Kv/jJwDgD/414y+fV/27e9L5zw4fsJNF0gUwUrorfeFXSevOK01jO3iEGfgb/44x0iCVrr8u0eu/Zk39rXi6RN57uVXp6Qd3tZNmSqyOvQcAgT8Cf5NeWw7+h1+z4A/+jeI/Bmkm6fyf5vjH8kyAUQ7gtrull79Z6puiECNt/0XWb6y0o1Sv/9o13frq5CAnEsliJD31mV3tyV9z2oJz/suqvBfBv8zPiT/wN+0yQPAH/4bwlySl+ZUA5z4n7W4OK7xYTgNk0sqG9MXfbPKAl/fgv8T1p5m0aq2+5Ns3lKWSjwh/mxhtX5Ue+/i2epKyzIM/bf8ljO/i+B+eAIA/+DeFv89v8GKNdO5haedSRJcCDivUvU3p7q+VbrpFGmSjgBr4L7p+k0i7PtPdX7GqV33ZinavRnLzn+FnK+lJF58Z6Oynd+Rkh583An+hVP7tD/xN7iDsPwwI/MG/Kfz3H03Zy+8G+OyDeQ4gi6QDYEx+W+DrXya98dtMfjWAIfC3jPV775VI+gvff1KJiyccKuU3AOqtSY9/YltXt1IlRtPDMAHhT+CvvZW/H/6fpfIH/xDwH90udS+Vzv6JlKxqFKuPZhLQ35He/J1Gp0/6vAtgQjt4hB/4G1+HTaTtzOuet63r7q9c1c6VuDpDo/3isf+xrT1lw+CiJ/AnAn9NBP6KFgv+4N84/mPfM5KefiAP1pnITgP0t/OHA73prxnt+qLr1Gn7l16/yTtAa0766r9/cnh/hbiWxBltXZQe/uCmesNfiHP+BP6aCvwVTe8s+IN/EPgrD9M5I539Y2nrQjwPBjrUBdiW/vwPWN1wg9TPxlPf4D/L+hMrbWeZvvyvn9Srv2wlr/5tPPuCz6TeqnT2wR09/fCuVqbcAAj8y1X+tP2X29kp9TAg8Af/qvHPZwD5aYCLZ/MuQG9t+mN2Q+wC3PQK6S/8sFHfHz4NAP7l1m+stJt6veR2p6/5B6e0F9llf/lnLb/+/6E/3NRWNsgfcz3xg0fgj8BftZV/0WtTHwYE/uBfC/7DF2wi7WXSYx/KH7QT22ISaeey9Ja/YfXKe6Sd1MtaAn+l12/y/7y8vukfX6/r77Aa7MZz3//RYm1+//8HP3BVdv/ufz5Y/EM+51/u96Pyn6Xy399PNe0YD/7gXxP+oz8mkh77cP5cgNgmAcbktwde2ZC+7n9PtLIipSqqYAn8Fa0/SaTNNNXbvueU3vRNa9q+FF/wz2dSb116+sE9PfKxbfVklKVh4u9bnvbveuCv9GWA4A/+TeMv5Y94dYn0zKek84/EdVvg/Q/VsAvwyi83evvfTbSdeRnrl37wqAN/1bh+m0hbg0yve9OavuHd1+U3hIqs9Z9/5rx6q9In7r+sK/2BksQEi79q3b/qTfuX6WS1PfA3+TVf3AEAf/BvAv99CHrS5o702f8subW4rv0ex2z7kvT2v2/1hrdbbaWjShb8C/G30l6a6aZbEn3Xv7hBvXWjrB/nBCBxRpsXpE/89mX1hhMC8K8ff9r+kw+2XgWnAMAf/JvCf78ZleU75oP/r7R7Ob4WsKT8XLbPx+Fbf8rpjleaPA+QgH8R/v0s0+oJq+/9Vzfqttck2tuK6zLQ0ZKlXivr0iP/fUtPPryjnrHDDhb4zwo8gb/qKv/9m6+BP/iHgv9oBpBl0koinX0gPxXQW4/vNIA0vCpgRzp1q/Rd73E6fWN+oyNrFSz+agD/QZYpWTH63p+5Ua+5b0WbFyOd9GnYsbDSR/79Re0pk7VmAj714x9D2p/AX1WV/9H1W/AH/2DwH1usk3b60mfuz++nHuNpACmHbPeKdPs9Rt/9Cz2tn5b2Mj8GXHcDf6PK364Yfd/P3ag3fuOqti7kl4LGuHgv9daMnnmor0/cf1mrsvJZNrYNCPwR+KsW/1knd1MvAwR/8K8b/9Hv4oz0qf8oXXlWSlYU363gxiYz2xelV91n9b2/2NOJM9Juem2V273A326Waf201Q/+wo160zevafOFOC/93P/9MmllTfror1/Uxa2+XDL+maTtT+CvOvzn7exYPwMc4A/+deA/Opj2nHTuSenh90urG3HdFKhoErB1QXrVW62+/9+t6MaXStvpQSegM/ibYdo/TXXLnU4//O9u1p/5y2vafDFy/H0+Sb3wbKY/eu9FrcgcCv+Bf7X40/afb/2Wyh/8Q8N/9BdGCfBPvFfqR3gzmMJOwAXp5W+2+qHfWNWr/6zVZuplkqO3DG4j/qPsw2aa6YvfuqEf+Q83684/14se/3zC6rV2Qvro/31RT5/d0Yo9CP+B/3wVewj4L6PybzbwN2l8j7kMEPzBv2n8pfyGOquJ9LmPSE98VFo5EXcXYDQJ2LksnXm50fe/d1Vv+z6n3VTqZ5JN2hn4M8OqfyfLpMTrm/7Raf3gr96o07cm2rkcP/7yUtIzuvRcpt//1y/ImYPtTuBvUfyo/Kuo/A86AOAP/gHiv78k0u5A+qNf2L9LbPSLTfJnBthE+pafWNE7/9Wqbny5tJnmH+ijpwXiDPzJ5Kc4Bt5rK830qjev6u/8+s36K//zKWWDvKsTa9p/fMlSr/VT0h+996I+/+S2Vkwin03CicAfgb8mOzsH78+BP/iHir9XfmfA1UT6zO9Jn/+Y9NJ7pb3N+E8HGJt3M7YvS2/85kSv+NJ1vf8n+/rI/9XXVpppVUY2kbLMFw5gyG3//FI4r0HqtZt63Xyb09t/6KTue+dJrWxImxfy0wGxj+Hoc+hWjS48nem//PwL+XX/R/il7T8LzKUmlwT+Fhrf0dcW/ME/VPz3mwCJtL2XdwFsEu8lgUcmASaHcPuStHGD0bf8xIr+9m+v69539JRJ2kq9vM9/53Esw8Nf++E+Y6U9n2kz9Tp5Q6Kv++Hr9KP336yv+tsnJaP8sb5JS1o5ysOqqyek9//LF3T2qW2tGJNP2sBfBP5CavsXb1/z7pd6vwgC4A/+VeI//oXpST/wH6SXvVna3Yzr+fBlKkmfSau5k3rkI6k+/It9ffr+vq7ueiWSepKMywNn3hdv2DpxMGY0MfEapNKeMhlJt93p9Oe+9YS+5NvXdfMrEvW3h+1+2x74pbyDs7ouPfPZPf0f73hEu1uZjPyhS//Af1b8ml5/2IG/ZZ/WcVT+4B8D/jaRtnelD/yk9F2/0ipHDjBN8tMbkvTKtyR65ZcleuYzK/qT/9jXA7/T17MPZ9oZZHKSnMx+G90P7zWTHRmcZbQNDyp8Gcma/LUszc/t76WZjIxOn7B6/X0buvfr13T3X1zTqVuN+tvS1sX8PbbhXH/RBzJxRr/9E+d0abOvjSRRljaDP4G/Zs/511H5V9G5M+++o3i+Cv7gHwr+4wgNMumdvyzd/ZcU5aNiS9syvNqhty71VvPz5k9+PNWD/7mvRz480LMPp9ray5QOOwN2+N9oIjEarNF+433xwcSMf8fkf95/AI8ZdhsyKZOUKtNg+LdXZXT6Zqu7vnRFr/nzq3rtW1d1012Jkl7enUn7OfzGtHN8slTauF762G9e0b/4vsflrBm7XTWV/ywwx47/5IfuNI//pNf2JwDgD/5B46+8hbw7kF7+Z6Qf+E8joNqLzGgi4H1+e9ze+vBeApek5x9N9eTHUj31yVRPf2qgc4+k2r7s1fde/bHbfNrhBjUywyK++AAxCq6NblybDb9OZNST0cqadOaORLe9zumlr+/p5W/o6Y7X93TqZiO3Ku1tSYO9/P22rdVf9HlMetLWxVQ//o5H9OyTO+rZ4of+gH/Y+JfZhm1r+49/180CEfiDf1P4j6qu1UR69AHpQ/9Sevs/yu+uZ1raBZCGVfRwIrB7Nd8frJNecneil9+bX262c0Xavuz1wmOZXngi1YWzqS4963X1fKarL2TavpRpd9Nrd9Mr3TuYVBgjeSslidHKhrR60mjtpNGJG61O3mh03S1W19+R6IaXJbrpFYmuu9lq9YRRbz3HfrCbw7+7eVDtt3ksDiZlXqsbRr/2rnP6/JM7OpkkSlMP/h2r/KvGv47xNf/rHd6XOfiCP/g3hv/Y9jMmb0evbEg/9DvSLa+V+lvtuKSsvEDD0OBwu1iXnwpJenmnwDopG+RIp3tSOpCygVeW5vhnmeRTL2PNfiLfJpJ1RkmS39LWreT/67O8nZ/28wlYluaXZpphld/m7kvxJNTrxPVGH/utK/rn35u3/vO2CfjPjh+Vf72V/9Ht68Af/GPBf7/9mkhXr0r3v1v6nl/TsERWq9vOh6ftw2p7XyUpzXLs968OMAdVeeLyO9WNn9s3o5MBfmx/G473qLr32Rjyw/UZk1+J0MXFZ9LKutG5R/r6lXedzW9X7Q/nKwj8EfiLaXJnwR/8Y8H/oAqT1hPpU78vfehnpfXrNZa+7uBiDi7Jyyv54TX55gAun+ZdgWyQV/ODYVWfDr/nh90BZWM/yx1c22/achvGefH3krH5YfOX/8HTeu653eH9/rnD37WvtRn/sO/wp2O2/4SncoI/+MeE//77y6QVK73vn0qPf0Rava7jk4ApE4Tx/8w1/137OsvRJcu8Nk4b/ad/ck4f/8NLOpE4ZYceTEHbP4bAX1fu8Fdu+0oW/ME/NvxH2yqRtLMt/eY/lHYv5+fA23KXQJZwlnTgdfIGow/96iX91k89m1/vn3HOPyb8u3aHv3Lbd8rTAMEf/EPE/6Aqy68KePzT0m+9y8utHeqBsbAsBf8T1xs9/Ifb+qUffUrWGCkbS2CCf6lKlEf6hpTpmNQBAH/wjwD//UlAKq0nXh/5dekPfkpaP8OpAJblLFkqrZ0yeu5zff38Dz6pna1Mzpix0B+Bv3K/H5V/aJV/8QQA/ME/IvxHO3eWSWuJdP+Pe33yN702bszDbSwsi+C/si5dem6gn3nnE3rumV2tJuMP+iHwR+AvrsBfqacBgj/4x4T/6O+YTFLm9e//rtdjH8xv05oxCWCZE//emrR9OdXPfs+TeuTBTW0kVllK278szCF0Hgj8Td++FvzBP2r8R195r8Tkt8n9N38z1TOfktZOMwlgmQ///namn/u+J/Xgx6+M3ekP/An8xdr2L37Vgj/4x47//p8yaSWRLjwn/fI7U734uNfqKTIBLOXxX9nIK///87ue0J986DL4z1HBEviLJdMx7ACAP/jHjv/o6zT1Wk2kZx+TfuHbM734uNfaKToBLFPwH0hrJ6XL5wb66e94Qg98+IpO1Iw/gT8q/3rH18uCP/i3BX+/X8l5rSVeZz/n9Z5vT3X+T6V1TgewHLOkgzwzcu6RPf3kX31cD//xVZ1s4Jw/gb/F8CfwV77yP9QBAH/wbwv+o9dGtwt+9lGv93zHQGf/xGvjBiYBLIc/k9nA6+SN0kMf3NI//dZH9fhDW9pILG3/GWAOofNA4G+2yv/oBAD8wb8l+OtQJ0A694TXz3/bQA++L9PGjcMn2nGzoG7jP3zmwckbjD70Kxf1z77zMb14tq910v5R4U/bf5HtO+lWwOAP/hHjP/o6TaVVK1193usXv3ugj/5SqhNn8oO/z4Cwi0s2yJP+rif9+j8+p5//4Sc12Mq0Yg34z1iJEviLOdPh5aj8wb+t+I/+f5ZJzkrZrvRrPzLQ+Ue9vuZdTsZKe1v5U+9YOlD1Dx8itXFGOv9oX7/8D8/q4x+4rHVrZbxqvckPgT8e6dtk5e+ndQDAH/zbgP/+dzPJmnwi8Hv/PNV7vrOvS097bZzhlEAnqv40f7TxiTPSJ373in78Gx7VH3/gkk4kVsp8rbf3JfBH4K++wF9x5a9JEwDwB/824b//77yXMmkjkT71B6l+5hv39On7M21cLyUJ9wtoa9WfpdLGaWlvO9O/fdcz+um//rheOLunjcSNtfzrwz/kyp/AX9sCf5q4fvO/3HaYK/AH/zbif+1PsInUTyUjr/t+wOmrf7SnjTPS9mXJ2DwjwBJ71e/VWzNaWZMeeN+m3vvuZ/ToQ5taN8kwAwL+MeFP239Z43vw+qEJAPiDfxfwHy3GenkvbXvpzi8y+vr/bUWveZvVYEfq7+STBJYY4c/Hbv066fzjA/3eT5/X7//Sixoo1WqSDKt+8J/989P0+sMO/Pkoxvfwn/YnAOAP/l3C/9B5sETaSb2cpC/9bqe3/72ebrrTaPvyASYsEcCfSUY5/Ltb0n/9txf0uz91Ts8+s6sNY2VM/nfqxj8eHMC/K5X/4QlAhXCAP/g3iX/ZtqGxGnYDvG5+idFX/ciK/ux3OK2ckHav5HAwEQgb/rWT+YTtU//lqn7np8/rwf92VU5GK4k5cmMfKv9yn62m8V9G4E8B418mD1AN/sNTAD926wRGwR/8O4D/+NejbMBAXq+41+ptf2tF97zDKVmRdq4OryZgIhAG/KmXsUZrJ/Jh/cwHt/S+nzmvB/6/K8rktWatMu/HPqPg3yX8q678Y237l5sAgD/4dwz//baYkWS8dochsdfe5/TWv9XTF36FU7Iq7V7NK03CgvUv+bX8Xtbl8A92pYc/sqUPvOcFffx3L2lPXuvDdn+a+SUfnMEf/GMb38nrL54AgD/4q73n/MsePIzN/7DjMzkZvea+RG/57hW97qucNk7n55kHu/kkwEy9pybLYtV+/r+9NWl1Q9q8KH3y/Zf1h//mgh78g6vaU6Y1Wdkkv5vf8fsX+MdwqR+Bvyoq/6PrPzoBAH/wB/9DX9thPmDHZzIyuvOLE33JX+vp9V/b05mXGqUDqb817AokdAWWVu1nkvdeiTNa2ci367lHB/r471zWR3/joh59YEte0qqsbOKHk4QqDs5txAH8u1z5F58CAH/wVzfb/mU+vKOg4J73SuV18y2J7vnLPd37LU4ve4PT6kmpvy31dyXPZGAO8aXM5x8y6/Lr95OetHnB65H/vqWP/j+X9MDvXdWLl/eUSFrdT/b7CvGl8o/l80vgbzb8D08AwB/8wb9c28zmqfN+5ofnnI3u+lKnL/pqp9d95YpueZVVbz2fDAz2hp0BM8oW4Py1+7LPvGSMEqcD9C9KTz6wo0++74o++f4reuqhHe0q06qMXGLlvT9yIx/w7y7+VVf+bWr7jy/5BAD8wR/8Z//wmHwykKXSrrwyeZ1as7rrLU5f9JVOr7pvRTfdabV2nZT287xAOhh2B2w+GehUh8APQ3zeS8rBT3r5ef0sla684PX5B7b10Ae39Onfv6rPf2pb2z6Vk1VPRjbJJwve1zO+4A/+cY3v7Os3P3aL9+AP/pzzX+DDa/x+hZ+m0t7wgRsnVq1uf32iV32506u/vKc7vshp40x+Pnuwl08IsnQYcPNjkwJF3inwB/ufH7b0TZIDnjipt55PgrYvSy+e7euxj23rsx/e0mc/tKnnn9rTjvLQ5YpMHuorqPbBvx34V/f5pfIvs38fmQCAP/iD/7wfXknGyw6vCEjT/BRBKmlVRtffavSyNzi97A09fcGbnG6/22n9OqPVkzn+g728U+DT/OY2Ph1OBMYmBcFMDsaRH31QvGSskUny4GTiJLeS3zdhd1Pa2fR68am+nvjjHT3+iW09/rFtPfu5PW3uphoo04qsnIysG1b62bTtT+CPwB+V/yLrPzQBAH/wjwX/Ztr+U/Cf0BnI0nwi0B8+DHZNRifOGN36GqeXvC7RbV+YTwhuuivR2sk8Q7CyMXya3SA/dZClw2R8dvBs+/1Vjk0KDp1WmGWy4I/Z90dfGLN/74PRpY/W5U9StG74gKUdaW9L2t3KdOHpgZ757K6eeWhPTz+0q7Of2dWlcwNt7+XgO1k55ZMFY8ywvd/saR0q/zg+vwT+FsP/4DLAW8bOqIE/+IP/wvgf99rB/QK80lRKJaXKNJBXIqNVY7R+Sjrz0kQ33pnoxjudbvqCRNffnuj0bVbX3Wq1smHkVo1cLz9/nvSGQbr08MTA77ffx/blsar92m7CKKA4eo+HkB/e+TAdSOmeNOhLgz2v/rbX5fOpLj470KVn+nrxqYHOP9HX84/t6fwTfW1dzrTbT7WnTImMnIySIfiyY+D7EMYX/OP//MbaOayj7V+8fvNjt3gP/uAP/tXiX/STjfE5usMbDmWpV6b8NsTp8D8no56knjPqrUunbk503W1WJ26w2rjeauOM0YnrrTbOWK2eMFpZN1rZyCcKKxtGbiU/977/nzPDR+EO15ce/O9gz2tvy2t3K9PeltfedqbdTa+ti6m2LmTavJhq60KqqxdTXT6X6vJzA+1uZRr0vfrK1JeXlWQlJTIaOi+TGGl4Ht/vf77CCnSCP/h3pe0//lOcn6UtCP7g3yD+quzgsay2/2wHj/0KfRRwMzmeKyZvicvY4blwr8HAq39FunJlT089KmWSsuHphANwvcwI3iS/D4Hdr+z9ME9gJDO6/s6PpfLz3EE+GcivaBitIx1e4WBkZORlJNlhNT+6snHVWq3Z/Gft/17D39EPvEK+mgP8Y//8Lq/yD3l8y7xvP+O+76j8wT8W/H3g+C+8/rFU3ZDk/deMkYy87PAE/37LXsNr4r2X92b/Z6T5+YVD7+zgZw7PARzzXvaB3588GBljlO1fx3cQ/Nt/y5kfPmo3psldG3Eg8EflX34/ceAP/qHj36a2/9zr9/7QoB/+l0ffwSgIaFR0mw8zeVT82DpHzYKxyUhb7uNA5R/75zcM/GMJ/BUtDvzBH/wDx3+e7TvcQbJSOEy5mqGFN3ECf/BfVmdHFW/f5eLvp0wAwB/8wb9DOIA/+FP5hz2+869/2msO/MGfwN/s+Av8wR/8ReAvzsp/tH4H/uAfIv6tD/zVcvAIE/9mJndtxIHAH5X/fPvJ6DsO/MGftj9tfyp/Kv+wxzcM/OML/E1ehwN/8Ad/8Ad/8Cfw1+7AX9H6HfiDP/iDP/iDP5V/COO7GPAqvQ4dTADAH/ybxF+VHTwI/IE/+Mf7+Q2n8m9D4K/oNQf+4N80/gT+CPw1hT+BPwJ/3an8Z7gMEPzBv52VIW1/Kn8q/7DHNwz82xX4K94WFvzBH/zBH/zBv034E/grN74O/MEf/MEf/MGfyr8bbf/x7zrwB/868VdlBw8Cf+AP/vF+fsOp/Nsa+Cvavg78wb/OgweBPwJ/TeFP4I/AH5X/4cWBP/i3tzKk7U/lT+Uf9viGgX8XAn9F29eCP/iDP/iDP/gT+OtG23/8NQf+4A/+4A/+4N/Fyr++8V0M+KrG1031AfzBf8EDRKj4E/gDf/Bv4vMbTuXfpcBf0c9xs0AE/uC/zA8vgb/5Zvwh4N/M5K6NOBD4o/Kvv/LfvwyQyh/8wT88HBbbvm0c35D3ryq2L/hT+Vc/eXfgD/7Ln1lyzn/xyoG2f7srQ875t3tyFy7+46848Ad/8Ad/8Ad/An9daPtf8zRA8Af/ZbeVQsSfwB/4g38Tn9/lVf4hj2+Z9x1K23/8awf+4M85fwJ/BP6aHt9m8fe0/TtV+R/OAIA/+IO/CPyFMr7twaHc7wf+8U/e46r8R4sDf/CvYmYZAv6c86ftT9u/ifFdDv4+gs5O+IG/yccPB/7gD/7gD/7gD/7zjO9iwDc9vg78wX/ZbSUCf+AP/uBP4C/Mtv/4Vw78wX/ZH17O+c834w8B/2Ymd23EgbR/HMePblb+unYCAP7gD/4E/gj8EfgD/7ZW/ke3r5tmF/iDf7VtQ875h4A/bX/a/pzzL/P7hYv/PJMrR+UP/uAP/uAP/uA/7bXFgA9xfB34gz+BP/AHf/BvAn8Cf00en0s+DAj8u4s/5/wJ/DWFP4E/An9U/lVN7vKvpz4MCPzBH/yb2L4E/gj8hTi+3cC/7ZW/L3wcMPiDvzjnv7zKgbb/PL8/bX/O+RP4q2pydfhrB/7gD/7gD/7gD/7daPsX3gcA/MFflR08uhH4K/M+wR/8u4o/gb8w2v7jrzkqf/BfvK3EOf/Fty+Bv/gnd83uXwT+qPzLvbdjOgDgD/7g3078CfwR+AN/Kv9jLwME/27izzl/zvnT9l90fJvDn3P+BP78AseWqZcBgj/4gz/4gz/4t3d8FwM+zPEt974dlX838VdlBw8Cf+AP/l3Hn8BfuG3/8TU78O8m/pzzJ/DXFP4E/gj8Ufk3W/mPvuvAH/zBv134E/gj8Af+VP5l1u/An3P+oeDPOX/a/rT9mxjf5eBP4C/swF/Rdx34gz/4gz/4gz+Bv9kq8XDGt9z7LlqHA//246/KDh4E/sAf/LuOP4G/uNr+46858G8//pzzJ/DXFP4E/gj8UfmHV/nryNMAwR/8wT86/An8EfgDfyr/edfvpjoF/lHizzl/zvnT9l90fJvDn3P+BP6qxj+/DwCVP/iDP/iDP/gT+Ctdpcfc9h9fgyuLIfjHgb8qO3gQ+AN/8O86/gT+4m/7j7/iqPzFOf8a8eecf2yTuzbiQOAvjuMHlX9Vlf/+BAD8wR/8Cfy1HYfylRGBv1jHl8p/9vF14B8//pzz55w/bf9Fx7c5/DnnT+CvCfwPdwDAH/zBH/zBH/wJ/AUyvuXe9yLj6zRlAf9w8VdlBw8Cf+AP/l3Hn8BfO9v+44uj8o8Xf875E/hrCn8CfwT+qPzjrfynXgYI/uAP/gp0/QT+CPx1F38q/8WPXwcdAPDnnP8S8eecP21/2v5NjO9yK8PwJ3fh4u+Dxv/wqxb846r8Oeff3nP+zYzv7ADEPb7NVv6c828O/zK/b5P4q2b8j1wGCP5h40/bv71tfyp/Kn/a/lT+da/fgX/4+NP2p+3vFxj7pvGfNvZN4181DtWN73JwaPulfmGPb/X4T3rNgn/4lT9tf9r+8277ZVQOi46vGh/f+d9buOO7vMowjs9vuJW/Aq/8J21TB/5U/lT+cVb+823fNlaGtP2p/JvBP8a2//ifLfhT+VP5x1n5E/gLF//qxpfKP5TOTmyBvyLaSj0MCPzrx5/AH4E/Kn8qfy71o/Kv0oepDwMC/3rxp+1P25/AX3X4E/ij7d/VwF/R+FrwD6vyp+1P23/ebb+MymHR8VXj4zv/eyPwR+CvvYG/4vF1U00Ffyp/Kn/R9qftT9u/u5V/mW0YS9v/8NMAqfyp/Kn8CfxFP77N4V/d+FL5h9LZiTfwN3n/cuDfPP4E/gj8UflT+RP4o/Kv2wcH/qLt32ocCPxVNb4E/qoa327gT+CvqfEt6ACAf/2VP21/2v7zbvtlVA6Ljq8aH9/53xuBPwJ/XQv8Fb029TJA8Kfyp/KPYXzbWBnS9qfybwb/Nrf9x792VP5U/lT+sY9vGytDAn9U/s10dtoZ+Cvevk7TFvAPZOci8Lf49m3j+FL5U/nHMb6Lrp/Kf7HjR+nLAME/poMHbf8Q8CfwR+CPwF+Z18LEv72BvxkvAwT/mNqGtP1DqfwJ/BH4m/3fLa8yjOPzuxjwYY5vPIG/qZcBgj+VP5V/DOPbxsqQtj+Vf/2Vf5lt2La2/+QOAPhT+VP5i8BfKOPbHP7VjS+VfyiVf9sDf9Nec+Af4s5F4G/x7Uvgj8qfyr/5zy+VfziV/9HfwYF//QeP+j+8bcSBwF9V40vgr6rxDQP/+sY3TPy7Gfgr/h0s+NffNmwSf9r+BP4I/DUxvsstEMIf38WAD3N84w78Fa3fgX8MbUMq/zZU/vNt3/oqhzDGt1qcaPt3t/Ivsw270PYfXxz4h1M5UPm3u/In8Bcu/tWNbziVP4G/bgf+/HGXAYI/gT8Cf6GNL5U/lX8c47vo+qn866/89zsA4E/gj7Z/dTgQ+FsMfwJ/BP4I/FU3vhb8q20bNok/bX8CfwT+mhjf5RYI4Y/vYsCHOb7tC/wVQVnqYUDgX2fbkMq/DZX/fNu3vsohjPGtFifa/t2t/Mtsw261/Yu3r6PyJ/BH5R/C+NZbGRL4I/DX5sqfwN/kyt9P7QCAf2ODS+CPwB+VP5V/2J9fKv+YK39NnACAf2Wzetr+4eLf9rY/gb/FxpfA32KVP4G/kMY3/9qC//Lahk3iT9uftj+Bv2rHt+rKMI7xXQz4MMe3C4G/4t/fgT+BPyr/dlf+YYxvtTjR9u9u5V9mG9L2L16/BX8Cf1T+BP6arPwJ/MUwvuFW/gT+5sP/oAMA/o0NLoE/An9U/lT+YX9+qfzbVvkfnAIA/8pm9bT9w8WfwB+BPwJ/88MR9/h2M/BX9JUD//lbc01W/nG0DWn7L3KACKNtSOCvqgIh/PFdDPgwx7e7gb+iv+vAP4TKkMqfyr9N41stTrT9u1v5l9mGtP3Lr9+Cf9OVIZU/lX+bxrc5/Ksb33AqfwJ/BP6Whf/RDgCBv6DxJ/AX2/hS+VP5xzG+i66fyj+uyn+0OPAn8FcPDrT9qxpfAn+LjS+Bv8UqfwJ/YZ/zL3UZYJcrfwJ/tP2bwp/AH4E/An9VjS+Bv2nvzVH5E/ij8o+z8g9jfKvFibY/lX/I+MfY9j/aAaDyDw5/Kn8qfwJ/TYxvOJV/1wN/IvBXAf6Hv+u6ij+BPwJ/VP5U/lT+BP66U/kfHUPXNfwJ/NH2J/BXHf4E/gj8EfhrDv9Zx9eWAZnAX32Vf/xtYdr+VY6vGh/fWNvCBP7KrIPAX3sDf0XvxE1yv0uVP4E/Kn/a/ovhT9s/hvGl8p93DNvS9h9fHJV/8/hT+VP5E/hrYnzDqfwJ/BH4qxf/ojsBthR/An8E/qj8qfyp/An8Ufnrmg5Ai/En8Efbn8BfdfgT+CPwR+CvOfwXHd/iCQCBP9H2p+0fQltYjY/vYp8nAn8hjO9iwIc5vgT+Fh3fI5cBdqnyJ/BH5U/bfzH8afvHML5U/vOOYfva/sW/r+1i5U/gj8o/5MqfwB+BPyr/+fdhAn/l1+/ahj+BPwJ/TeIf8vhS+VP5E/jrbuVf6jJAAn/V4E/bn7Y/gb/qxpfAX9j4E/hrNvB33Gu2LZU/gT/a/k1W/ouOrxof31jbwgT+yqyDtj+Bv6LFtb3yJ/BH5U/gbzH8afvHML5U/vOOYbfa/ofXZtte+RP4o/IPufIn8Efgj8q/ucq/7YG/aa85An/V4U/gL7bxDXn/ovKn8o+n8l/s80PlX3XlP1q/ixH/2AN/y7iDE23/5vAn8Efgj8BfVeNL4K/O8bUxVv6xB/6axL9cW5i2f5X7lxof31jbwgT+lnH8IPAXduVf3+Ru0tMACfwtvfKPoy1M5d/u8a0WJ9r+VP6hVv60/Y+Or21T5U/gj8o/5MqfwB+BPyr/5ir/rgf+iuh2seBP4I/AX5P4E/ij8qfyJ/DXlsq/eAJA4G9m/An80fYn8Ffd+BL4Cxt/An/xBP6KXrOhV/4E/mj7N1n5L7p/qfHxjbUtTOBvGccPAn9hV/5NT+7cVOcJ/EXeNqTyb3dbmLZ/u8eXyr+q7mtX2/7j/9oR+Kum8ifw1+3Kn8AfgT8q/+YqfwJ/ZbZvUQgwAPwJ/BH4axJ/An9U/lT+BP7aXPnvnwIg8EfgL34caPvH3xYm8Efbn8BfPeN7sLiQKn8Cf7T9m6z842gLE/hranxVy/g23RYm8FdV5R/i5M7FUPkT+KPyp/JfDH/a/jGML5V/Vd1X2v7Fr9kYKn8Cf1T+VP4E/to9vlT+TeC/3M5ONftXlePrmsafwB+BvybxJ/BH5U/lT+Cva5X/aHEE/qrZ8cLAgbZ//DgQ+GtifAn8LVb5E/iLYXwnXAZI4G+x12j70/avdnxjbQsT+FvG8YPAX9iVf+idncI7Aba3MiTwR+Xfjco/3vENozKsb3yp/KvqvtL2L3P8OKYDQOAv9sqQyr/LlT+BvxjGl8q/CfyX29mpZv+qO9NhJ+NY9tXi1WrKR15T5pKz/KRp76IcjnWvv+rt2/T669i+Ie9fy9i+Ie9fy9q+sR4/yr8a5/Fjlu3bRh/UguPH5HflQmgbEvij7U/bf/7Kn8AfgT8Cf3WN7/J9aHJ8raYui888Fn2t6sp/0deqntnNV0/UN7Ocba5cf+Vf//61jPGdpT8Q9viWw0GNja8qG9/lHD/CHl8/554by/gusn+HOr4Hy/8POBb9qwqIZCQAAAAASUVORK5CYII=');
+        // Те же значения, что в референсе — металличность/шероховатость дают именно тот
+        // стеклянно-хромированный вид с резкими бликами преломления, что на скрине.
+        app.liquidPlane.material.metalness = 0.75;
+        app.liquidPlane.material.roughness = 0.25;
+        app.liquidPlane.uniforms.displacementScale.value = 5;
+        app.setRain(false);
+        window.__liquidApp = app;
+      })
+      .catch(() => {
+        // Сеть недоступна / CDN заблокирован / модуль не поддерживается — тихо остаёмся
+        // на статичном CSS-watermark, ничего не ломаем.
+        document.body.classList.remove('ripple-active');
+      });
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (!window.__liquidApp) return;
+    // Экономим GPU/батарею, когда вкладка/приложение свёрнуто — многие built-in rendered
+    // loops в three.js продолжают тикать в фоне, если явно не остановить.
+    if (document.hidden) { window.__liquidApp.pause && window.__liquidApp.pause(); }
+    else { window.__liquidApp.play && window.__liquidApp.play(); }
+  });
+}
 </script>
 
 <script>
