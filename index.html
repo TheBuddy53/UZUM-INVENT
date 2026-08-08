@@ -68,8 +68,11 @@
   }
 
   /* Фоновые эффекты */
-  #noise { position: fixed; inset: -50%; z-index: 999; pointer-events: none; opacity: 0.12; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); animation: noiseShift 8s steps(10) infinite; transition: opacity 0.4s ease; will-change: transform; transform: translateZ(0); contain: paint; }
-  #noise.flash { opacity: 0.38; }
+  /* Зерно снижено с 0.12 до ~0.05 (легче считать на слабом Android) и текстура упрощена —
+     numOctaves 3→1 сильно сокращает стоимость feTurbulence на каждый кадр смещения
+     background-position, при этом зерно всё ещё едва заметно "живёт" на фоне. */
+  #noise { position: fixed; inset: -50%; z-index: 999; pointer-events: none; opacity: 0.05; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='1' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); animation: noiseShift 8s steps(10) infinite; transition: opacity 0.4s ease; will-change: transform; transform: translateZ(0); contain: paint; }
+  #noise.flash { opacity: 0.22; }
   :root { --grain-url: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
   @keyframes noiseShift { 0% { transform: translate(0,0); } 10% { transform: translate(-5%,-5%); } 20% { transform: translate(-10%,5%); } 30% { transform: translate(5%,-10%); } 40% { transform: translate(-5%,15%); } 50% { transform: translate(-10%,5%); } 60% { transform: translate(15%,0); } 70% { transform: translate(0,15%); } 80% { transform: translate(3%,35%); } 90% { transform: translate(-10%,10%); } 100% { transform: translate(0,0); } }
   /* Мобильная оптимизация шума: та же текстура и амплитуда, но более дешёвая анимация —
@@ -79,26 +82,49 @@
     #noise { animation-timing-function: linear; }
   }
 
-  #mesh { position: fixed; inset: 0; z-index: -1; pointer-events: none; filter: blur(70px) saturate(160%); overflow: hidden; will-change: filter, transform; transform: translateZ(0); contain: paint; transition: filter 0.6s var(--ease), transform 0.6s var(--ease); }
-  #mesh.ripple { filter: blur(80px) saturate(180%) brightness(1.2); transform: scale(1.02); }
+  #mesh { position: fixed; inset: 0; z-index: -1; pointer-events: none; filter: blur(70px) saturate(160%) url(#liquidWarp); overflow: hidden; will-change: filter, transform; transform: translateZ(0); contain: paint; transition: filter 0.6s var(--ease), transform 0.6s var(--ease); }
+  #mesh.ripple { filter: blur(80px) saturate(180%) brightness(1.2) url(#liquidWarp); transform: scale(1.02); }
   /* На мобильных большой blur-радиус на весь fixed-слой — самая дорогая операция в композиторе
      (GPU считает blur на полноэкранной area каждый кадр анимации орбов). Уменьшаем радиус —
-     свечение остаётся тем же по ощущению, просто чуть менее "растянутым". */
+     свечение остаётся тем же по ощущению, просто чуть менее "растянутым". SVG-искажение
+     (feTurbulence) тоже отключаем на мобильных — на слабом Android composited filter chain
+     с displacement дороже чистого blur, а разница на маленьком экране почти не видна. */
   @media (max-width: 480px) {
     #mesh { filter: blur(38px) saturate(160%); }
     #mesh.ripple { filter: blur(44px) saturate(180%) brightness(1.2); }
   }
   #mesh-track { position: absolute; inset: -10%; }
   #mesh span { position: absolute; border-radius: 50%; will-change: transform; mix-blend-mode: screen; }
-  #mesh .b1 { width: 85vw; height: 85vw; left: -10%; top: -10%; background: radial-gradient(circle, rgba(130,40,255,0.45), transparent 70%); animation: orbFloat1 22s infinite alternate var(--ease); }
-  #mesh .b2 { width: 75vw; height: 75vw; right: -20%; top: 40%; background: radial-gradient(circle, rgba(200,100,255,0.35), transparent 70%); animation: orbFloat2 28s infinite alternate-reverse var(--ease); }
-  #mesh .b3 { width: 95vw; height: 95vw; left: 10%; bottom: -30%; background: radial-gradient(circle, rgba(52, 199, 123, 0.25), transparent 70%); animation: orbFloat3 25s infinite alternate var(--ease); }
-  @keyframes orbFloat1 { 0% { transform: translate(0, 0) scale(1) rotate(0deg); } 100% { transform: translate(20vw, 15vh) scale(1.25) rotate(45deg); } }
-  @keyframes orbFloat2 { 0% { transform: translate(0, 0) scale(1) rotate(0deg); } 100% { transform: translate(-30vw, -20vh) scale(1.15) rotate(-30deg); } }
-  @keyframes orbFloat3 { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(10vw, -30vh) scale(1.35); } }
+  /* Жидкий фон: те же 3 "капли", что и раньше, но чуть более вытянутые (border-radius
+     анимируется между органичными blob-формами) + мягкое покачивание через SVG-турбулентность
+     на самом #mesh — вместе это даёт эффект медленно текущей жидкости вместо статичных
+     кругов. Интенсивность (opacity/размер) занижена на ~20% против исходного макета —
+     легче и элегантнее, чтобы не спорить с интерфейсом поверх. */
+  #mesh .b1 { width: 80vw; height: 80vw; left: -10%; top: -10%; background: radial-gradient(circle, rgba(130,40,255,0.37), transparent 70%); animation: orbFloat1 26s infinite alternate var(--ease), blobMorph1 14s infinite alternate ease-in-out; }
+  #mesh .b2 { width: 70vw; height: 70vw; right: -20%; top: 40%; background: radial-gradient(circle, rgba(200,100,255,0.28), transparent 70%); animation: orbFloat2 32s infinite alternate-reverse var(--ease), blobMorph2 17s infinite alternate ease-in-out; }
+  #mesh .b3 { width: 90vw; height: 90vw; left: 10%; bottom: -30%; background: radial-gradient(circle, rgba(52, 199, 123, 0.2), transparent 70%); animation: orbFloat3 29s infinite alternate var(--ease), blobMorph3 20s infinite alternate ease-in-out; }
+  @keyframes orbFloat1 { 0% { transform: translate(0, 0) scale(1) rotate(0deg); } 100% { transform: translate(20vw, 15vh) scale(1.22) rotate(45deg); } }
+  @keyframes orbFloat2 { 0% { transform: translate(0, 0) scale(1) rotate(0deg); } 100% { transform: translate(-30vw, -20vh) scale(1.12) rotate(-30deg); } }
+  @keyframes orbFloat3 { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(10vw, -30vh) scale(1.3); } }
+  @keyframes blobMorph1 { 0% { border-radius: 42% 58% 65% 35% / 45% 40% 60% 55%; } 50% { border-radius: 60% 40% 35% 65% / 55% 65% 35% 45%; } 100% { border-radius: 48% 52% 55% 45% / 40% 55% 45% 60%; } }
+  @keyframes blobMorph2 { 0% { border-radius: 55% 45% 40% 60% / 50% 45% 55% 50%; } 50% { border-radius: 38% 62% 58% 42% / 60% 50% 50% 40%; } 100% { border-radius: 50% 50% 48% 52% / 45% 55% 45% 55%; } }
+  @keyframes blobMorph3 { 0% { border-radius: 50% 50% 45% 55% / 55% 45% 55% 45%; } 50% { border-radius: 62% 38% 60% 40% / 42% 58% 42% 58%; } 100% { border-radius: 45% 55% 50% 50% / 50% 50% 50% 50%; } }
 
   #watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) translateZ(0); z-index: -2; font-size: clamp(80px, 30vw, 160px); font-weight: 900; line-height: 1; color: transparent; background: linear-gradient(135deg, rgba(157,77,255,0.7), rgba(112,0,255,0.45) 45%, rgba(75,0,173,0.55)); -webkit-background-clip: text; background-clip: text; -webkit-text-stroke: 2px rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; user-select: none; pointer-events: none; animation: premiumBreathe 4s ease-in-out infinite; will-change: opacity, filter; }
   @keyframes premiumBreathe { 0%, 100% { filter: drop-shadow(0 0 20px rgba(112,0,255,0.4)); opacity: 0.85; } 50% { filter: drop-shadow(0 0 45px rgba(157,77,255,0.85)); opacity: 1; } }
+  /* #watermark (div с текстом) остаётся как statичный fallback/SEO-слой, но визуально скрыт —
+     его роль теперь играет #liquid-ripple canvas ниже, который рисует ту же букву U, но
+     уже деформируемую волновым полем. Если JS волн не запустится (ошибка/старый браузер),
+     div остаётся видимым через noscript-подобный fallback ниже. */
+  /* display:none вместо opacity:0 — premiumBreathe анимирует opacity на самом элементе
+     каждый кадр и перебивала бы обычное CSS-правило (анимация всегда выигрывает каскад
+     против невходящего в @keyframes свойства). display же анимацией не затронут. */
+  body.ripple-active #watermark { display: none; }
+
+  /* Канвас волновой ряби: лежит поверх #mesh (тот же слой глубины, z-index: -2),
+     ловит движение курсора/пальца поверх всего интерфейса (pointer-events: none — сам
+     канвас не блокирует клики) и рисует букву U, деформированную картой высот. */
+  #liquid-ripple { position: fixed; inset: 0; z-index: -2; pointer-events: none; width: 100%; height: 100%; display: block; }
 
   .wrap { max-width: 480px; margin: 0 auto; position: relative; z-index: 1; display: flex; flex-direction: column; gap: 16px; }
   .stagger { opacity: 1 !important; transform: none !important; animation: riseIn 0.8s var(--spring) forwards; }
@@ -145,8 +171,6 @@
       border-radius 1.2s var(--ease);
   }
   .brand-mark .mark-letter { position: relative; z-index: 2; transition: opacity 0.4s ease; }
-  .brand-mark { isolation: isolate; }
-  .brand-mark > *:not(.lg-canvas) { position: relative; z-index: 2; }
 
   /* Сцены */
   .brand-mark.saga-liftoff {
@@ -297,20 +321,7 @@
   .card::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(800px circle at var(--mouse-x, 50%) var(--mouse-y, -20%), rgba(255,255,255,0.08), transparent 45%); transition: background 0.15s linear; z-index: 1; }
   .card { isolation: isolate; }
   .card .grain { content: ''; position: absolute; inset: 0; pointer-events: none; background-image: var(--grain-url); background-size: 180px 180px; opacity: 0.08; mix-blend-mode: overlay; border-radius: inherit; z-index: 1; }
-  .card > *:not(.grain):not(.cinematic-glare):not(.lg-canvas) { position: relative; z-index: 2; }
-
-  /* Liquid Glass WebGL слой — рефракция/блики поверх обычного backdrop-filter стекла.
-     canvas всегда абсолютно внутри стеклянного элемента, под контентом (z-index 0),
-     но выше самого фона карточки. pointer-events:none — не мешает кликам/скроллу.
-     Если WebGL2 недоступен или prefers-reduced-motion — canvas просто не создаётся,
-     и элемент остаётся с обычным CSS-стеклом, которое уже было. */
-  .lg-canvas { position: absolute; inset: 0; z-index: 0; pointer-events: none; border-radius: inherit; mix-blend-mode: normal; }
-  [data-liquid-glass] { isolation: isolate; }
-  /* Liquid Glass поверх летящего лого во время саги: тот же WebGL SDF-эффект, что и на
-     карточках/кнопках, но в blend-mode screen поверх сплошной заливки — рефракция и
-     блики "лежат" на поверхности куба, включая сцену взрыва, а не подменяют его цвет.
-     Идёт после базового .lg-canvas в каскаде, чтобы переопределить z-index/blend-mode. */
-  .brand-mark .lg-canvas { z-index: 1; mix-blend-mode: screen; opacity: 0.85; }
+  .card > *:not(.grain):not(.cinematic-glare):not(.glass-sheen) { position: relative; z-index: 2; }
   .card::after { content: ''; position: absolute; top: -60%; left: -40%; width: 45%; height: 220%; background: linear-gradient(75deg, transparent, rgba(255,255,255,0.07), transparent); transform: translateX(-20%) rotate(8deg); animation: cardSheen 9s ease-in-out infinite; pointer-events: none; will-change: transform; }
   .card:nth-child(2)::after { animation-delay: -3s; }
   .card:nth-child(3)::after { animation-delay: -6s; }
@@ -333,9 +344,7 @@
     transition: all 0.3s var(--spring);
     cursor: pointer;
     position: relative; transform: translateZ(0);
-    isolation: isolate; overflow: hidden;
   }
-  .icon-btn > *:not(.lg-canvas), .lang-switch > *:not(.lg-canvas) { position: relative; z-index: 2; }
   .icon-btn { width: 44px; font-size: 16px; font-weight: 900; }
   .lang-switch { padding: 0 14px; border-radius: 999px; gap: 6px; animation: langBreathe 4.5s ease-in-out infinite; }
   @keyframes langBreathe { 0%, 100% { box-shadow: 0 10px 30px rgba(0,0,0,0.5); } 50% { box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 0 1px rgba(157,77,255,0.35), 0 0 14px rgba(157,77,255,0.25); } }
@@ -381,12 +390,7 @@
   @keyframes dustPuff { 0% { opacity: 0; transform: scale(0.4) translateY(0); } 25% { opacity: 0.9; transform: scale(1.8) translateY(5px); } 100% { opacity: 0; transform: scale(3.2) translateY(22px); } }
 
   /* Основные кнопки */
-  .btn { border: none; border-radius: var(--r-lg); padding: 16px; font-weight: 900; font-size: 14px; letter-spacing: 0.02em; color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.2s var(--spring); width: 100%; position: relative; overflow: hidden; text-shadow: 0 2px 5px rgba(0,0,0,0.3); isolation: isolate; }
-  .btn > *:not(.lg-canvas) { position: relative; z-index: 2; }
-  /* На заливных кнопках WebGL-слой рисует только тонкий стеклянный купол (blend-mode
-     screen + сниженная непрозрачность) поверх цветного градиента — не подменяет сам
-     цвет кнопки, просто добавляет живой блик/рефракцию по контуру. */
-  .btn .lg-canvas { mix-blend-mode: screen; opacity: 0.8; }
+  .btn { border: none; border-radius: var(--r-lg); padding: 16px; font-weight: 900; font-size: 14px; letter-spacing: 0.02em; color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.2s var(--spring); width: 100%; position: relative; overflow: hidden; text-shadow: 0 2px 5px rgba(0,0,0,0.3); }
   .btn:active { transform: scale(0.96) translateY(2px); }
   .btn.primary { background: linear-gradient(135deg, var(--purple-light), var(--purple)); box-shadow: 0 12px 24px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5), inset 0 -4px 12px rgba(0,0,0,0.3); }
   .btn.finish { background: linear-gradient(135deg, #38E888, #0F9D58); box-shadow: 0 12px 24px var(--green-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 12px rgba(0,0,0,0.3); animation: pulseFinish 3s infinite; will-change: box-shadow, transform; }
@@ -410,9 +414,7 @@
   #sheet-overlay { position: fixed; inset: 0; z-index: 300; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); opacity: 0; pointer-events: none; transition: opacity 0.5s var(--ease); transform: translateZ(0); }
   #sheet-overlay.show { opacity: 1; pointer-events: auto; }
 
-  #paste-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 301; max-width: 480px; margin: 0 auto; background: linear-gradient(180deg, rgba(30,15,50,0.95), rgba(10,2,20,0.98)); backdrop-filter: blur(40px) saturate(220%); -webkit-backdrop-filter: blur(40px) saturate(220%); border: 1px solid var(--glass-border-dark); border-top: 1px solid rgba(255,255,255,0.25); border-radius: 32px 32px 0 0; padding: 12px 20px calc(24px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -20px 60px rgba(0,0,0,0.9), inset 0 2px 10px rgba(255,255,255,0.1); transform: translateY(100%); max-height: 80vh; display: flex; flex-direction: column; transform-origin: center bottom; visibility: hidden; pointer-events: none; isolation: isolate; }
-  #paste-sheet > *:not(.lg-canvas) { position: relative; z-index: 2; }
-  #paste-sheet .lg-canvas { opacity: 0.75; }
+  #paste-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 301; max-width: 480px; margin: 0 auto; background: linear-gradient(180deg, rgba(30,15,50,0.95), rgba(10,2,20,0.98)); backdrop-filter: blur(40px) saturate(220%); -webkit-backdrop-filter: blur(40px) saturate(220%); border: 1px solid var(--glass-border-dark); border-top: 1px solid rgba(255,255,255,0.25); border-radius: 32px 32px 0 0; padding: 12px 20px calc(24px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -20px 60px rgba(0,0,0,0.9), inset 0 2px 10px rgba(255,255,255,0.1); transform: translateY(100%); max-height: 80vh; display: flex; flex-direction: column; transform-origin: center bottom; visibility: hidden; pointer-events: none; }
   #paste-sheet.show { visibility: visible; animation: sheetEpicIn 0.85s var(--epic) forwards; }
   #paste-sheet.closing { visibility: visible; animation: sheetEpicOut 0.5s var(--epic-out) forwards; }
   @keyframes sheetEpicIn { 0% { transform: translateY(65%) scale(0.92) rotateX(6deg); filter: blur(22px) brightness(0.5) saturate(1.4); opacity: 0; } 40% { transform: translateY(-3%) scale(1.015) rotateX(-1deg); filter: blur(3px) brightness(1.4) saturate(1.6); opacity: 1; } 68% { transform: translateY(1.5%) scale(0.997) rotateX(0.4deg); filter: blur(0px) brightness(1.08) saturate(1.1); } 100% { transform: translateY(0) scale(1) rotateX(0deg); filter: blur(0) brightness(1) saturate(1); } }
@@ -519,12 +521,98 @@
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
   }
+
+  /* ===================== СТЕКЛЯННЫЙ ПУЗЫРЬ (Apple-glass edge) =====================
+     Радужная хроматическая кромка + внутренний блик + лёгкое "поглощение" по контуру —
+     как у стеклянного шара на референсе. Реализовано классом .glass-bubble, который
+     навешивается на существующие элементы (лого/карточки/кнопки) через ::before/::after,
+     не меняя их разметку и не задевая существующие box-shadow/border. */
+  .glass-bubble { position: relative; }
+  .glass-bubble::before {
+    content: ''; position: absolute; inset: -1.5px; border-radius: inherit;
+    padding: 1.5px; pointer-events: none; z-index: 5;
+    background: conic-gradient(from 0deg,
+      rgba(255,110,180,0.75), rgba(255,210,120,0.7), rgba(140,255,210,0.7),
+      rgba(120,190,255,0.75), rgba(190,140,255,0.75), rgba(255,110,180,0.75));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    opacity: 0.7; filter: blur(0.3px) saturate(160%);
+    animation: bubbleHue 10s linear infinite;
+    will-change: filter;
+  }
+  .glass-bubble::after {
+    content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 6;
+    background:
+      radial-gradient(120% 90% at 22% 12%, rgba(255,255,255,0.55), transparent 42%),
+      radial-gradient(70% 60% at 85% 88%, rgba(120,60,255,0.25), transparent 60%);
+    mix-blend-mode: screen;
+    opacity: 0.85;
+  }
+  @keyframes bubbleHue { 0% { filter: blur(0.3px) hue-rotate(0deg); } 100% { filter: blur(0.3px) hue-rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    .glass-bubble::before { animation: none; }
+  }
+  /* На мобильных чуть спокойнее — та же кромка, но без блюра на самом градиенте (дешевле) */
+  @media (max-width: 480px) {
+    .glass-bubble::before { filter: none; opacity: 0.48; }
+  }
+  /* Внутри контейнеров с overflow:hidden (например .finish-slot) внешний -1.5px inset
+     обрезается — переключаем кромку внутрь (inset: 0, толще padding), чтобы радужная
+     линия оставалась видимой у самого края кнопки/карточки, не вылезая за границы. */
+  .glass-bubble--inset::before { inset: 0; padding: 2px; }
+
+  /* На маленьких/ярких элементах (лого 44px, кнопки с сильным цветным box-shadow) тонкая
+     кромка тонет в собственном свечении — усиливаем саму кромку (не трогая ::after-блик):
+     двойной conic-слой через увеличенный padding даёt более "толстый" видимый контур. */
+  .glass-bubble--glow::before {
+    inset: -1.5px; padding: 2px; opacity: 0.85; filter: blur(0.2px) saturate(190%) brightness(1.15);
+  }
+
+  /* Вариант "только кромка" — для элементов, у которых ::after уже занят своей анимацией
+     (shine на кнопке WMS, glow на icon-btn) — не трогаем их существующий эффект, добавляем
+     только радужный контур стекла через ::before. */
+  .glass-edge { position: relative; }
+  .glass-edge::before {
+    content: ''; position: absolute; inset: -1.5px; border-radius: inherit;
+    padding: 1.5px; pointer-events: none; z-index: 5;
+    background: conic-gradient(from 0deg,
+      rgba(255,110,180,0.7), rgba(255,210,120,0.65), rgba(140,255,210,0.65),
+      rgba(120,190,255,0.7), rgba(190,140,255,0.7), rgba(255,110,180,0.7));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    opacity: 0.65; filter: saturate(160%);
+    animation: bubbleHue 10s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .glass-edge::before { animation: none; }
+  }
+  @media (max-width: 480px) {
+    .glass-edge::before { opacity: 0.42; }
+  }
+
+  /* Блик-поглощение для карточек (::before/::after уже заняты у .card) — обычный span,
+     тот же радиальный "объём стекла", что у .glass-bubble::after, просто как реальный узел. */
+  .glass-sheen { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 1;
+    background:
+      radial-gradient(110% 85% at 18% 8%, rgba(255,255,255,0.10), transparent 40%),
+      radial-gradient(65% 55% at 88% 92%, rgba(120,60,255,0.12), transparent 60%);
+    mix-blend-mode: screen; opacity: 0.9;
+  }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="liquidWarp" x="-20%" y="-20%" width="140%" height="140%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.008 0.012" numOctaves="2" seed="7" result="noise">
+      <animate attributeName="baseFrequency" values="0.008 0.012;0.011 0.009;0.008 0.012" dur="24s" repeatCount="indefinite" />
+    </feTurbulence>
+    <feDisplacementMap in="SourceGraphic" in2="noise" scale="38" xChannelSelector="R" yChannelSelector="G" />
+  </filter>
+</svg>
 
 <div id="mesh"><div id="mesh-track"><span class="b1"></span><span class="b2"></span><span class="b3"></span></div></div>
 <div id="watermark">U</div>
+<canvas id="liquid-ripple" aria-hidden="true"></canvas>
 <div id="noise"></div>
 <div id="lang-wash"></div>
 
@@ -532,7 +620,7 @@
   <div class="topbar stagger" style="animation-delay:0s">
     <div class="brand">
       <div class="brand-logo-container" id="brand-logo-container">
-        <div class="brand-mark" id="brand-mark" role="button" tabindex="0" aria-label="Uzum" data-liquid-glass data-lg-radius="14" data-lg-dynamic-radius>
+        <div class="brand-mark glass-bubble glass-bubble--glow" id="brand-mark" role="button" tabindex="0" aria-label="Uzum">
           <span class="mark-letter">U</span>
           <span class="mark-face" id="mark-face">
             <span class="mark-brow l"></span><span class="mark-brow r"></span>
@@ -554,22 +642,23 @@
       </div>
     </div>
     <div class="topbar-actions">
-      <button class="lang-switch" id="btn-lang" type="button" data-liquid-glass data-lg-radius="22">
+      <button class="lang-switch glass-edge" id="btn-lang" type="button">
         <span class="lang-globe">🌐</span><span class="lang-cur" id="lang-cur">RU</span>
       </button>
-      <div class="icon-btn" id="btn-info" data-liquid-glass data-lg-radius="14">?</div>
+      <div class="icon-btn glass-edge" id="btn-info">?</div>
     </div>
   </div>
 
   <!-- Карточка загрузки списка -->
-  <div class="card stagger" data-liquid-glass data-lg-radius="24" style="animation-delay:0.1s">
+  <div class="card glass-edge stagger" style="animation-delay:0.1s">
     <div class="grain"></div>
     <div class="cinematic-glare"></div>
+    <div class="glass-sheen"></div>
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 12px;">
       <div class="section-label" style="margin-bottom:0;" data-i18n="wms_title">
         ЗАГРУЗКА ИЗ WMS
       </div>
-      <button class="btn primary" id="btn-paste-wms" data-liquid-glass data-lg-radius="999" style="border-radius: 999px; padding: 10px 20px; font-size: 11px; line-height: 1.2; text-transform: uppercase; flex: 0 0 auto; width: auto;">
+      <button class="btn primary glass-edge" id="btn-paste-wms" style="border-radius: 999px; padding: 10px 20px; font-size: 11px; line-height: 1.2; text-transform: uppercase; flex: 0 0 auto; width: auto;">
         <span data-i18n="wms_btn">ВСТАВИТЬ СПИСОК</span>
       </button>
     </div>
@@ -579,9 +668,10 @@
   </div>
 
   <!-- Карточка завершения (С 16 осколками) -->
-  <div class="card stagger" data-liquid-glass data-lg-radius="24" style="animation-delay:0.2s">
+  <div class="card glass-edge stagger" style="animation-delay:0.2s">
     <div class="grain"></div>
     <div class="cinematic-glare"></div>
+    <div class="glass-sheen"></div>
     <div class="section-label" data-i18n="finish_title">ЗАВЕРШЕНИЕ</div>
     <div class="hint-text" style="margin-bottom: 16px;" data-i18n="finish_hint">
       Когда все <span class="key">ячейки склада</span> отсканированы и закрыты — завершите инвентаризацию.
@@ -593,7 +683,7 @@
       <span class="shard shard-9"></span><span class="shard shard-10"></span><span class="shard shard-11"></span><span class="shard shard-12"></span>
       <span class="shard shard-13"></span><span class="shard shard-14"></span><span class="shard shard-15"></span><span class="shard shard-16"></span>
       
-      <button class="btn finish" id="btn-finish" data-liquid-glass data-lg-radius="16"><span data-i18n="finish_btn">Завершить инвентаризацию</span></button>
+      <button class="btn finish glass-bubble glass-bubble--inset glass-bubble--glow" id="btn-finish"><span data-i18n="finish_btn">Завершить инвентаризацию</span></button>
       <div class="finish-hole" id="finish-hole">
         <div class="hole-rim"></div>
         <div class="hole-debris"></div>
@@ -610,7 +700,7 @@
 <div id="toast"></div>
 
 <div id="sheet-overlay"></div>
-<div id="paste-sheet" data-liquid-glass data-lg-radius="32">
+<div id="paste-sheet" class="glass-bubble">
   <div class="sheet-handle"></div>
   <div class="sheet-header">
     <div class="sheet-title" data-i18n="sheet_title">Вставить из WMS</div>
@@ -637,10 +727,222 @@
     <span><span data-i18n="sheet_rows">Строк найдено:</span> <span id="parsed-count">0</span></span>
   </div>
   <div class="sheet-actions">
-    <button class="btn ghost" id="sheet-cancel" data-liquid-glass data-lg-radius="16"><span data-i18n="sheet_cancel">Отмена</span></button>
-    <button class="btn confirm" id="sheet-confirm" disabled data-liquid-glass data-lg-radius="16"><span data-i18n="sheet_confirm">Загрузить</span></button>
+    <button class="btn ghost glass-edge" id="sheet-cancel"><span data-i18n="sheet_cancel">Отмена</span></button>
+    <button class="btn confirm glass-bubble" id="sheet-confirm" disabled><span data-i18n="sheet_confirm">Загрузить</span></button>
   </div>
 </div>
+
+<script>
+/* ===================== ЖИДКАЯ РЯБЬ С ОТСКОКОМ ОТ КРАЁВ =====================
+   Классический 2D water-ripple (height-field на низком разрешении, апскейл через canvas
+   scale) — без WebGL, дёшево для слабых Android:
+   - Курсор/палец добавляет "каплю" (импульс) в карту высот.
+   - Волна физически распространяется по сетке и ОТРАЖАЕТСЯ от краёв сетки (края экрана) —
+     сама природа алгоритма (соседи на границе берутся из "внутри") даёт упругий отскок,
+     без отдельной физики стен.
+   - Буква "U" рисуется как часть той же сцены: каждый столбец её силуэта смещается по
+     высоте волны под ним — как будто буква сделана из той же жидкости и всплеск её толкает.
+   Всё считается на редком гриде (~110×190), апскейлится — стоимость на кадр минимальна. */
+(function () {
+  const canvas = document.getElementById('liquid-ripple');
+  if (!canvas || !canvas.getContext) return;
+  const ctx = canvas.getContext('2d', { alpha: true });
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.body.classList.add('ripple-active');
+  if (reduceMotion) return; // оставляем статичный CSS-watermark вместо анимации
+
+  const isMobileDevice = window.matchMedia('(max-width: 767px)').matches;
+  // Разрешение симуляции адаптируется под реальное соотношение сторон экрана (а не
+  // фиксированное портретное 0.62) — иначе на широких desktop-окнах волновое поле и буква
+  // растягивались по горизонтали и искажались. База — короткая сторона, чтобы плотность
+  // сетки (и значит "детальность" ряби) была одинаковой что в портрете, что в альбоме.
+  // Аспект берётся один раз при загрузке — Telegram Mini App почти никогда не меняет
+  // ориентацию на лету, а пересоздание буферов волн на resize добавляло бы риск дёрганий.
+  const GRID_BASE = isMobileDevice ? 90 : 150;
+  const startAspect = window.innerWidth / window.innerHeight;
+  const GRID_W = startAspect >= 1 ? GRID_BASE : Math.round(GRID_BASE * startAspect);
+  const GRID_H = startAspect >= 1 ? Math.round(GRID_BASE / startAspect) : GRID_BASE;
+  const DAMPING = 0.988; // затухание волны со временем (иначе рябь звенела бы вечно) —
+                          // чуть медленнее, чтобы волна успевала долететь до края и отразиться
+  const SPREAD = 0.55;   // упругость отскока от границ экрана (0..1, 1 = идеальный отскок)
+
+  const bufA0 = new Float32Array(GRID_W * GRID_H);
+  const bufB0 = new Float32Array(GRID_W * GRID_H);
+  let bufA = bufA0, bufB = bufB0;
+  let cw = 0, ch = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+  function resize() {
+    cw = window.innerWidth;
+    ch = window.innerHeight;
+    canvas.width = Math.round(cw * dpr);
+    canvas.height = Math.round(ch * dpr);
+    canvas.style.width = cw + 'px';
+    canvas.style.height = ch + 'px';
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // ---- Ввод: курсор (ПК) и касание (моб.) добавляют возмущение в буфер волн ----
+  let lastPX = -1, lastPY = -1;
+  function addRipple(px, py, strength) {
+    const gx = Math.round((px / cw) * (GRID_W - 1));
+    const gy = Math.round((py / ch) * (GRID_H - 1));
+    if (gx < 1 || gx >= GRID_W - 1 || gy < 1 || gy >= GRID_H - 1) return;
+    // Небольшое пятно 3x3, а не одна точка — даёт более гладкий, "жидкий" импульс
+    for (let oy = -1; oy <= 1; oy++) {
+      for (let ox = -1; ox <= 1; ox++) {
+        const idx = (gy + oy) * GRID_W + (gx + ox);
+        if (idx >= 0 && idx < bufA.length) bufA[idx] += strength * (ox === 0 && oy === 0 ? 1 : 0.4);
+      }
+    }
+  }
+
+  function pointerMove(x, y) {
+    if (lastPX >= 0) {
+      const dx = x - lastPX, dy = y - lastPY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      // Сила импульса зависит от скорости движения — резкий свайп даёт волну сильнее лёгкого дрейфа
+      const strength = Math.min(dist * 0.9, 26);
+      if (strength > 0.6) addRipple(x, y, strength);
+    }
+    lastPX = x; lastPY = y;
+  }
+  window.addEventListener('pointermove', (e) => pointerMove(e.clientX, e.clientY), { passive: true });
+  window.addEventListener('pointerdown', (e) => { addRipple(e.clientX, e.clientY, 34); lastPX = e.clientX; lastPY = e.clientY; }, { passive: true });
+  window.addEventListener('pointerleave', () => { lastPX = -1; lastPY = -1; }, { passive: true });
+  window.addEventListener('touchmove', (e) => {
+    if (e.touches[0]) pointerMove(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+
+  // ---- Физика: распространение + отскок от краёв (границы буфера = стены экрана) ----
+  function step() {
+    for (let y = 1; y < GRID_H - 1; y++) {
+      const row = y * GRID_W;
+      const rowU = row - GRID_W, rowD = row + GRID_W;
+      for (let x = 1; x < GRID_W - 1; x++) {
+        const i = row + x;
+        const neighborSum = bufA[i - 1] + bufA[i + 1] + bufA[rowU + x] + bufA[rowD + x];
+        bufB[i] = (neighborSum / 2 - bufB[i]) * DAMPING;
+      }
+    }
+    // Отскок от краёв: краевые ячейки отражают энергию соседней внутренней ячейки —
+    // упругая "стена" вместо утечки волны за пределы экрана.
+    for (let x = 0; x < GRID_W; x++) {
+      bufB[x] = bufB[x + GRID_W] * SPREAD;
+      bufB[(GRID_H - 1) * GRID_W + x] = bufB[(GRID_H - 2) * GRID_W + x] * SPREAD;
+    }
+    for (let y = 0; y < GRID_H; y++) {
+      bufB[y * GRID_W] = bufB[y * GRID_W + 1] * SPREAD;
+      bufB[y * GRID_W + GRID_W - 1] = bufB[y * GRID_W + GRID_W - 2] * SPREAD;
+    }
+    const tmp = bufA; bufA = bufB; bufB = tmp;
+  }
+
+  // ---- Буква "U" как офскрин-маска: рисуем один раз в СВОЕЙ подсетке (не во весь экран),
+  // семплируем альфу построчно. Подсетка примерно квадратная, ~62% высоты grid — совпадает
+  // с прежним визуальным размером div#watermark. ----
+  const GRID_H_LETTER = Math.round(Math.min(GRID_W, GRID_H) * 0.62);
+  const GRID_W_LETTER = GRID_H_LETTER; // буква примерно квадратная по bounding box
+  const letterCanvas = document.createElement('canvas');
+  const letterCtx = letterCanvas.getContext('2d');
+  let letterImgData = null;
+  function buildLetterMask() {
+    letterCanvas.width = GRID_W_LETTER;
+    letterCanvas.height = GRID_H_LETTER;
+    letterCtx.clearRect(0, 0, GRID_W_LETTER, GRID_H_LETTER);
+    letterCtx.fillStyle = '#fff';
+    letterCtx.textAlign = 'center';
+    letterCtx.textBaseline = 'middle';
+    letterCtx.font = `900 ${GRID_H_LETTER * 0.9}px Arial, sans-serif`;
+    letterCtx.fillText('U', GRID_W_LETTER / 2, GRID_H_LETTER * 0.52);
+    letterImgData = letterCtx.getImageData(0, 0, GRID_W_LETTER, GRID_H_LETTER).data;
+  }
+  buildLetterMask();
+
+  // ---- Рендер: рисуем волновую подсветку + деформированную букву U на маленьком канвасе,
+  // затем апскейлим на реальный canvas одним drawImage (дёшево). ----
+  const smallCanvas = document.createElement('canvas');
+  smallCanvas.width = GRID_W;
+  smallCanvas.height = GRID_H;
+  const smallCtx = smallCanvas.getContext('2d');
+  const smallImg = smallCtx.createImageData(GRID_W, GRID_H);
+
+  // Буква рисуется в своей собственной подобласти сетки (letterGX0..1 / letterGY0..1,
+  // по центру экрана), а рябь от курсора считается и видна ПО ВСЕМУ экрану — так волна,
+  // запущенная где угодно, реально видно как она едет через весь фон, доходит до буквы,
+  // толкает её и летит дальше к краям, отражаясь от них.
+  const letterGX0 = Math.round(GRID_W * 0.5 - GRID_W_LETTER * 0.5);
+  const letterGY0 = Math.round(GRID_H * 0.5 - GRID_H_LETTER * 0.5);
+  function render() {
+    const data = smallImg.data;
+    for (let y = 0; y < GRID_H; y++) {
+      const row = y * GRID_W;
+      for (let x = 0; x < GRID_W; x++) {
+        const i = row + x;
+        const h = bufA[i]; // высота волны в точке, обычно в диапазоне ~[-20, 20]
+        const p = i * 4;
+
+        // Сэмплируем букву только внутри её локальной подобласти сетки, сдвигая выборку
+        // по высоте волны — так буква "плывёт" вместе с рябью, проходящей под ней.
+        const lx = x - letterGX0 + Math.round(h * 0.3);
+        const ly = y - letterGY0 + Math.round(h * 0.3);
+        const inLetterBox = lx >= 0 && lx < GRID_W_LETTER && ly >= 0 && ly < GRID_H_LETTER;
+        const letterAlpha = inLetterBox ? letterImgData[(ly * GRID_W_LETTER + lx) * 4 + 3] / 255 : 0;
+
+        if (letterAlpha > 0.02) {
+          // Буква: фиолетовый градиентный тон + лёгкая яркостная модуляция от волны —
+          // там, где волна "выше", буква чуть светлее (блик), где "ниже" — темнее (тень).
+          const litten = Math.max(0, Math.min(1, 0.5 + h * 0.025));
+          data[p] = 120 + 70 * litten;
+          data[p + 1] = 60 + 40 * litten;
+          data[p + 2] = 220 + 30 * litten;
+          data[p + 3] = letterAlpha * (150 + h * 3);
+        } else {
+          // Фон: рябь-подсветка волны по всему экрану — видно, как импульс от курсора
+          // реально бежит по фону и отражается от краёв, а не гаснет мгновенно. Немного
+          // ярче, чем раньше, чтобы отскок от края экрана был явно заметен пользователю.
+          const glow = Math.abs(h) * 1.6;
+          data[p] = 150; data[p + 1] = 100; data[p + 2] = 255;
+          data[p + 3] = Math.min(58, glow);
+        }
+      }
+    }
+    smallCtx.putImageData(smallImg, 0, 0);
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, cw, ch);
+    ctx.imageSmoothingEnabled = true;
+    // Теперь весь grid = весь экран (1:1 по пропорциям viewport), не только область буквы.
+    ctx.filter = 'blur(0.5px)';
+    ctx.drawImage(smallCanvas, 0, 0, cw, ch);
+    ctx.restore();
+  }
+
+  let rafId = null;
+  let tick = 0;
+  function loop() {
+    step();
+    render();
+    rafId = requestAnimationFrame(loop);
+  }
+  // На мобильных считаем физику через кадр (эффект тот же по ощущению, вдвое дешевле CPU) —
+  // единая функция цикла, чтобы возврат из visibilitychange не мог случайно выбрать другую.
+  function loopMobile() {
+    tick++;
+    if (tick % 2 === 0) step();
+    render();
+    rafId = requestAnimationFrame(loopMobile);
+  }
+  const activeLoop = isMobileDevice ? loopMobile : loop;
+  rafId = requestAnimationFrame(activeLoop);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    else if (!rafId) { rafId = requestAnimationFrame(activeLoop); }
+  });
+})();
+</script>
 
 <script>
   const webApp = window.Telegram.WebApp;
@@ -1149,311 +1451,6 @@
     mark.addEventListener('click', playSaga);
     mark.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); playSaga(); } });
   })();
-</script>
-
-<script>
-/* Liquid Glass WebGL2 layer — SDF refraction, one canvas per glass surface.
-   Renders only a soft procedural background (matches the page's purple palette,
-   never the real DOM) refracted through a rounded-rect SDF lens, with a gentle
-   ambient drift and a pointer-driven bulge on touch/click. Falls back silently —
-   if WebGL2 or prefers-reduced-motion isn't available, no canvas is created and
-   elements keep the existing CSS backdrop-filter glass exactly as before. */
-(function () {
-  'use strict';
-
-  var REDUCED_MOTION = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var IS_MOBILE_UI = window.matchMedia('(max-width: 767px)').matches;
-
-  var VERT = [
-    '#version 300 es',
-    'layout(location=0) in vec2 aPos;',
-    'out vec2 vUv;',
-    'void main(){ vUv = aPos * 0.5 + 0.5; gl_Position = vec4(aPos,0.0,1.0); }'
-  ].join('\n');
-
-  var FRAG = [
-    '#version 300 es',
-    'precision highp float;',
-    'in vec2 vUv;',
-    'out vec4 outColor;',
-    'uniform vec2 uRes;',
-    'uniform float uRadius;',
-    'uniform float uTime;',
-    'uniform vec2 uPointer;',
-    'uniform float uPointerActive;',
-    'uniform vec3 uTintA;',
-    'uniform vec3 uTintB;',
-    'uniform float uIntensity;',
-
-    'float sdRoundRect(vec2 p, vec2 b, float r){',
-    '  vec2 q = abs(p) - b + r;',
-    '  return min(max(q.x,q.y),0.0) + length(max(q,0.0)) - r;',
-    '}',
-
-    'vec2 hash(vec2 p){ p = vec2(dot(p,vec2(127.1,311.7)), dot(p,vec2(269.5,183.3))); return -1.0 + 2.0*fract(sin(p)*43758.5453123); }',
-    'float noise(vec2 p){',
-    '  vec2 i = floor(p); vec2 f = fract(p);',
-    '  vec2 u = f*f*(3.0-2.0*f);',
-    '  return mix( mix(dot(hash(i+vec2(0,0)),f-vec2(0,0)), dot(hash(i+vec2(1,0)),f-vec2(1,0)),u.x),',
-    '              mix(dot(hash(i+vec2(0,1)),f-vec2(0,1)), dot(hash(i+vec2(1,1)),f-vec2(1,1)),u.x), u.y);',
-    '}',
-
-    'void main(){',
-    '  vec2 px = vUv * uRes;',
-    '  vec2 center = uRes * 0.5;',
-    '  vec2 p = px - center;',
-    '  vec2 halfSize = uRes * 0.5;',
-    '  float d = sdRoundRect(p, halfSize, uRadius);',
-    '  if (d > 1.5) { outColor = vec4(0.0); return; }',
-
-    '  vec2 eps = vec2(1.0, 0.0);',
-    '  float dx = sdRoundRect(p+eps.xy, halfSize, uRadius) - sdRoundRect(p-eps.xy, halfSize, uRadius);',
-    '  float dy = sdRoundRect(p+eps.yx, halfSize, uRadius) - sdRoundRect(p-eps.yx, halfSize, uRadius);',
-    '  vec2 normal = normalize(vec2(dx, dy) + 1e-4);',
-
-    '  float rim = smoothstep(-uRadius*3.2, 0.0, d);',
-
-    '  vec2 uv = vUv * 4.5;',
-    '  float n1 = noise(uv + vec2(uTime*0.09, uTime*0.06));',
-    '  float n2 = noise(uv*1.9 - vec2(uTime*0.07, uTime*0.11));',
-    '  float n3 = noise(uv*3.1 + vec2(-uTime*0.05, uTime*0.08));',
-    '  vec2 drift = vec2(n1 + n3*0.5, n2 - n3*0.4) * 1.15;',
-
-    '  vec2 toPointer = (vUv - uPointer) * uRes / max(uRes.x,uRes.y);',
-    '  float distP = length(toPointer);',
-    '  float bulge = uPointerActive * smoothstep(0.65, 0.0, distP) * (0.85 - distP*0.5);',
-    '  vec2 bulgeDir = distP > 0.0001 ? normalize(toPointer) : vec2(0.0);',
-
-    '  vec2 refractOffset = (normal * rim * 34.0 * uIntensity) + (drift * rim * 26.0 * uIntensity) - (bulgeDir * bulge * 46.0);',
-    '  vec2 sampleUv = clamp(vUv + refractOffset / uRes, 0.0, 1.0);',
-
-    '  vec3 base = mix(uTintA, uTintB, clamp(sampleUv.y*0.7 + sampleUv.x*0.3 + n1*0.22 + n3*0.1, 0.0, 1.0));',
-    '  float glow = smoothstep(0.9, 0.0, length(sampleUv - vec2(0.3+n2*0.16, 0.25)));',
-    '  base += glow * 0.32 * uTintB;',
-    '  float veins = smoothstep(0.72, 1.0, abs(n3)) * rim;',
-    '  base += veins * 0.4 * vec3(1.0, 0.96, 1.0);',
-
-    '  float topLight = pow(max(0.0, 1.0 - abs(p.y + halfSize.y*0.75)/ (halfSize.y*0.9)), 5.0);',
-    '  float edgeGlint = (1.0 - smoothstep(0.0, uRadius*1.3, abs(d))) * (0.55 + 0.4*sin(uTime*1.1 + px.x*0.03 + n2*3.0));',
-    '  vec3 specular = vec3(1.0) * (topLight*0.38 + edgeGlint*0.85) * (0.7 + rim*0.5);',
-
-    '  float alphaEdge = 1.0 - smoothstep(-2.5, 1.5, d);',
-    '  vec3 color = base + specular;',
-    '  outColor = vec4(color, alphaEdge * 0.9);',
-    '}'
-  ].join('\n');
-
-  function compile(gl, type, src) {
-    var s = gl.createShader(type);
-    gl.shaderSource(s, src);
-    gl.compileShader(s);
-    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
-      console.warn('LiquidGlass shader error:', gl.getShaderInfoLog(s));
-      gl.deleteShader(s);
-      return null;
-    }
-    return s;
-  }
-
-  function makeProgram(gl) {
-    var vs = compile(gl, gl.VERTEX_SHADER, VERT);
-    var fs = compile(gl, gl.FRAGMENT_SHADER, FRAG);
-    if (!vs || !fs) return null;
-    var prog = gl.createProgram();
-    gl.attachShader(prog, vs);
-    gl.attachShader(prog, fs);
-    gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-      console.warn('LiquidGlass link error:', gl.getProgramInfoLog(prog));
-      return null;
-    }
-    return prog;
-  }
-
-  function LiquidGlassEl(el, opts) {
-    this.el = el;
-    this.opts = opts || {};
-    this.canvas = document.createElement('canvas');
-    this.canvas.className = 'lg-canvas';
-    this.canvas.setAttribute('aria-hidden', 'true');
-    el.insertBefore(this.canvas, el.firstChild);
-
-    this.gl = this.canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: true, antialias: false, powerPreference: 'low-power' });
-    if (!this.gl) { this.canvas.remove(); this.failed = true; return; }
-
-    var gl = this.gl;
-    this.prog = makeProgram(gl);
-    if (!this.prog) { this.canvas.remove(); this.failed = true; return; }
-
-    var quad = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]);
-    var buf = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-    gl.bufferData(gl.ARRAY_BUFFER, quad, gl.STATIC_DRAW);
-    gl.enableVertexAttribArray(0);
-    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-
-    this.u = {
-      uRes: gl.getUniformLocation(this.prog, 'uRes'),
-      uRadius: gl.getUniformLocation(this.prog, 'uRadius'),
-      uTime: gl.getUniformLocation(this.prog, 'uTime'),
-      uPointer: gl.getUniformLocation(this.prog, 'uPointer'),
-      uPointerActive: gl.getUniformLocation(this.prog, 'uPointerActive'),
-      uTintA: gl.getUniformLocation(this.prog, 'uTintA'),
-      uTintB: gl.getUniformLocation(this.prog, 'uTintB'),
-      uIntensity: gl.getUniformLocation(this.prog, 'uIntensity')
-    };
-
-    this.pointer = [-1, -1];
-    this.pointerActive = 0;
-    this.pointerTarget = 0;
-    this.visible = false;
-    this.dpr = Math.min(window.devicePixelRatio || 1, this.opts.maxDpr || (IS_MOBILE_UI ? 1.5 : 2));
-    this.intensity = this.opts.intensity != null ? this.opts.intensity : 1.0;
-    this.radius = parseFloat(this.el.getAttribute('data-lg-radius')) || this.opts.radius || 20;
-    this.dynamicRadius = this.el.hasAttribute('data-lg-dynamic-radius');
-
-    this._bindPointerEvents();
-    this._observe();
-    this.resize();
-  }
-
-  LiquidGlassEl.prototype._bindPointerEvents = function () {
-    var self = this;
-    var setFromEvent = function (e) {
-      var r = self.el.getBoundingClientRect();
-      if (!r.width || !r.height) return;
-      var x = (e.clientX - r.left) / r.width;
-      var y = 1.0 - (e.clientY - r.top) / r.height;
-      self.pointer = [x, y];
-      self.pointerTarget = 1;
-    };
-    this.el.addEventListener('pointerdown', setFromEvent, { passive: true });
-    this.el.addEventListener('pointermove', function (e) {
-      if (e.pressure > 0 || e.pointerType === 'mouse') setFromEvent(e);
-    }, { passive: true });
-    this.el.addEventListener('pointerup', function () { self.pointerTarget = 0; }, { passive: true });
-    this.el.addEventListener('pointerleave', function () { self.pointerTarget = 0; }, { passive: true });
-    this.el.addEventListener('pointercancel', function () { self.pointerTarget = 0; }, { passive: true });
-  };
-
-  LiquidGlassEl.prototype._observe = function () {
-    var self = this;
-    if ('IntersectionObserver' in window) {
-      this.io = new IntersectionObserver(function (entries) {
-        self.visible = entries[0].isIntersecting;
-      }, { threshold: 0.01 });
-      this.io.observe(this.el);
-    } else {
-      this.visible = true;
-    }
-    if ('ResizeObserver' in window) {
-      this.ro = new ResizeObserver(function () { self.resize(); });
-      this.ro.observe(this.el);
-    } else {
-      window.addEventListener('resize', function () { self.resize(); });
-    }
-  };
-
-  LiquidGlassEl.prototype._isActuallyVisible = function () {
-    var cs = getComputedStyle(this.el);
-    if (cs.visibility === 'hidden' || cs.display === 'none') return false;
-    return true;
-  };
-
-  LiquidGlassEl.prototype.resize = function () {
-    var r = this.el.getBoundingClientRect();
-    this.w = Math.max(1, Math.round(r.width));
-    this.h = Math.max(1, Math.round(r.height));
-    this.canvas.width = Math.round(this.w * this.dpr);
-    this.canvas.height = Math.round(this.h * this.dpr);
-    if (this.gl) this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-  };
-
-  LiquidGlassEl.prototype.render = function (t) {
-    if (this.failed || !this.visible || document.hidden) return;
-    if (!this._isActuallyVisible()) return;
-
-    // Элементы с меняющимся размером/радиусом через CSS-transition (лого во время саги)
-    // ресайзятся и перечитывают border-radius каждый кадр, а не только на ResizeObserver —
-    // тут это ровно один элемент на странице, стоимость getBoundingClientRect тривиальна.
-    if (this.dynamicRadius) {
-      this.resize();
-      var cs = getComputedStyle(this.el);
-      var br = parseFloat(cs.borderTopLeftRadius) || this.radius;
-      this.radius = br;
-    }
-
-    if (this.canvas.width < 2 || this.canvas.height < 2) return;
-
-    var gl = this.gl;
-    this.pointerActive += (this.pointerTarget - this.pointerActive) * 0.12;
-
-    gl.useProgram(this.prog);
-    gl.uniform2f(this.u.uRes, this.canvas.width, this.canvas.height);
-    gl.uniform1f(this.u.uRadius, this.radius * this.dpr);
-    gl.uniform1f(this.u.uTime, t);
-    gl.uniform2f(this.u.uPointer, this.pointer[0], this.pointer[1]);
-    gl.uniform1f(this.u.uPointerActive, this.pointerActive);
-    gl.uniform3f(this.u.uTintA, this.opts.tintA[0], this.opts.tintA[1], this.opts.tintA[2]);
-    gl.uniform3f(this.u.uTintB, this.opts.tintB[0], this.opts.tintB[1], this.opts.tintB[2]);
-    gl.uniform1f(this.u.uIntensity, this.intensity);
-
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-  };
-
-  window.LiquidGlass = {
-    instances: [],
-    _raf: null,
-    init: function (selector, opts) {
-      if (REDUCED_MOTION) return [];
-      var els = document.querySelectorAll(selector);
-      var made = [];
-      els.forEach(function (el) {
-        var inst = new LiquidGlassEl(el, opts);
-        if (!inst.failed) { made.push(inst); window.LiquidGlass.instances.push(inst); }
-      });
-      this._ensureLoop();
-      return made;
-    },
-    _ensureLoop: function () {
-      if (this._raf) return;
-      var self = this;
-      var start = performance.now();
-      var loop = function (now) {
-        var t = (now - start) / 1000;
-        for (var i = 0; i < self.instances.length; i++) self.instances[i].render(t);
-        self._raf = requestAnimationFrame(loop);
-      };
-      this._raf = requestAnimationFrame(loop);
-    }
-  };
-
-  // Палитра — те же оттенки, что уже используются в --purple / --purple-light / #mesh орбах,
-  // просто нормализованные в 0..1 для шейдера. Никакой новой цветовой темы не вводится.
-  var lgRequested = document.querySelectorAll('[data-liquid-glass]').length;
-  var lgMade = LiquidGlass.init('[data-liquid-glass]', {
-    tintA: [0.098, 0.039, 0.20],   // тёмно-фиолетовый (около --purple-dark)
-    tintB: [0.42, 0.24, 0.72],     // светлее (около --purple-light)
-    intensity: IS_MOBILE_UI ? 1.1 : 1.6,
-    maxDpr: IS_MOBILE_UI ? 1.5 : 2
-  });
-
-  // Тихая диагностика в консоль — ничего не показывается пользователю, но при первом
-  // реальном открытии сразу видно: сработал ли WebGL2, сколько канвасов реально создалось,
-  // и почему, если создалось меньше запрошенного (reduced-motion / нет WebGL2 / ошибка шейдера).
-  if (REDUCED_MOTION) {
-    console.info('[LiquidGlass] prefers-reduced-motion активен — WebGL-слой не создаётся, используется обычный CSS-glass.');
-  } else {
-    console.info('[LiquidGlass] запрошено элементов:', lgRequested, '| успешно создано WebGL-канвасов:', lgMade.length, IS_MOBILE_UI ? '(мобильный профиль качества)' : '(десктоп профиль качества)');
-    if (lgMade.length < lgRequested) {
-      console.warn('[LiquidGlass] у ' + (lgRequested - lgMade.length) + ' элемент(ов) WebGL2 недоступен или не скомпилировался шейдер — для них остаётся обычный CSS backdrop-filter glass, это ожидаемый безопасный fallback, не баг.');
-    }
-  }
-})();
 </script>
 </body>
 </html>
