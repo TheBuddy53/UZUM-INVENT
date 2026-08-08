@@ -145,6 +145,8 @@
       border-radius 1.2s var(--ease);
   }
   .brand-mark .mark-letter { position: relative; z-index: 2; transition: opacity 0.4s ease; }
+  .brand-mark { isolation: isolate; }
+  .brand-mark > *:not(.lg-canvas) { position: relative; z-index: 2; }
 
   /* Сцены */
   .brand-mark.saga-liftoff {
@@ -304,6 +306,11 @@
      и элемент остаётся с обычным CSS-стеклом, которое уже было. */
   .lg-canvas { position: absolute; inset: 0; z-index: 0; pointer-events: none; border-radius: inherit; mix-blend-mode: normal; }
   [data-liquid-glass] { isolation: isolate; }
+  /* Liquid Glass поверх летящего лого во время саги: тот же WebGL SDF-эффект, что и на
+     карточках/кнопках, но в blend-mode screen поверх сплошной заливки — рефракция и
+     блики "лежат" на поверхности куба, включая сцену взрыва, а не подменяют его цвет.
+     Идёт после базового .lg-canvas в каскаде, чтобы переопределить z-index/blend-mode. */
+  .brand-mark .lg-canvas { z-index: 1; mix-blend-mode: screen; opacity: 0.85; }
   .card::after { content: ''; position: absolute; top: -60%; left: -40%; width: 45%; height: 220%; background: linear-gradient(75deg, transparent, rgba(255,255,255,0.07), transparent); transform: translateX(-20%) rotate(8deg); animation: cardSheen 9s ease-in-out infinite; pointer-events: none; will-change: transform; }
   .card:nth-child(2)::after { animation-delay: -3s; }
   .card:nth-child(3)::after { animation-delay: -6s; }
@@ -379,7 +386,7 @@
   /* На заливных кнопках WebGL-слой рисует только тонкий стеклянный купол (blend-mode
      screen + сниженная непрозрачность) поверх цветного градиента — не подменяет сам
      цвет кнопки, просто добавляет живой блик/рефракцию по контуру. */
-  .btn .lg-canvas { mix-blend-mode: screen; opacity: 0.55; }
+  .btn .lg-canvas { mix-blend-mode: screen; opacity: 0.8; }
   .btn:active { transform: scale(0.96) translateY(2px); }
   .btn.primary { background: linear-gradient(135deg, var(--purple-light), var(--purple)); box-shadow: 0 12px 24px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5), inset 0 -4px 12px rgba(0,0,0,0.3); }
   .btn.finish { background: linear-gradient(135deg, #38E888, #0F9D58); box-shadow: 0 12px 24px var(--green-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 12px rgba(0,0,0,0.3); animation: pulseFinish 3s infinite; will-change: box-shadow, transform; }
@@ -405,7 +412,7 @@
 
   #paste-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 301; max-width: 480px; margin: 0 auto; background: linear-gradient(180deg, rgba(30,15,50,0.95), rgba(10,2,20,0.98)); backdrop-filter: blur(40px) saturate(220%); -webkit-backdrop-filter: blur(40px) saturate(220%); border: 1px solid var(--glass-border-dark); border-top: 1px solid rgba(255,255,255,0.25); border-radius: 32px 32px 0 0; padding: 12px 20px calc(24px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -20px 60px rgba(0,0,0,0.9), inset 0 2px 10px rgba(255,255,255,0.1); transform: translateY(100%); max-height: 80vh; display: flex; flex-direction: column; transform-origin: center bottom; visibility: hidden; pointer-events: none; isolation: isolate; }
   #paste-sheet > *:not(.lg-canvas) { position: relative; z-index: 2; }
-  #paste-sheet .lg-canvas { opacity: 0.5; }
+  #paste-sheet .lg-canvas { opacity: 0.75; }
   #paste-sheet.show { visibility: visible; animation: sheetEpicIn 0.85s var(--epic) forwards; }
   #paste-sheet.closing { visibility: visible; animation: sheetEpicOut 0.5s var(--epic-out) forwards; }
   @keyframes sheetEpicIn { 0% { transform: translateY(65%) scale(0.92) rotateX(6deg); filter: blur(22px) brightness(0.5) saturate(1.4); opacity: 0; } 40% { transform: translateY(-3%) scale(1.015) rotateX(-1deg); filter: blur(3px) brightness(1.4) saturate(1.6); opacity: 1; } 68% { transform: translateY(1.5%) scale(0.997) rotateX(0.4deg); filter: blur(0px) brightness(1.08) saturate(1.1); } 100% { transform: translateY(0) scale(1) rotateX(0deg); filter: blur(0) brightness(1) saturate(1); } }
@@ -525,7 +532,7 @@
   <div class="topbar stagger" style="animation-delay:0s">
     <div class="brand">
       <div class="brand-logo-container" id="brand-logo-container">
-        <div class="brand-mark" id="brand-mark" role="button" tabindex="0" aria-label="Uzum">
+        <div class="brand-mark" id="brand-mark" role="button" tabindex="0" aria-label="Uzum" data-liquid-glass data-lg-radius="14" data-lg-dynamic-radius>
           <span class="mark-letter">U</span>
           <span class="mark-face" id="mark-face">
             <span class="mark-brow l"></span><span class="mark-brow r"></span>
@@ -1204,28 +1211,31 @@
     '  float dy = sdRoundRect(p+eps.yx, halfSize, uRadius) - sdRoundRect(p-eps.yx, halfSize, uRadius);',
     '  vec2 normal = normalize(vec2(dx, dy) + 1e-4);',
 
-    '  float rim = smoothstep(-uRadius*2.2, 0.0, d);',
+    '  float rim = smoothstep(-uRadius*3.2, 0.0, d);',
 
-    '  vec2 uv = vUv * 3.0;',
-    '  float n1 = noise(uv + vec2(uTime*0.035, uTime*0.02));',
-    '  float n2 = noise(uv*1.7 - vec2(uTime*0.022, uTime*0.04));',
-    '  vec2 drift = vec2(n1, n2) * 0.55;',
+    '  vec2 uv = vUv * 4.5;',
+    '  float n1 = noise(uv + vec2(uTime*0.09, uTime*0.06));',
+    '  float n2 = noise(uv*1.9 - vec2(uTime*0.07, uTime*0.11));',
+    '  float n3 = noise(uv*3.1 + vec2(-uTime*0.05, uTime*0.08));',
+    '  vec2 drift = vec2(n1 + n3*0.5, n2 - n3*0.4) * 1.15;',
 
     '  vec2 toPointer = (vUv - uPointer) * uRes / max(uRes.x,uRes.y);',
     '  float distP = length(toPointer);',
-    '  float bulge = uPointerActive * smoothstep(0.55, 0.0, distP) * (0.55 - distP*0.4);',
+    '  float bulge = uPointerActive * smoothstep(0.65, 0.0, distP) * (0.85 - distP*0.5);',
     '  vec2 bulgeDir = distP > 0.0001 ? normalize(toPointer) : vec2(0.0);',
 
-    '  vec2 refractOffset = (normal * rim * 14.0 * uIntensity) + (drift * rim * 9.0 * uIntensity) - (bulgeDir * bulge * 26.0);',
+    '  vec2 refractOffset = (normal * rim * 34.0 * uIntensity) + (drift * rim * 26.0 * uIntensity) - (bulgeDir * bulge * 46.0);',
     '  vec2 sampleUv = clamp(vUv + refractOffset / uRes, 0.0, 1.0);',
 
-    '  vec3 base = mix(uTintA, uTintB, clamp(sampleUv.y*0.7 + sampleUv.x*0.3 + n1*0.12, 0.0, 1.0));',
-    '  float glow = smoothstep(0.9, 0.0, length(sampleUv - vec2(0.3+n2*0.1, 0.25)));',
-    '  base += glow * 0.18 * uTintB;',
+    '  vec3 base = mix(uTintA, uTintB, clamp(sampleUv.y*0.7 + sampleUv.x*0.3 + n1*0.22 + n3*0.1, 0.0, 1.0));',
+    '  float glow = smoothstep(0.9, 0.0, length(sampleUv - vec2(0.3+n2*0.16, 0.25)));',
+    '  base += glow * 0.32 * uTintB;',
+    '  float veins = smoothstep(0.72, 1.0, abs(n3)) * rim;',
+    '  base += veins * 0.4 * vec3(1.0, 0.96, 1.0);',
 
-    '  float topLight = pow(max(0.0, 1.0 - abs(p.y + halfSize.y*0.75)/ (halfSize.y*0.9)), 6.0);',
-    '  float edgeGlint = (1.0 - smoothstep(0.0, uRadius*0.9, abs(d))) * (0.35 + 0.25*sin(uTime*0.6 + px.x*0.02));',
-    '  vec3 specular = vec3(1.0) * (topLight*0.22 + edgeGlint*0.5) * (0.6 + rim*0.4);',
+    '  float topLight = pow(max(0.0, 1.0 - abs(p.y + halfSize.y*0.75)/ (halfSize.y*0.9)), 5.0);',
+    '  float edgeGlint = (1.0 - smoothstep(0.0, uRadius*1.3, abs(d))) * (0.55 + 0.4*sin(uTime*1.1 + px.x*0.03 + n2*3.0));',
+    '  vec3 specular = vec3(1.0) * (topLight*0.38 + edgeGlint*0.85) * (0.7 + rim*0.5);',
 
     '  float alphaEdge = 1.0 - smoothstep(-2.5, 1.5, d);',
     '  vec3 color = base + specular;',
@@ -1300,6 +1310,7 @@
     this.dpr = Math.min(window.devicePixelRatio || 1, this.opts.maxDpr || (IS_MOBILE_UI ? 1.5 : 2));
     this.intensity = this.opts.intensity != null ? this.opts.intensity : 1.0;
     this.radius = parseFloat(this.el.getAttribute('data-lg-radius')) || this.opts.radius || 20;
+    this.dynamicRadius = this.el.hasAttribute('data-lg-dynamic-radius');
 
     this._bindPointerEvents();
     this._observe();
@@ -1361,6 +1372,17 @@
   LiquidGlassEl.prototype.render = function (t) {
     if (this.failed || !this.visible || document.hidden) return;
     if (!this._isActuallyVisible()) return;
+
+    // Элементы с меняющимся размером/радиусом через CSS-transition (лого во время саги)
+    // ресайзятся и перечитывают border-radius каждый кадр, а не только на ResizeObserver —
+    // тут это ровно один элемент на странице, стоимость getBoundingClientRect тривиальна.
+    if (this.dynamicRadius) {
+      this.resize();
+      var cs = getComputedStyle(this.el);
+      var br = parseFloat(cs.borderTopLeftRadius) || this.radius;
+      this.radius = br;
+    }
+
     if (this.canvas.width < 2 || this.canvas.height < 2) return;
 
     var gl = this.gl;
@@ -1416,7 +1438,7 @@
   var lgMade = LiquidGlass.init('[data-liquid-glass]', {
     tintA: [0.098, 0.039, 0.20],   // тёмно-фиолетовый (около --purple-dark)
     tintB: [0.42, 0.24, 0.72],     // светлее (около --purple-light)
-    intensity: IS_MOBILE_UI ? 0.7 : 1.0,
+    intensity: IS_MOBILE_UI ? 1.1 : 1.6,
     maxDpr: IS_MOBILE_UI ? 1.5 : 2
   });
 
