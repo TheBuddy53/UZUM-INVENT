@@ -57,6 +57,22 @@
     perspective: 1200px;
   }
 
+  /* Премиальный виньетка-слой: не меняет базовую темноту (--bg-base остаётся),
+     а кладёт поверх мягкий радиальный градиент + едва уловимый фиолетовый подсвет
+     по центру-верху, чтобы фон читался как "дорогой материал", а не плоский чёрный.
+     Плюс собственное тонкое зерно (отдельное от #noise, чуть крупнее и статичнее —
+     не анимируется, чтобы не спорить с движущимся шумом) для тактильной фактуры. */
+  #vignette { position: fixed; inset: 0; z-index: -3; pointer-events: none;
+    background:
+      radial-gradient(120% 90% at 50% -10%, rgba(112,0,255,0.16), transparent 55%),
+      radial-gradient(140% 100% at 50% 110%, rgba(0,0,0,0.55), transparent 50%),
+      radial-gradient(90% 70% at 50% 50%, transparent 55%, rgba(0,0,0,0.5) 100%);
+  }
+  #vignette::after {
+    content: ''; position: absolute; inset: 0; opacity: 0.05; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 300 300' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  }
+
   /* ФИКС КНОПОК */
   button, [type="button"] {
     background: transparent;
@@ -356,6 +372,16 @@
 
   /* Детальный разлом кнопки (16 осколков) */
   .finish-slot { position: relative; overflow: hidden; border-radius: var(--r-lg); height: 56px; }
+
+  /* Elastic-line: тонкая "резинка" вокруг кнопки завершения, которую можно оттянуть
+     курсором — адаптация идеи из fancy-components под ванильный JS (SVG path + rAF
+     spring), без framer-motion. Рамка чуть шире самой кнопки, чтобы линия могла
+     свободно "гулять" наружу при захвате. Не мешает клику — pointer-events: none
+     у самого SVG, ловит движение сам finish-wrap. */
+  .finish-wrap { position: relative; padding: 10px; margin: -10px; border-radius: calc(var(--r-lg) + 10px); }
+  .finish-wrap svg.elastic-line { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  .finish-wrap svg.elastic-line path { fill: none; stroke: var(--purple-light); stroke-width: 1.5; stroke-linecap: round; filter: drop-shadow(0 0 6px var(--purple-glow)); opacity: 0.85; }
+  @media (prefers-reduced-motion: reduce) { .finish-wrap svg.elastic-line { display: none; } }
   .finish-slot .btn.finish { position: relative; z-index: 1; height: 100%; display: flex; align-items: center; justify-content: center; }
   .btn.finish.smashed { animation: none; transform: translateY(140%) rotate(4deg) scale(0.92); opacity: 0; transition: transform 0.3s cubic-bezier(0.5,0,0.85,0.35), opacity 0.3s ease 0.1s; box-shadow: none; }
   
@@ -412,6 +438,26 @@
   .footer { text-align: center; margin-top: 24px; opacity: 0.6; padding-bottom: 20px; }
   .footer-mark { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; }
   .footer-mark .fdot { width: 20px; height: 20px; border-radius: 6px; background: linear-gradient(135deg, var(--purple), var(--purple-dark)); display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; color: #fff; box-shadow: 0 4px 10px var(--purple-glow); animation: fdotPulse 3s ease-in-out infinite; }
+
+  /* Глазки, следящие за курсором — под подписью "Uzum Invent Bot". Стилизовано под
+     Uzum: лавандовая "линза" (--purple-light bg на затемнённой подложке), фиолетовый
+     зрачок, никакой мультяшности типа brand-mark saga-глаз — тут спокойный,
+     лаконичный минимал, просто живой акцент внизу экрана. */
+  .bot-eyes { display: flex; justify-content: center; align-items: center; gap: 14px; margin-top: 10px; }
+  .bot-eye { position: relative; width: 22px; height: 22px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, rgba(157,77,255,0.28), rgba(10,2,25,0.6) 70%);
+    border: 1px solid rgba(157,77,255,0.35);
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.5), 0 0 10px rgba(112,0,255,0.18);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .bot-eye .bot-pupil { width: 8px; height: 8px; border-radius: 50%; background: var(--purple-light);
+    box-shadow: 0 0 8px var(--purple-glow);
+    transform: translate(0, 0);
+    transition: transform 0.05s linear;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bot-eye .bot-pupil { transition: none; }
+  }
   @keyframes fdotPulse { 0%, 100% { box-shadow: 0 4px 10px var(--purple-glow); } 50% { box-shadow: 0 4px 16px rgba(157,77,255,0.9); } }
 
   #toast { position: fixed; left: 16px; right: 16px; bottom: 32px; max-width: 420px; margin: 0 auto; background: rgba(20, 10, 35, 0.9); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border: 1px solid rgba(157,77,255,0.5); border-top: 1px solid rgba(255,255,255,0.3); border-radius: var(--r-lg); padding: 16px; font-size: 14px; font-weight: 800; text-align: center; transform: translateY(calc(100% + 60px)) scale(0.9); transition: all 0.5s var(--spring); z-index: 200; box-shadow: 0 20px 40px rgba(0,0,0,0.9), 0 0 30px var(--purple-glow); }
@@ -639,6 +685,7 @@
   </filter>
 </svg>
 
+<div id="vignette"></div>
 <div id="mesh"><div id="mesh-track"><span class="b1"></span><span class="b2"></span><span class="b3"></span></div></div>
 <div id="watermark">U</div>
 <canvas id="liquid-ripple" aria-hidden="true"></canvas>
@@ -671,10 +718,10 @@
       </div>
     </div>
     <div class="topbar-actions">
-      <button class="lang-switch glass-edge" id="btn-lang" type="button">
+      <button class="lang-switch glass-edge parallax-el" id="btn-lang" type="button" data-depth="0.18">
         <span class="lang-globe">🌐</span><span class="lang-cur" id="lang-cur">RU</span>
       </button>
-      <div class="icon-btn glass-edge" id="btn-info">?</div>
+      <div class="icon-btn glass-edge parallax-el" id="btn-info" data-depth="0.22">?</div>
     </div>
   </div>
 
@@ -705,24 +752,31 @@
     <div class="hint-text" style="margin-bottom: 16px;" data-i18n="finish_hint">
       Когда все <span class="key">ячейки склада</span> отсканированы и закрыты — завершите инвентаризацию.
     </div>
-    <div class="finish-slot" id="finish-slot">
-      <!-- 16 детализированных осколков -->
-      <span class="shard shard-1"></span><span class="shard shard-2"></span><span class="shard shard-3"></span><span class="shard shard-4"></span>
-      <span class="shard shard-5"></span><span class="shard shard-6"></span><span class="shard shard-7"></span><span class="shard shard-8"></span>
-      <span class="shard shard-9"></span><span class="shard shard-10"></span><span class="shard shard-11"></span><span class="shard shard-12"></span>
-      <span class="shard shard-13"></span><span class="shard shard-14"></span><span class="shard shard-15"></span><span class="shard shard-16"></span>
-      
-      <button class="btn finish glass-bubble glass-bubble--inset glass-bubble--glow" id="btn-finish"><span class="finish-toplight"></span><span class="finish-shine"></span><span data-i18n="finish_btn">Завершить инвентаризацию</span></button>
-      <div class="finish-hole" id="finish-hole">
-        <div class="hole-rim"></div>
-        <div class="hole-debris"></div>
-        <div class="hole-dust"></div>
+    <div class="finish-wrap" id="finish-wrap">
+      <svg class="elastic-line" id="finish-elastic" aria-hidden="true"><path id="finish-elastic-path" d=""/></svg>
+      <div class="finish-slot" id="finish-slot">
+        <!-- 16 детализированных осколков -->
+        <span class="shard shard-1"></span><span class="shard shard-2"></span><span class="shard shard-3"></span><span class="shard shard-4"></span>
+        <span class="shard shard-5"></span><span class="shard shard-6"></span><span class="shard shard-7"></span><span class="shard shard-8"></span>
+        <span class="shard shard-9"></span><span class="shard shard-10"></span><span class="shard shard-11"></span><span class="shard shard-12"></span>
+        <span class="shard shard-13"></span><span class="shard shard-14"></span><span class="shard shard-15"></span><span class="shard shard-16"></span>
+
+        <button class="btn finish glass-bubble glass-bubble--inset glass-bubble--glow" id="btn-finish"><span class="finish-toplight"></span><span class="finish-shine"></span><span data-i18n="finish_btn">Завершить инвентаризацию</span></button>
+        <div class="finish-hole" id="finish-hole">
+          <div class="hole-rim"></div>
+          <div class="hole-debris"></div>
+          <div class="hole-dust"></div>
+        </div>
       </div>
     </div>
   </div>
 
   <div class="footer stagger" style="animation-delay:0.3s">
     <div class="footer-mark"><span class="fdot">U</span> Uzum Invent Bot</div>
+    <div class="bot-eyes" id="bot-eyes" aria-hidden="true">
+      <span class="bot-eye"><span class="bot-pupil" id="bot-pupil-l"></span></span>
+      <span class="bot-eye"><span class="bot-pupil" id="bot-pupil-r"></span></span>
+    </div>
   </div>
 </div>
 
@@ -800,7 +854,9 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         // стеклянно-хромированный вид с резкими бликами преломления, что на скрине.
         app.liquidPlane.material.metalness = 0.75;
         app.liquidPlane.material.roughness = 0.25;
-        app.liquidPlane.uniforms.displacementScale.value = 5;
+        // Было 5 — многовато волн от курсора на глаз, приглушаем силу ряби примерно
+        // на треть, тот же стеклянный вид остаётся, но реакция мягче и реже "штормит".
+        app.liquidPlane.uniforms.displacementScale.value = 3.2;
         app.setRain(false);
         window.__liquidApp = app;
       })
@@ -979,11 +1035,20 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
 
   // ===== ФОН СТАЛ ИНТЕРАКТИВНЫМ =====
   const meshTrack = $('mesh-track');
+  // Лёгкий параллакс на уже существующих элементах интерфейса (адаптация идеи
+  // parallax-floating под наш сайт, без картинок Unsplash) — каждый элемент со
+  // своим data-depth сдвигается на свою долю от общего смещения курсора, тот же
+  // источник tx/ty, что двигает орбы фона, так что всё ощущается одним полем.
+  const parallaxEls = Array.from(document.querySelectorAll('.parallax-el'));
   let mx = 0, my = 0, tx = 0, ty = 0, meshRaf = null;
   function tickMesh() {
     mx += (tx - mx) * 0.08;
     my += (ty - my) * 0.08;
     meshTrack.style.transform = `translate3d(${mx.toFixed(2)}px, ${my.toFixed(2)}px, 0)`;
+    parallaxEls.forEach(el => {
+      const depth = parseFloat(el.dataset.depth || '0.15');
+      el.style.transform = `translate3d(${(mx * depth).toFixed(2)}px, ${(my * depth).toFixed(2)}px, 0)`;
+    });
     if (Math.abs(tx - mx) > 0.05 || Math.abs(ty - my) > 0.05) {
       meshRaf = requestAnimationFrame(tickMesh);
     } else { meshRaf = null; }
@@ -1005,6 +1070,130 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       card.style.setProperty('--mouse-y', '-20%');
     });
   });
+
+  // ============================================================
+  // ELASTIC LINE — упругая "резинка" вокруг кнопки завершения
+  // Ванильная адаптация fancy-components ElasticLine: SVG-контур повторяет
+  // прямоугольник обёртки, а при приближении курсора линия "прогибается" к
+  // ближайшей точке контура и с пружинным отскоком возвращается на место.
+  // ============================================================
+  (() => {
+    const wrap = $('finish-wrap');
+    const svg = $('finish-elastic');
+    const path = $('finish-elastic-path');
+    if (!wrap || !svg || !path) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    let w = 0, h = 0;
+    const GRAB = 34;      // радиус, в котором линия "хватает" курсор
+    const RELEASE = 90;   // расстояние, на котором линия отпускает и возвращается
+    let px = 0, py = 0;   // текущая позиция прогиба (анимируемая, пружина)
+    let vx = 0, vy = 0;   // "скорость" пружины
+    let grabbed = false;
+    let raf = null;
+
+    function resize() {
+      const r = wrap.getBoundingClientRect();
+      w = r.width; h = r.height;
+      svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // Ближайшая точка на прямоугольном контуре обёртки к точке (x, y)
+    function closestOnRect(x, y) {
+      const cx = Math.min(Math.max(x, 0), w);
+      const cy = Math.min(Math.max(y, 0), h);
+      const dl = cx, dr = w - cx, dt = cy, db = h - cy;
+      const m = Math.min(dl, dr, dt, db);
+      if (m === dt) return { x: cx, y: 0 };
+      if (m === db) return { x: cx, y: h };
+      if (m === dl) return { x: 0, y: cy };
+      return { x: w, y: cy };
+    }
+
+    function tick() {
+      const targetX = grabbed ? px : w / 2;
+      const targetY = grabbed ? py : h / 2;
+      // простая пружина: ускорение к цели, затухание скорости
+      const stiffness = 0.18, damping = 0.72;
+      vx = (vx + (targetX - qx) * stiffness) * damping;
+      vy = (vy + (targetY - qy) * stiffness) * damping;
+      qx += vx; qy += vy;
+
+      const pt = closestOnRect(qx, qy);
+      // Контур: прямая рамка + "мостик" от ближайшей стороны к оттянутой точке
+      const bulge = grabbed ? 1 : Math.min(1, Math.hypot(vx, vy) / 2);
+      const mx = pt.x + (qx - pt.x) * bulge;
+      const my = pt.y + (qy - pt.y) * bulge;
+      path.setAttribute('d',
+        `M0 0 L${w} 0 L${w} ${h} L0 ${h} Z M${pt.x} ${pt.y} Q${mx} ${my} ${pt.x} ${pt.y}`
+      );
+
+      if (!grabbed && Math.hypot(vx, vy) < 0.05 && Math.hypot(qx - w/2, qy - h/2) < 0.5) {
+        raf = null; return;
+      }
+      raf = requestAnimationFrame(tick);
+    }
+
+    let qx = w / 2, qy = h / 2;
+
+    wrap.addEventListener('pointermove', (e) => {
+      const r = wrap.getBoundingClientRect();
+      const x = e.clientX - r.left, y = e.clientY - r.top;
+      const pt = closestOnRect(x, y);
+      const dist = Math.hypot(x - pt.x, y - pt.y);
+      if (!grabbed && dist < GRAB) grabbed = true;
+      else if (grabbed && dist > RELEASE) grabbed = false;
+      if (grabbed) { px = x; py = y; }
+      if (!raf) raf = requestAnimationFrame(tick);
+    }, { passive: true });
+
+    wrap.addEventListener('pointerleave', () => {
+      grabbed = false;
+      if (!raf) raf = requestAnimationFrame(tick);
+    });
+  })();
+
+  // ============================================================
+  // BOT EYES — глазки под "Uzum Invent Bot" следят за курсором
+  // Один общий rAF-тик двигает оба зрачка к направлению на курсор, ограничивая
+  // смещение радиусом "линзы". На touch-устройствах курсора нет — глазки просто
+  // смотрят прямо (пупилы в центре), никакой лишней логики под палец не вешаем.
+  // ============================================================
+  (() => {
+    const eyesWrap = $('bot-eyes');
+    const pupilL = $('bot-pupil-l');
+    const pupilR = $('bot-pupil-r');
+    if (!eyesWrap || !pupilL || !pupilR) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const MAX_OFFSET = 5; // px, радиус "плавания" зрачка внутри линзы
+    let px = 0, py = 0;
+    let eyesRaf = null;
+
+    function moveTo(cx, cy, mouseX, mouseY) {
+      const dx = mouseX - cx, dy = mouseY - cy;
+      const dist = Math.hypot(dx, dy) || 1;
+      const off = Math.min(MAX_OFFSET, dist / 12);
+      return { x: (dx / dist) * off, y: (dy / dist) * off };
+    }
+
+    window.addEventListener('pointermove', (e) => {
+      px = e.clientX; py = e.clientY;
+      if (!eyesRaf) eyesRaf = requestAnimationFrame(tickEyes);
+    }, { passive: true });
+
+    function tickEyes() {
+      const rL = pupilL.parentElement.getBoundingClientRect();
+      const rR = pupilR.parentElement.getBoundingClientRect();
+      const l = moveTo(rL.left + rL.width / 2, rL.top + rL.height / 2, px, py);
+      const r = moveTo(rR.left + rR.width / 2, rR.top + rR.height / 2, px, py);
+      pupilL.style.transform = `translate(${l.x.toFixed(1)}px, ${l.y.toFixed(1)}px)`;
+      pupilR.style.transform = `translate(${r.x.toFixed(1)}px, ${r.y.toFixed(1)}px)`;
+      eyesRaf = null;
+    }
+  })();
 
   // ============================================================
   // BOTTOM-SHEET (ШТОРКА)
