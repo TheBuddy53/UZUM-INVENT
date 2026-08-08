@@ -64,9 +64,9 @@
      не анимируется, чтобы не спорить с движущимся шумом) для тактильной фактуры. */
   #vignette { position: fixed; inset: 0; z-index: -3; pointer-events: none;
     background:
-      radial-gradient(120% 90% at 50% -10%, rgba(112,0,255,0.16), transparent 55%),
-      radial-gradient(140% 100% at 50% 110%, rgba(0,0,0,0.55), transparent 50%),
-      radial-gradient(90% 70% at 50% 50%, transparent 55%, rgba(0,0,0,0.5) 100%);
+      radial-gradient(120% 90% at 50% -10%, rgba(112,0,255,0.14), transparent 55%),
+      radial-gradient(140% 100% at 50% 110%, rgba(0,0,0,0.65), transparent 50%),
+      radial-gradient(90% 70% at 50% 50%, transparent 50%, rgba(0,0,0,0.62) 100%);
   }
   #vignette::after {
     content: ''; position: absolute; inset: 0; opacity: 0.05; mix-blend-mode: overlay;
@@ -373,15 +373,17 @@
   /* Детальный разлом кнопки (16 осколков) */
   .finish-slot { position: relative; overflow: hidden; border-radius: var(--r-lg); height: 56px; }
 
-  /* Elastic-line: тонкая "резинка" вокруг кнопки завершения, которую можно оттянуть
-     курсором — адаптация идеи из fancy-components под ванильный JS (SVG path + rAF
-     spring), без framer-motion. Рамка чуть шире самой кнопки, чтобы линия могла
-     свободно "гулять" наружу при захвате. Не мешает клику — pointer-events: none
-     у самого SVG, ловит движение сам finish-wrap. */
-  .finish-wrap { position: relative; padding: 10px; margin: -10px; border-radius: calc(var(--r-lg) + 10px); }
-  .finish-wrap svg.elastic-line { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
-  .finish-wrap svg.elastic-line path { fill: none; stroke: var(--purple-light); stroke-width: 1.5; stroke-linecap: round; filter: drop-shadow(0 0 6px var(--purple-glow)); opacity: 0.85; }
-  @media (prefers-reduced-motion: reduce) { .finish-wrap svg.elastic-line { display: none; } }
+  /* Elastic button: сама кнопка "Завершить инвентаризацию" — резина. JS деформирует
+     transform (translate + non-uniform scale) на каждый кадр, тут только база:
+     origin по центру, чтобы squash/stretch тянулся симметрично, и touch-action —
+     без него мобильный браузер перехватывает pointermove как скролл/жест раньше,
+     чем до JS доходит событие. */
+  .btn.finish { transform-origin: 50% 50%; touch-action: none; }
+  /* pulseFinish анимирует transform:scale само по себе — во время эластичной
+     деформации это перебивало бы наш inline transform каждый кадр (CSS animation
+     всегда выигрывает каскад против невходящего в @keyframes инлайна). Ставим
+     паузу на время взаимодействия — плавность самой резины важнее пульса. */
+  .btn.finish.elastic-live { animation-play-state: paused; }
   .finish-slot .btn.finish { position: relative; z-index: 1; height: 100%; display: flex; align-items: center; justify-content: center; }
   .btn.finish.smashed { animation: none; transform: translateY(140%) rotate(4deg) scale(0.92); opacity: 0; transition: transform 0.3s cubic-bezier(0.5,0,0.85,0.35), opacity 0.3s ease 0.1s; box-shadow: none; }
   
@@ -439,24 +441,51 @@
   .footer-mark { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; }
   .footer-mark .fdot { width: 20px; height: 20px; border-radius: 6px; background: linear-gradient(135deg, var(--purple), var(--purple-dark)); display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; color: #fff; box-shadow: 0 4px 10px var(--purple-glow); animation: fdotPulse 3s ease-in-out infinite; }
 
-  /* Глазки, следящие за курсором — под подписью "Uzum Invent Bot". Стилизовано под
-     Uzum: лавандовая "линза" (--purple-light bg на затемнённой подложке), фиолетовый
-     зрачок, никакой мультяшности типа brand-mark saga-глаз — тут спокойный,
-     лаконичный минимал, просто живой акцент внизу экрана. */
-  .bot-eyes { display: flex; justify-content: center; align-items: center; gap: 14px; margin-top: 10px; }
-  .bot-eye { position: relative; width: 22px; height: 22px; border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, rgba(157,77,255,0.28), rgba(10,2,25,0.6) 70%);
-    border: 1px solid rgba(157,77,255,0.35);
-    box-shadow: inset 0 2px 6px rgba(0,0,0,0.5), 0 0 10px rgba(112,0,255,0.18);
-    display: flex; align-items: center; justify-content: center;
+  /* Глазки, следящие за курсором — под подписью "Uzum Invent Bot", заполняют
+     оставшееся пустое место внизу карточки. Классические большие "гуглаи"
+     (белая склера, тёмный зрачок), но адаптированные под Uzum: белая склера
+     с едва заметным лавандовым отливом + чёткий фиолетовый обод, чтобы глаза
+     не растворялись в фиолетовом фоне; зрачок — глубокий purple-dark, а не
+     чистый чёрный, и с бликом для живости. */
+  .bot-eyes { display: flex; justify-content: center; align-items: center; gap: 28px; margin-top: 18px; margin-bottom: 4px; }
+  /* Внешний слой "дышит" (лёгкий общий scale) — на самом .bot-eye. */
+  .bot-eye {
+    position: relative; width: 64px; height: 64px;
+    animation: eyeBreathe 4.4s ease-in-out infinite;
   }
-  .bot-eye .bot-pupil { width: 8px; height: 8px; border-radius: 50%; background: var(--purple-light);
-    box-shadow: 0 0 8px var(--purple-glow);
+  .bot-eye:nth-child(2) { animation-delay: -1.6s; }
+  @keyframes eyeBreathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+  /* Внутренний слой — сама склера, моргает (scaleY) отдельно от дыхания, чтобы
+     обе transform-анимации не конфликтовали на одном элементе. */
+  .bot-eye-lid {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: radial-gradient(circle at 32% 26%, #FFFFFF 0%, #F3EEFF 55%, #E4D9FF 100%);
+    border: 3px solid rgba(157, 77, 255, 0.9);
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.15),
+      0 10px 24px rgba(0,0,0,0.45),
+      0 0 26px rgba(112,0,255,0.35),
+      inset 0 -6px 10px rgba(112,0,255,0.12);
+    display: flex; align-items: center; justify-content: center;
+    animation: eyeBlink 6.5s ease-in-out infinite;
+  }
+  .bot-eye:nth-child(2) .bot-eye-lid { animation-delay: -0.12s; }
+  @keyframes eyeBlink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.08); } 98% { transform: scaleY(1); } }
+  .bot-eye .bot-pupil {
+    position: relative; width: 26px; height: 26px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, var(--purple-light) 0%, var(--purple) 45%, #2A0073 100%);
+    box-shadow: 0 0 14px rgba(112,0,255,0.6), inset 0 -3px 6px rgba(0,0,0,0.35);
     transform: translate(0, 0);
-    transition: transform 0.05s linear;
+    transition: transform 0.12s cubic-bezier(0.34, 1.4, 0.64, 1);
+  }
+  .bot-eye .bot-pupil::after {
+    /* блик — маленький живой блик на зрачке, как настоящий глаз, не плоский круг */
+    content: ''; position: absolute; top: 18%; left: 22%; width: 30%; height: 30%;
+    border-radius: 50%; background: rgba(255,255,255,0.9); filter: blur(0.3px);
   }
   @media (prefers-reduced-motion: reduce) {
     .bot-eye .bot-pupil { transition: none; }
+    .bot-eye, .bot-eye-lid { animation: none; }
   }
   @keyframes fdotPulse { 0%, 100% { box-shadow: 0 4px 10px var(--purple-glow); } 50% { box-shadow: 0 4px 16px rgba(157,77,255,0.9); } }
 
@@ -752,21 +781,18 @@
     <div class="hint-text" style="margin-bottom: 16px;" data-i18n="finish_hint">
       Когда все <span class="key">ячейки склада</span> отсканированы и закрыты — завершите инвентаризацию.
     </div>
-    <div class="finish-wrap" id="finish-wrap">
-      <svg class="elastic-line" id="finish-elastic" aria-hidden="true"><path id="finish-elastic-path" d=""/></svg>
-      <div class="finish-slot" id="finish-slot">
-        <!-- 16 детализированных осколков -->
-        <span class="shard shard-1"></span><span class="shard shard-2"></span><span class="shard shard-3"></span><span class="shard shard-4"></span>
-        <span class="shard shard-5"></span><span class="shard shard-6"></span><span class="shard shard-7"></span><span class="shard shard-8"></span>
-        <span class="shard shard-9"></span><span class="shard shard-10"></span><span class="shard shard-11"></span><span class="shard shard-12"></span>
-        <span class="shard shard-13"></span><span class="shard shard-14"></span><span class="shard shard-15"></span><span class="shard shard-16"></span>
+    <div class="finish-slot" id="finish-slot">
+      <!-- 16 детализированных осколков -->
+      <span class="shard shard-1"></span><span class="shard shard-2"></span><span class="shard shard-3"></span><span class="shard shard-4"></span>
+      <span class="shard shard-5"></span><span class="shard shard-6"></span><span class="shard shard-7"></span><span class="shard shard-8"></span>
+      <span class="shard shard-9"></span><span class="shard shard-10"></span><span class="shard shard-11"></span><span class="shard shard-12"></span>
+      <span class="shard shard-13"></span><span class="shard shard-14"></span><span class="shard shard-15"></span><span class="shard shard-16"></span>
 
-        <button class="btn finish glass-bubble glass-bubble--inset glass-bubble--glow" id="btn-finish"><span class="finish-toplight"></span><span class="finish-shine"></span><span data-i18n="finish_btn">Завершить инвентаризацию</span></button>
-        <div class="finish-hole" id="finish-hole">
-          <div class="hole-rim"></div>
-          <div class="hole-debris"></div>
-          <div class="hole-dust"></div>
-        </div>
+      <button class="btn finish glass-bubble glass-bubble--inset glass-bubble--glow" id="btn-finish"><span class="finish-toplight"></span><span class="finish-shine"></span><span data-i18n="finish_btn">Завершить инвентаризацию</span></button>
+      <div class="finish-hole" id="finish-hole">
+        <div class="hole-rim"></div>
+        <div class="hole-debris"></div>
+        <div class="hole-dust"></div>
       </div>
     </div>
   </div>
@@ -774,8 +800,8 @@
   <div class="footer stagger" style="animation-delay:0.3s">
     <div class="footer-mark"><span class="fdot">U</span> Uzum Invent Bot</div>
     <div class="bot-eyes" id="bot-eyes" aria-hidden="true">
-      <span class="bot-eye"><span class="bot-pupil" id="bot-pupil-l"></span></span>
-      <span class="bot-eye"><span class="bot-pupil" id="bot-pupil-r"></span></span>
+      <span class="bot-eye"><span class="bot-eye-lid"><span class="bot-pupil" id="bot-pupil-l"></span></span></span>
+      <span class="bot-eye"><span class="bot-eye-lid"><span class="bot-pupil" id="bot-pupil-r"></span></span></span>
     </div>
   </div>
 </div>
@@ -856,7 +882,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         app.liquidPlane.material.roughness = 0.25;
         // Было 5 — многовато волн от курсора на глаз, приглушаем силу ряби примерно
         // на треть, тот же стеклянный вид остаётся, но реакция мягче и реже "штормит".
-        app.liquidPlane.uniforms.displacementScale.value = 3.2;
+        app.liquidPlane.uniforms.displacementScale.value = 1.8;
         app.setRain(false);
         window.__liquidApp = app;
       })
@@ -1072,85 +1098,110 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
   });
 
   // ============================================================
-  // ELASTIC LINE — упругая "резинка" вокруг кнопки завершения
-  // Ванильная адаптация fancy-components ElasticLine: SVG-контур повторяет
-  // прямоугольник обёртки, а при приближении курсора линия "прогибается" к
-  // ближайшей точке контура и с пружинным отскоком возвращается на место.
+  // ELASTIC BUTTON — сама кнопка "Завершить инвентаризацию" физически эластична:
+  // тянется/сжимается как резина под курсором/пальцем и с пружинным перехлёстом
+  // возвращается в форму. Механика — деформация геометрии (scaleX/scaleY по осям
+  // от направления смещения), а не рамка вокруг — так она реально ощущается и
+  // на touch, где курсора нет: pointerdown+drag тоже её тянет.
   // ============================================================
   (() => {
-    const wrap = $('finish-wrap');
-    const svg = $('finish-elastic');
-    const path = $('finish-elastic-path');
-    if (!wrap || !svg || !path) return;
+    const btn = $('btn-finish');
+    if (!btn) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     let w = 0, h = 0;
-    const GRAB = 34;      // радиус, в котором линия "хватает" курсор
-    const RELEASE = 90;   // расстояние, на котором линия отпускает и возвращается
-    let px = 0, py = 0;   // текущая позиция прогиба (анимируемая, пружина)
-    let vx = 0, vy = 0;   // "скорость" пружины
-    let grabbed = false;
+    let ox = 0, oy = 0;     // текущее смещение (px)
+    let vx = 0, vy = 0;     // скорость пружины
+    let tox = 0, toy = 0;   // целевое смещение
+    let dragging = false;
+    let pointerId = null;
     let raf = null;
 
-    function resize() {
-      const r = wrap.getBoundingClientRect();
+    function measure() {
+      const r = btn.getBoundingClientRect();
       w = r.width; h = r.height;
-      svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
     }
-    resize();
-    window.addEventListener('resize', resize);
-
-    // Ближайшая точка на прямоугольном контуре обёртки к точке (x, y)
-    function closestOnRect(x, y) {
-      const cx = Math.min(Math.max(x, 0), w);
-      const cy = Math.min(Math.max(y, 0), h);
-      const dl = cx, dr = w - cx, dt = cy, db = h - cy;
-      const m = Math.min(dl, dr, dt, db);
-      if (m === dt) return { x: cx, y: 0 };
-      if (m === db) return { x: cx, y: h };
-      if (m === dl) return { x: 0, y: cy };
-      return { x: w, y: cy };
-    }
+    measure();
+    window.addEventListener('resize', measure);
 
     function tick() {
-      const targetX = grabbed ? px : w / 2;
-      const targetY = grabbed ? py : h / 2;
-      // простая пружина: ускорение к цели, затухание скорости
-      const stiffness = 0.18, damping = 0.72;
-      vx = (vx + (targetX - qx) * stiffness) * damping;
-      vy = (vy + (targetY - qy) * stiffness) * damping;
-      qx += vx; qy += vy;
+      btn.classList.add('elastic-live');
+      const stiffness = 0.22, damping = 0.72;
+      vx = (vx + (tox - ox) * stiffness) * damping;
+      vy = (vy + (toy - oy) * stiffness) * damping;
+      ox += vx; oy += vy;
 
-      const pt = closestOnRect(qx, qy);
-      // Контур: прямая рамка + "мостик" от ближайшей стороны к оттянутой точке
-      const bulge = grabbed ? 1 : Math.min(1, Math.hypot(vx, vy) / 2);
-      const mx = pt.x + (qx - pt.x) * bulge;
-      const my = pt.y + (qy - pt.y) * bulge;
-      path.setAttribute('d',
-        `M0 0 L${w} 0 L${w} ${h} L0 ${h} Z M${pt.x} ${pt.y} Q${mx} ${my} ${pt.x} ${pt.y}`
-      );
+      // Squash & stretch: смещение по X растягивает по X и слегка сжимает по Y
+      // (и наоборот), плюс сам translate — как настоящая резина, а не жёсткий блок.
+      const stretchX = 1 + Math.abs(ox) / w * 0.55;
+      const stretchY = 1 + Math.abs(oy) / h * 0.55;
+      const squashX = 1 - Math.abs(oy) / h * 0.18;
+      const squashY = 1 - Math.abs(ox) / w * 0.18;
+      btn.style.transform =
+        `translate(${ox.toFixed(1)}px, ${oy.toFixed(1)}px) ` +
+        `scale(${(stretchX * squashX).toFixed(3)}, ${(stretchY * squashY).toFixed(3)})`;
 
-      if (!grabbed && Math.hypot(vx, vy) < 0.05 && Math.hypot(qx - w/2, qy - h/2) < 0.5) {
+      const settled = !dragging && Math.abs(vx) < 0.03 && Math.abs(vy) < 0.03 && Math.abs(ox) < 0.3 && Math.abs(oy) < 0.3;
+      if (settled) {
+        ox = 0; oy = 0; btn.style.transform = '';
+        btn.classList.remove('elastic-live');
         raf = null; return;
       }
       raf = requestAnimationFrame(tick);
     }
 
-    let qx = w / 2, qy = h / 2;
+    const MAX_PULL = 16; // px — предел, дальше палец/курсор просто "проскальзывает"
 
-    wrap.addEventListener('pointermove', (e) => {
-      const r = wrap.getBoundingClientRect();
-      const x = e.clientX - r.left, y = e.clientY - r.top;
-      const pt = closestOnRect(x, y);
-      const dist = Math.hypot(x - pt.x, y - pt.y);
-      if (!grabbed && dist < GRAB) grabbed = true;
-      else if (grabbed && dist > RELEASE) grabbed = false;
-      if (grabbed) { px = x; py = y; }
+    function clampPull(dx, dy) {
+      const dist = Math.hypot(dx, dy);
+      if (dist <= MAX_PULL) return { x: dx, y: dy };
+      const k = MAX_PULL / dist;
+      return { x: dx * k, y: dy * k };
+    }
+
+    btn.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      pointerId = e.pointerId;
+      btn.setPointerCapture(pointerId);
+      measure();
+      btn.dataset.startX = e.clientX;
+      btn.dataset.startY = e.clientY;
       if (!raf) raf = requestAnimationFrame(tick);
-    }, { passive: true });
+    });
 
-    wrap.addEventListener('pointerleave', () => {
-      grabbed = false;
+    btn.addEventListener('pointermove', (e) => {
+      if (!dragging || e.pointerId !== pointerId) return;
+      const dx = e.clientX - parseFloat(btn.dataset.startX);
+      const dy = e.clientY - parseFloat(btn.dataset.startY);
+      const p = clampPull(dx, dy);
+      tox = p.x; toy = p.y;
+    });
+
+    function release(e) {
+      if (!dragging || (pointerId !== null && e.pointerId !== pointerId)) return;
+      dragging = false;
+      pointerId = null;
+      // Отпустили — резинка "стреляет" обратно с небольшим перехлёстом за счёт
+      // текущей vx/vy, оставленной пружиной; просто возвращаем цель в 0.
+      tox = 0; toy = 0;
+      if (!raf) raf = requestAnimationFrame(tick);
+    }
+    btn.addEventListener('pointerup', release);
+    btn.addEventListener('pointercancel', release);
+
+    // Лёгкий hover-отклик на десктопе даже без зажатия — кнопка чуть "дышит"
+    // к курсору, ощущается живой, не только при драге.
+    btn.addEventListener('pointerenter', (e) => {
+      if (dragging) return;
+      const r = btn.getBoundingClientRect();
+      const dx = (e.clientX - (r.left + r.width / 2)) / (r.width / 2);
+      const dy = (e.clientY - (r.top + r.height / 2)) / (r.height / 2);
+      tox = dx * 4; toy = dy * 4;
+      if (!raf) raf = requestAnimationFrame(tick);
+    });
+    btn.addEventListener('pointerleave', (e) => {
+      if (dragging) return;
+      tox = 0; toy = 0;
       if (!raf) raf = requestAnimationFrame(tick);
     });
   })();
@@ -1168,7 +1219,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     if (!eyesWrap || !pupilL || !pupilR) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-    const MAX_OFFSET = 5; // px, радиус "плавания" зрачка внутри линзы
+    const MAX_OFFSET = 15; // px, радиус "плавания" зрачка внутри увеличенной склеры
     let px = 0, py = 0;
     let eyesRaf = null;
 
@@ -1185,8 +1236,8 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     }, { passive: true });
 
     function tickEyes() {
-      const rL = pupilL.parentElement.getBoundingClientRect();
-      const rR = pupilR.parentElement.getBoundingClientRect();
+      const rL = pupilL.closest('.bot-eye').getBoundingClientRect();
+      const rR = pupilR.closest('.bot-eye').getBoundingClientRect();
       const l = moveTo(rL.left + rL.width / 2, rL.top + rL.height / 2, px, py);
       const r = moveTo(rR.left + rR.width / 2, rR.top + rR.height / 2, px, py);
       pupilL.style.transform = `translate(${l.x.toFixed(1)}px, ${l.y.toFixed(1)}px)`;
@@ -1275,6 +1326,10 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
   }
 
   $('btn-finish').addEventListener('click', (e) => {
+    // На случай если сага стартует прямо во время активной эластичной деформации —
+    // сбрасываем inline transform, чтобы не перебивал CSS-transform у .smashed.
+    e.currentTarget.style.transform = '';
+    e.currentTarget.classList.remove('elastic-live');
     haptic('success');
     burstConfetti(e.currentTarget);
     webApp.sendData(JSON.stringify({ action: 'finish_inventory' }));
