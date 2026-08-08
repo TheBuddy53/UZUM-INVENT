@@ -393,8 +393,14 @@
   .btn { border: none; border-radius: var(--r-lg); padding: 16px; font-weight: 900; font-size: 14px; letter-spacing: 0.02em; color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.2s var(--spring); width: 100%; position: relative; overflow: hidden; text-shadow: 0 2px 5px rgba(0,0,0,0.3); }
   .btn:active { transform: scale(0.96) translateY(2px); }
   .btn.primary { background: linear-gradient(135deg, var(--purple-light), var(--purple)); box-shadow: 0 12px 24px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5), inset 0 -4px 12px rgba(0,0,0,0.3); }
-  .btn.finish { background: linear-gradient(135deg, #38E888, #0F9D58); box-shadow: 0 12px 24px var(--green-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 12px rgba(0,0,0,0.3); animation: pulseFinish 3s infinite; will-change: box-shadow, transform; }
-  @keyframes pulseFinish { 0%,100% { box-shadow: 0 12px 24px var(--green-glow), inset 0 2px 4px rgba(255,255,255,0.6); } 50% { box-shadow: 0 16px 32px rgba(52, 199, 123, 0.9), inset 0 2px 4px rgba(255,255,255,0.6); transform: scale(1.02); } }
+  .btn.finish { background: linear-gradient(160deg, #4CFFA0 0%, #38E888 32%, #17B968 60%, #0B7A42 100%); box-shadow: 0 14px 30px var(--green-glow), 0 2px 0 rgba(255,255,255,0.15), inset 0 2px 5px rgba(255,255,255,0.75), inset 0 -6px 14px rgba(0,40,15,0.5), inset 0 1px 0 rgba(255,255,255,0.9); animation: pulseFinish 3s infinite; will-change: box-shadow, transform; position: relative; }
+  /* Диагональный блик-shine + верхняя световая кромка теперь через реальные <span>, а не
+     ::before/::after — те псевдоэлементы уже заняты стеклянной кромкой (.glass-bubble).
+     Без этого приёма кнопка выглядела плоской рядом с фиолетовой (у неё shine через ::after). */
+  .finish-toplight { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 1; background: linear-gradient(180deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.12) 14%, transparent 45%); }
+  .finish-shine { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: inherit; pointer-events: none; z-index: 1; background: linear-gradient(100deg, transparent 35%, rgba(255,255,255,0.4) 48%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0.4) 52%, transparent 65%); background-size: 300% 100%; background-position: 130% 0; animation: pasteShine 3.6s linear infinite; mix-blend-mode: overlay; }
+  .btn.finish span[data-i18n] { position: relative; z-index: 2; }
+  @keyframes pulseFinish { 0%,100% { box-shadow: 0 14px 30px var(--green-glow), 0 2px 0 rgba(255,255,255,0.15), inset 0 2px 5px rgba(255,255,255,0.75), inset 0 -6px 14px rgba(0,40,15,0.5); } 50% { box-shadow: 0 18px 40px rgba(52, 199, 123, 0.95), 0 2px 0 rgba(255,255,255,0.2), inset 0 2px 5px rgba(255,255,255,0.85), inset 0 -6px 14px rgba(0,40,15,0.55); transform: scale(1.02); } }
 
   #btn-paste-wms { position: relative; animation: pasteBreathe 2.6s ease-in-out infinite; will-change: box-shadow, transform; }
   @keyframes pasteBreathe { 0%, 100% { box-shadow: 0 12px 24px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5), inset 0 -4px 12px rgba(0,0,0,0.3); } 50% { box-shadow: 0 16px 40px rgba(157,77,255,0.95), 0 0 30px rgba(157,77,255,0.5), inset 0 2px 4px rgba(255,255,255,0.7), inset 0 -4px 12px rgba(0,0,0,0.3); transform: scale(1.015); } }
@@ -522,11 +528,16 @@
     *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
   }
 
-  /* ===================== СТЕКЛЯННЫЙ ПУЗЫРЬ (Apple-glass edge) =====================
-     Радужная хроматическая кромка + внутренний блик + лёгкое "поглощение" по контуру —
-     как у стеклянного шара на референсе. Реализовано классом .glass-bubble, который
-     навешивается на существующие элементы (лого/карточки/кнопки) через ::before/::after,
-     не меняя их разметку и не задевая существующие box-shadow/border. */
+  /* ===================== СТЕКЛЯННЫЙ ПУЗЫРЬ (Apple Liquid Glass, живой) =====================
+     Референс: у настоящего Liquid Glass "текучесть" не от вращения одного градиента —
+     она от НЕРАВНОМЕРНОЙ, асинхронной пульсации нескольких световых пятен по контуру,
+     которые текут каждое в своём темпе. Поэтому кромка теперь — три независимых слоя:
+     1) bubbleHue: медленное вращение базового радужного тона (было и раньше)
+     2) bubbleDrift: смещение самого градиента (background-position) другим периодом —
+        от этого пятна света "гуляют" по контуру неравномерно, а не крутятся синхронно
+     3) bubbleBreathe на ::after — толщина/яркость блика дышит отдельным, более коротким
+        циклом — контур будто живой, чуть пульсирует сам по себе даже без взаимодействия.
+     Никогда не останавливается (нет транзишена на hover/interaction) — "живёт своей жизнью". */
   .glass-bubble { position: relative; }
   .glass-bubble::before {
     content: ''; position: absolute; inset: -1.5px; border-radius: inherit;
@@ -534,11 +545,12 @@
     background: conic-gradient(from 0deg,
       rgba(255,110,180,0.75), rgba(255,210,120,0.7), rgba(140,255,210,0.7),
       rgba(120,190,255,0.75), rgba(190,140,255,0.75), rgba(255,110,180,0.75));
+    background-size: 220% 220%;
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor; mask-composite: exclude;
     opacity: 0.7; filter: blur(0.3px) saturate(160%);
-    animation: bubbleHue 10s linear infinite;
-    will-change: filter;
+    animation: bubbleHue 10s linear infinite, bubbleDrift 6.5s ease-in-out infinite;
+    will-change: filter, background-position;
   }
   .glass-bubble::after {
     content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 6;
@@ -547,10 +559,25 @@
       radial-gradient(70% 60% at 85% 88%, rgba(120,60,255,0.25), transparent 60%);
     mix-blend-mode: screen;
     opacity: 0.85;
+    animation: bubbleBreathe 4.2s ease-in-out infinite;
+    will-change: opacity, transform;
   }
   @keyframes bubbleHue { 0% { filter: blur(0.3px) hue-rotate(0deg); } 100% { filter: blur(0.3px) hue-rotate(360deg); } }
+  /* Смещение самого градиента внутри своей увеличенной площади (220%) — это и даёт
+     ощущение, что световые пятна "текут" по кромке неравномерно, независимо от hue-rotate. */
+  @keyframes bubbleDrift {
+    0%   { background-position: 0% 50%; }
+    33%  { background-position: 70% 30%; }
+    66%  { background-position: 30% 80%; }
+    100% { background-position: 0% 50%; }
+  }
+  /* Лёгкое "дыхание" блика — контур пузыря никогда полностью не замирает */
+  @keyframes bubbleBreathe {
+    0%, 100% { opacity: 0.85; transform: scale(1); }
+    50% { opacity: 0.62; transform: scale(1.008); }
+  }
   @media (prefers-reduced-motion: reduce) {
-    .glass-bubble::before { animation: none; }
+    .glass-bubble::before, .glass-bubble::after { animation: none; }
   }
   /* На мобильных чуть спокойнее — та же кромка, но без блюра на самом градиенте (дешевле) */
   @media (max-width: 480px) {
@@ -570,7 +597,8 @@
 
   /* Вариант "только кромка" — для элементов, у которых ::after уже занят своей анимацией
      (shine на кнопке WMS, glow на icon-btn) — не трогаем их существующий эффект, добавляем
-     только радужный контур стекла через ::before. */
+     только радужный контур стекла через ::before. Тоже "живой" — drift + hue, без hover-
+     триггеров, дышит постоянно как настоящий Liquid Glass. */
   .glass-edge { position: relative; }
   .glass-edge::before {
     content: ''; position: absolute; inset: -1.5px; border-radius: inherit;
@@ -578,10 +606,11 @@
     background: conic-gradient(from 0deg,
       rgba(255,110,180,0.7), rgba(255,210,120,0.65), rgba(140,255,210,0.65),
       rgba(120,190,255,0.7), rgba(190,140,255,0.7), rgba(255,110,180,0.7));
+    background-size: 220% 220%;
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor; mask-composite: exclude;
     opacity: 0.65; filter: saturate(160%);
-    animation: bubbleHue 10s linear infinite;
+    animation: bubbleHue 10s linear infinite, bubbleDrift 7.2s ease-in-out infinite;
   }
   @media (prefers-reduced-motion: reduce) {
     .glass-edge::before { animation: none; }
@@ -683,7 +712,7 @@
       <span class="shard shard-9"></span><span class="shard shard-10"></span><span class="shard shard-11"></span><span class="shard shard-12"></span>
       <span class="shard shard-13"></span><span class="shard shard-14"></span><span class="shard shard-15"></span><span class="shard shard-16"></span>
       
-      <button class="btn finish glass-bubble glass-bubble--inset glass-bubble--glow" id="btn-finish"><span data-i18n="finish_btn">Завершить инвентаризацию</span></button>
+      <button class="btn finish glass-bubble glass-bubble--inset glass-bubble--glow" id="btn-finish"><span class="finish-toplight"></span><span class="finish-shine"></span><span data-i18n="finish_btn">Завершить инвентаризацию</span></button>
       <div class="finish-hole" id="finish-hole">
         <div class="hole-rim"></div>
         <div class="hole-debris"></div>
@@ -722,7 +751,9 @@
     <div class="format-arrow" data-i18n="format_note">👆 вставьте так же, двумя колонками — прямо как в Excel</div>
   </div>
 
-  <textarea id="paste-textarea" placeholder="118&#9;674&#10;250&#9;132&#10;117&#9;737"></textarea>
+  <div class="glass-edge" style="border-radius: var(--r-lg); position: relative;">
+    <textarea id="paste-textarea" placeholder="118&#9;674&#10;250&#9;132&#10;117&#9;737"></textarea>
+  </div>
   <div class="sheet-meta">
     <span><span data-i18n="sheet_rows">Строк найдено:</span> <span id="parsed-count">0</span></span>
   </div>
@@ -877,10 +908,29 @@
     const data = smallImg.data;
     for (let y = 0; y < GRID_H; y++) {
       const row = y * GRID_W;
+      const rowU = row - GRID_W, rowD = row + GRID_W;
       for (let x = 0; x < GRID_W; x++) {
         const i = row + x;
         const h = bufA[i]; // высота волны в точке, обычно в диапазоне ~[-20, 20]
         const p = i * 4;
+
+        // ---- Градиент высоты (нормаль поверхности) — ключ к "стеклянности" ----
+        // Разница высот соседних точек = наклон поверхности в этой точке. Как в честном
+        // water-shader: наклон определяет, куда "смотрит" микро-грань жидкости, и от этого
+        // считаем псевдо-освещение (диффуз + резкий specular-блик от условного источника
+        // сверху-слева) — именно это даёт объём и "стекло", а не плоскую подсветку пятна.
+        const xL = x > 0 ? bufA[i - 1] : h;
+        const xR = x < GRID_W - 1 ? bufA[i + 1] : h;
+        const yU = y > 0 ? bufA[rowU + x] : h;
+        const yD = y < GRID_H - 1 ? bufA[rowD + x] : h;
+        const slopeX = (xR - xL) * 0.5;
+        const slopeY = (yD - yU) * 0.5;
+        // Диффузное освещение: скалярное произведение нормали с направлением света (0.6,0.6,1)
+        const diffuse = Math.max(0, 0.72 - slopeX * 0.09 - slopeY * 0.09);
+        // Specular: узкий яркий блик там, где наклон близок к "зеркальному" углу к свету —
+        // именно это даёт те резкие белые полосы преломления, как на референсе.
+        const slopeMag = Math.sqrt(slopeX * slopeX + slopeY * slopeY);
+        const specular = Math.pow(Math.max(0, 1 - Math.abs(slopeX + slopeY) * 0.35), 8) * Math.min(1, slopeMag * 0.4);
 
         // Сэмплируем букву только внутри её локальной подобласти сетки, сдвигая выборку
         // по высоте волны — так буква "плывёт" вместе с рябью, проходящей под ней.
@@ -890,20 +940,24 @@
         const letterAlpha = inLetterBox ? letterImgData[(ly * GRID_W_LETTER + lx) * 4 + 3] / 255 : 0;
 
         if (letterAlpha > 0.02) {
-          // Буква: фиолетовый градиентный тон + лёгкая яркостная модуляция от волны —
-          // там, где волна "выше", буква чуть светлее (блик), где "ниже" — темнее (тень).
-          const litten = Math.max(0, Math.min(1, 0.5 + h * 0.025));
-          data[p] = 120 + 70 * litten;
-          data[p + 1] = 60 + 40 * litten;
-          data[p + 2] = 220 + 30 * litten;
-          data[p + 3] = letterAlpha * (150 + h * 3);
+          // Буква: та же диффуз+specular модель, что и у фоновой ряби — буква выглядит
+          // сделанной из того же "жидкого стекла", что и волны под ней. Specular немного
+          // усилен и ближе к чистому белому (не только фиолетовому) — как резкие блики
+          // преломления света на мокром стекле, где яркость "пробивает" собственный цвет.
+          const litten = Math.max(0, Math.min(1, diffuse + specular * 0.85));
+          data[p] = 110 + 130 * litten;
+          data[p + 1] = 55 + 130 * litten;
+          data[p + 2] = 210 + 45 * litten;
+          data[p + 3] = letterAlpha * (150 + h * 3 + specular * 90);
         } else {
-          // Фон: рябь-подсветка волны по всему экрану — видно, как импульс от курсора
-          // реально бежит по фону и отражается от краёв, а не гаснет мгновенно. Немного
-          // ярче, чем раньше, чтобы отскок от края экрана был явно заметен пользователю.
-          const glow = Math.abs(h) * 1.6;
-          data[p] = 150; data[p + 1] = 100; data[p + 2] = 255;
-          data[p + 3] = Math.min(58, glow);
+          // Фон: рябь-подсветка волны по всему экрану, теперь с объёмным светотеневым
+          // рисунком (diffuse) и точечными яркими бликами преломления (specular) поверх —
+          // видно, как импульс от курсора реально бежит по фону, отражается от краёв,
+          // и на гребнях волны вспыхивают острые светлые блики, как на мокром стекле.
+          const glow = Math.abs(h) * 1.5 * diffuse;
+          const specGlow = specular * 260;
+          data[p] = 150 + specGlow * 0.75; data[p + 1] = 100 + specGlow * 0.9; data[p + 2] = 255;
+          data[p + 3] = Math.min(82, glow + specGlow);
         }
       }
     }
