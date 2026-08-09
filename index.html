@@ -240,8 +240,25 @@
   .brand-mark.saga-liftoff {
     width: 200px; height: 200px; border-radius: 40px;
     box-shadow: 0 50px 120px rgba(112,0,255,0.8), 0 0 60px rgba(157,77,255,0.5), inset 0 4px 10px rgba(255,255,255,0.5), inset 0 -10px 24px rgba(0,0,0,0.35);
+    /* Взлёт больше не просто "вырастает на месте" — летит по лёгкой дуге
+       (сначала чуть вверх, затем плавно вниз к цели) со стартовым
+       разгоном первые ~0.4s и последующим торможением, плюс motion blur
+       (4px→0) и лёгкая "пульсация против ветра" в первой трети полёта. */
+    animation: liftoffArc 0.68s cubic-bezier(0.16, 0.9, 0.2, 1) both;
+    will-change: transform, filter, box-shadow;
   }
   .brand-mark.saga-liftoff .mark-letter { font-size: 90px; }
+  @keyframes liftoffArc {
+    0%   { transform: translate3d(var(--saga-tx,0px), var(--saga-ty,0px), 0) scale(0.22, 0.22); filter: blur(4px); }
+    8%   { transform: translate3d(calc(var(--saga-tx,0px) * 0.1), calc(var(--saga-ty,0px) * 0.1 - 14px), 0) scale(0.34, 0.28); filter: blur(5px); }
+    16%  { transform: translate3d(calc(var(--saga-tx,0px) * 0.22), calc(var(--saga-ty,0px) * 0.22 - 26px), 0) scale(0.46, 0.52); filter: blur(4.4px); }
+    26%  { transform: translate3d(calc(var(--saga-tx,0px) * 0.4), calc(var(--saga-ty,0px) * 0.4 - 34px), 0) scale(0.6, 0.7); filter: blur(3.6px); }
+    38%  { transform: translate3d(calc(var(--saga-tx,0px) * 0.58), calc(var(--saga-ty,0px) * 0.58 - 30px), 0) scale(0.76, 0.68); filter: blur(2.6px); }
+    50%  { transform: translate3d(calc(var(--saga-tx,0px) * 0.74), calc(var(--saga-ty,0px) * 0.74 - 20px), 0) scale(0.9, 0.86); filter: blur(1.8px); }
+    64%  { transform: translate3d(calc(var(--saga-tx,0px) * 0.87), calc(var(--saga-ty,0px) * 0.87 - 9px), 0) scale(1.03, 1.0); filter: blur(1px); }
+    78%  { transform: translate3d(calc(var(--saga-tx,0px) * 0.95), calc(var(--saga-ty,0px) * 0.95 - 2px), 0) scale(0.985, 1.01); filter: blur(0.4px); }
+    100% { transform: translate3d(var(--saga-tx,0px), var(--saga-ty,0px), 0) scale(1,1); filter: blur(0px); }
+  }
 
   .brand-mark.saga-rage {
     width: 230px; height: 220px; border-radius: 36px;
@@ -258,27 +275,50 @@
     box-shadow: 0 60px 140px rgba(255,40,40,0.9), 0 0 100px rgba(255,50,50,0.5), inset 0 4px 10px rgba(255,255,255,0.35), inset 0 -12px 26px rgba(0,0,0,0.5);
     animation: smashJolt 0.6s cubic-bezier(0.2,0.9,0.3,1) 2;
   }
-  @keyframes smashJolt { 0% { transform: translate3d(var(--saga-tx,0px), var(--saga-ty,0px), 0) scale(1); } 25% { transform: translate3d(var(--saga-tx,0px), calc(var(--saga-ty,0px) + 18px), 0) scale(1.04, 0.92); } 55% { transform: translate3d(var(--saga-tx,0px), calc(var(--saga-ty,0px) - 5px), 0) scale(0.97, 1.04); } 100% { transform: translate3d(var(--saga-tx,0px), var(--saga-ty,0px), 0) scale(1); } }
+  @keyframes smashJolt { 0% { transform: translate3d(var(--saga-tx,0px), var(--saga-ty,0px), 0) scale(1); filter: blur(0px); } 20% { filter: blur(8px); } 25% { transform: translate3d(var(--saga-tx,0px), calc(var(--saga-ty,0px) + 18px), 0) scale(1.04, 0.92); filter: blur(3px); } 40% { filter: blur(0px); } 55% { transform: translate3d(var(--saga-tx,0px), calc(var(--saga-ty,0px) - 5px), 0) scale(0.97, 1.04); filter: blur(0px); } 100% { transform: translate3d(var(--saga-tx,0px), var(--saga-ty,0px), 0) scale(1); filter: blur(0px); } }
 
   .brand-mark.saga-oops {
     width: 200px; height: 190px; border-radius: 38px;
     background: linear-gradient(135deg, #A855F7, var(--purple));
     box-shadow: 0 40px 90px var(--purple-glow), inset 0 4px 10px rgba(255,255,255,0.5), inset 0 -10px 22px rgba(0,0,0,0.35);
-    animation: oopsShake 0.6s ease-in-out infinite;
+    /* Смущённое переминание с ноги на ногу: медленное покачивание
+       по X + лёгкий наклон, поверх — мелкая нервная дрожь oopsShake. */
+    animation: oopsShake 0.6s ease-in-out infinite, oopsSway 2.2s ease-in-out infinite;
     transition: background 1.2s var(--ease), box-shadow 1.2s var(--ease), transform 1.8s var(--saga-epic), width 1.8s var(--saga-epic), height 1.8s var(--saga-epic);
   }
   @keyframes oopsShake { 0%, 100% { transform: translate3d(var(--saga-tx,0px), var(--saga-ty,0px), 0) rotate(0deg); } 50% { transform: translate3d(calc(var(--saga-tx,0px) - 1.5px), calc(var(--saga-ty,0px) + 1.5px), 0) rotate(-0.8deg); } }
+  @keyframes oopsSway { 0%, 100% { margin-left: 0; rotate: 0deg; } 25% { margin-left: -3px; rotate: -1.2deg; } 50% { margin-left: 0; rotate: 0deg; } 75% { margin-left: 3px; rotate: 1.2deg; } }
   .brand-mark.saga-oops .mark-letter { font-size: 84px; }
 
   .brand-mark.saga-return {
-    /* Якорь (--saga-x/y) равен домашней позиции — просто едем обратно в 0,0
-       относительно якоря, без нужды в отдельной паре home-переменных. */
-    transform: translate3d(0, 0, 0) !important;
-    width: 44px; height: 44px; border-radius: 14px;
+    /* Якорь (--saga-x/y) равен домашней позиции — 0,0 относительно якоря
+       это конечная точка. Вместо прямого прыжка — плавный полёт по дуге
+       (небольшой подъём, затем снижение к цели). ВАЖНО: масштабирование
+       идёт ТОЛЬКО через transform: scale() (GPU-композитинг, без reflow) —
+       width/height не анимируются в keyframes (заданы статично как
+       стартовый размер сцены), это не даёт двойного масштабирования и
+       держит анимацию стабильной даже при просадках FPS. Motion blur
+       нарастает на разгоне и гаснет к посадке; тень получает короткое
+       "послесвечение" перед тем как осесть в исходную. */
+    width: 200px; height: 190px;
+    animation: returnArc 2.0s cubic-bezier(0.3, 0, 0.2, 1) both;
+    border-radius: 14px;
     background: linear-gradient(135deg, #A855F7, var(--purple));
-    box-shadow: 0 10px 25px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 10px rgba(0,0,0,0.3);
+    transform-origin: center center;
   }
-  .brand-mark.saga-return .mark-letter { font-size: 20px; }
+  .brand-mark.saga-return .mark-letter { font-size: 20px; transition: font-size 1.6s var(--saga-epic); }
+  /* Целевой масштаб: 44/200 = 0.22 по ширине, 44/190 ≈ 0.232 по высоте —
+     считаем от исходной 200x190-сцены до финальных 44x44. */
+  @keyframes returnArc {
+    0%   { transform: translate3d(var(--saga-tx,0px), var(--saga-ty,0px), 0) scale(1, 1); filter: blur(0px); box-shadow: 0 40px 90px var(--purple-glow), inset 0 4px 10px rgba(255,255,255,0.5), inset 0 -10px 22px rgba(0,0,0,0.35); }
+    14%  { transform: translate3d(calc(var(--saga-tx,0px) * 0.82), calc(var(--saga-ty,0px) * 0.82 - 16px), 0) scale(0.84, 0.87); filter: blur(2.2px); }
+    30%  { transform: translate3d(calc(var(--saga-tx,0px) * 0.6), calc(var(--saga-ty,0px) * 0.6 - 22px), 0) scale(0.62, 0.65); filter: blur(3.4px); }
+    46%  { transform: translate3d(calc(var(--saga-tx,0px) * 0.4), calc(var(--saga-ty,0px) * 0.4 - 14px), 0) scale(0.44, 0.46); filter: blur(3px); }
+    64%  { transform: translate3d(calc(var(--saga-tx,0px) * 0.22), calc(var(--saga-ty,0px) * 0.22 - 4px), 0) scale(0.32, 0.33); filter: blur(1.8px); }
+    82%  { transform: translate3d(calc(var(--saga-tx,0px) * 0.08), calc(var(--saga-ty,0px) * 0.08 + 2px), 0) scale(0.25, 0.26); filter: blur(0.6px); box-shadow: 0 16px 40px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 10px rgba(0,0,0,0.3); }
+    92%  { transform: translate3d(calc(var(--saga-tx,0px) * 0.015), calc(var(--saga-ty,0px) * 0.015), 0) scale(0.235, 0.245); filter: blur(0px); box-shadow: 0 14px 30px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 10px rgba(0,0,0,0.3); }
+    100% { transform: translate3d(0, 0, 0) scale(0.22, 0.2316); filter: blur(0px); box-shadow: 0 10px 25px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 10px rgba(0,0,0,0.3); }
+  }
 
   /* Лицо и детали (Улучшенная мимика) */
   .mark-face { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; transition: opacity 0.4s ease; }
@@ -289,10 +329,35 @@
   .mark-eye.l { left: 30%; } .mark-eye.r { right: 30%; }
   .mark-eye .pupil { position: absolute; inset: 22%; border-radius: 50%; background: #2a0845; transition: transform 0.4s ease; }
   
-  /* Микромимика: Красные глаза и тряска зрачков */
-  .brand-mark.saga-rage .mark-eye, .brand-mark.saga-smash .mark-eye { background: #FF3B30; box-shadow: 0 0 15px #FF3B30; }
-  .brand-mark.saga-rage .mark-eye .pupil, .brand-mark.saga-smash .mark-eye .pupil { background: #4A0000; animation: pupilShake 0.15s ease-in-out infinite; }
+  /* Микромимика: глаза наливаются кровью ПЛАВНО (0.8s, белый → красный,
+     свечение нарастает вместе с цветом), а не переключаются мгновенно.
+     Моргание идёт поверх — отдельная transform-анимация века (scaleY),
+     не конфликтует с background/box-shadow. */
+  .brand-mark.saga-rage .mark-eye, .brand-mark.saga-smash .mark-eye {
+    background: #FF3B30; box-shadow: 0 0 15px #FF3B30;
+    animation: eyeBloodFill 0.8s var(--ease) forwards, eyeBlinkSeq 0.9s ease-in-out 0.35s 3;
+    transform-origin: center 30%;
+  }
+  @keyframes eyeBloodFill {
+    0%   { background: radial-gradient(circle at 50% 45%, #fff, #fff); box-shadow: 0 0 12px rgba(255,255,255,0.8); }
+    40%  { background: radial-gradient(circle at 50% 45%, #fff 10%, #FFB0A8 55%, #FF6A5C); box-shadow: 0 0 13px rgba(255,110,90,0.7); }
+    100% { background: #FF3B30; box-shadow: 0 0 15px #FF3B30, 0 0 26px rgba(255,59,48,0.55); }
+  }
+  /* Асимметричное моргание: веко смыкается ЧУТЬ медленнее вниз, чем
+     открывается вверх (60% времени на закрытие, 40% на открытие) —
+     задаётся неровным распределением процентов кадров, а не тайминг-функцией. */
+  @keyframes eyeBlinkSeq {
+    0%, 6%, 100% { transform: scaleY(1); }
+    3%  { transform: scaleY(0.65); }
+    4.5% { transform: scaleY(0.06); }
+    6.5% { transform: scaleY(0.4); }
+    8%  { transform: scaleY(1); }
+  }
+  .brand-mark.saga-rage .mark-eye .pupil { background: #4A0000; animation: pupilShake 0.15s ease-in-out infinite; }
   @keyframes pupilShake { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(-2px, 1px); } 50% { transform: translate(2px, -1px); } 75% { transform: translate(-1px, 2px); } }
+  /* Перед самим ударом (smash) зрачки перестают дёргаться и замирают —
+     фиксация на цели, а не продолжение хаотичной тряски из rage. */
+  .brand-mark.saga-smash .mark-eye .pupil { background: #4A0000; animation: none; transform: translate(0, 0) scale(0.85); transition: transform 0.25s var(--ease); }
 
   .mark-brow { position: absolute; top: 34%; width: 15%; height: 4px; border-radius: 4px; background: rgba(30,0,20,0.85); opacity: 0; transition: top 0.4s var(--ease), opacity 0.4s var(--ease), transform 0.4s var(--ease), left 0.4s var(--ease), right 0.4s var(--ease); }
   .mark-brow.l { left: 29%; transform: rotate(18deg); }
@@ -320,12 +385,43 @@
   .brand-mark.saga-oops .mark-brow { opacity: 1; top: 32%; }
   .brand-mark.saga-oops .mark-brow.l { transform: rotate(-14deg); left: 30%; }
   .brand-mark.saga-oops .mark-brow.r { transform: rotate(14deg); right: 30%; }
-  .brand-mark.saga-oops .mark-eye { height: 20%; width: 17%; top: 42%; background: #fff; box-shadow: 0 0 12px #fff; }
-  .brand-mark.saga-oops .mark-eye .pupil { inset: 30%; transform: translateY(2px); background: #2a0845; animation: none; }
+  .brand-mark.saga-oops .mark-eye { height: 20%; width: 17%; top: 42%; background: #fff; box-shadow: 0 0 12px #fff; animation: eyeStressTremble 2.4s ease-out 0.5s; }
+  .brand-mark.saga-oops .mark-eye .pupil { inset: 30%; transform: translateY(2px); background: #2a0845; animation: pupilStressTremble 2.4s ease-out 0.5s; }
+  /* Испуг сразу после удара: глаз чуть дополнительно раскрывается на
+     пике, затем гасящаяся мелкая дрожь размера — "стресс после удара". */
+  @keyframes eyeStressTremble {
+    0%   { transform: scale(1.12); }
+    10%  { transform: scale(1.18); }
+    22%  { transform: scale(0.98); }
+    34%  { transform: scale(1.05); }
+    46%  { transform: scale(0.995); }
+    58%  { transform: scale(1.015); }
+    70%  { transform: scale(1); }
+    100% { transform: scale(1); }
+  }
+  @keyframes pupilStressTremble {
+    0%   { transform: translateY(2px) scale(0.7); }
+    12%  { transform: translateY(2px) scale(0.62); }
+    26%  { transform: translate(1px, 1px) scale(0.85); }
+    38%  { transform: translate(-1px, 2px) scale(0.78); }
+    50%  { transform: translate(1px, 2px) scale(0.83); }
+    64%  { transform: translate(0, 2px) scale(0.8); }
+    100% { transform: translateY(2px) scale(0.8); }
+  }
   .brand-mark.saga-oops .mark-mouth { width: 12%; height: 12%; margin-left: -6%; border-radius: 50%; top: 66%; background: #2a0845; clip-path: none; }
   .brand-mark.saga-oops .mark-blush { background: rgba(255,140,170,0.65); }
   .brand-mark.saga-oops .mark-sweat { opacity: 1; transform: rotate(45deg) scale(1); animation: sweatDrop 1.2s ease-in infinite; }
-  @keyframes sweatDrop { 0% { transform: rotate(45deg) scale(1) translateY(0); opacity: 1; } 100% { transform: rotate(45deg) scale(0.8) translateY(12px); opacity: 0; } }
+  /* Капля не просто падает: сначала "выступает" (растёт на месте из
+     маленькой точки), задерживается на пике, потом срывается и катится
+     вниз с лёгким виляньем по X, вытягиваясь и утончаясь на лету. */
+  @keyframes sweatDrop {
+    0%   { transform: rotate(45deg) scale(0.3) translate(0, 0); opacity: 0; }
+    18%  { transform: rotate(45deg) scale(1.05) translate(0, 0); opacity: 1; }
+    30%  { transform: rotate(45deg) scale(1) translate(0, 0); opacity: 1; }
+    48%  { transform: rotate(47deg) scale(0.96, 1.1) translate(0.6px, 3px); opacity: 1; }
+    68%  { transform: rotate(43deg) scale(0.9, 1.2) translate(-0.5px, 8px); opacity: 0.9; }
+    100% { transform: rotate(45deg) scale(0.75, 1.3) translate(0.3px, 14px); opacity: 0; }
+  }
 
   /* Руки (Кулаки) */
   .mark-arm { position: absolute; top: 50%; width: 15%; height: 36px; margin-top: -18px; background: linear-gradient(180deg, #FF7A7A, #B21212); border-radius: 10px; opacity: 0; pointer-events: none; box-shadow: 0 5px 16px rgba(180,20,20,0.6), inset 0 2px 4px rgba(255,255,255,0.4); transition: opacity 0.35s ease, transform 0.5s var(--spring); }
@@ -336,8 +432,9 @@
   .mark-arm.r .fist { right: -19px; top: 50%; margin-top: -14px; }
 
   .brand-mark.saga-rage .mark-arm, .brand-mark.saga-smash .mark-arm { opacity: 1; }
-  .brand-mark.saga-rage .mark-arm.l, .brand-mark.saga-smash .mark-arm.l { transform: translateX(-6px) rotate(-16deg) scale(1); }
-  .brand-mark.saga-rage .mark-arm.r, .brand-mark.saga-smash .mark-arm.r { transform: translateX(6px) rotate(16deg) scale(1); }
+  /* Кулаки выезжают не синхронно: сначала левый, с небольшой задержкой — правый. */
+  .brand-mark.saga-rage .mark-arm.l, .brand-mark.saga-smash .mark-arm.l { transform: translateX(-6px) rotate(-16deg) scale(1); transition: opacity 0.35s ease, transform 0.5s var(--spring); }
+  .brand-mark.saga-rage .mark-arm.r, .brand-mark.saga-smash .mark-arm.r { transform: translateX(6px) rotate(16deg) scale(1); transition: opacity 0.35s ease 0.12s, transform 0.5s var(--spring) 0.12s; }
   .brand-mark.saga-smash .mark-arm.l { animation: punchLeft 0.6s cubic-bezier(0.2,0.9,0.3,1) 2; }
   .brand-mark.saga-smash .mark-arm.r { animation: punchRight 0.6s cubic-bezier(0.2,0.9,0.3,1) 2; }
   @keyframes punchLeft { 0% { transform: translateX(-6px) rotate(-16deg) scale(1); } 40% { transform: translateX(12px) translateY(50px) rotate(6deg) scale(1.08); } 100% { transform: translateX(-6px) rotate(-16deg) scale(1); } }
