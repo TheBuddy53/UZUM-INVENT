@@ -168,9 +168,15 @@
     position: relative; overflow: visible; cursor: pointer;
     transform: translateZ(0) scale(1);
     transition: transform 0.4s var(--ease);
+    touch-action: none;
     z-index: 2;
   }
-  .brand-mark:active:not(.saga-playing) { transform: scale(0.92) translateZ(0); }
+  /* Пока эластика JS активно пишет transform каждый кадр — снимаем CSS-transition,
+     иначе он "тормозит" каждое обновление кадра пружины, деформация будет вязкой,
+     а не резкой/сочной (тот же паттерн, что у finish/paste-wms). */
+  .brand-mark.elastic-live { transition: none; }
+  /* :active-скейл убран — теперь на клике/драге лого отвечает JS-эластика
+     (makeElasticButton), которая даёт тот же "нажим", но с пружинным перехлёстом. */
 
   /* Сюжетный режим — логотип в теле */
   .brand-mark.saga-playing {
@@ -306,6 +312,163 @@
   @keyframes punchRight { 0% { transform: translateX(6px) rotate(16deg) scale(1); } 40% { transform: translateX(-12px) translateY(50px) rotate(-6deg) scale(1.08); } 100% { transform: translateX(6px) rotate(16deg) scale(1); } }
 
   .brand-mark.saga-oops .mark-arm { opacity: 0; transform: translateX(0) scale(0.6); transition: opacity 0.4s ease, transform 0.5s var(--ease); }
+
+  /* ================= РАСШИРЕННАЯ 30-СЕК САГА =================
+     Новые фазы поверх существующих (rage/smash/oops/return остаются
+     как есть и переиспользуются во второй половине сцены). */
+
+  /* ---- Фаза 1: закипание — вибрация нарастает 3.0-6.0s ---- */
+  .brand-mark.saga-quake-soft { animation: quakeSoft 0.18s linear infinite; }
+  .brand-mark.saga-quake-hard { animation: quakeHard 0.09s linear infinite; }
+  @keyframes quakeSoft { 0%,100% { transform: translate(0,0); } 50% { transform: translate(0, -1.4px); } }
+  @keyframes quakeHard { 0% { transform: translate(-1px,-2px) rotate(-0.6deg); } 25% { transform: translate(2px,1px) rotate(0.5deg); } 50% { transform: translate(-2px,2px) rotate(-0.5deg); } 75% { transform: translate(1px,-1px) rotate(0.6deg); } 100% { transform: translate(-1px,-2px) rotate(-0.6deg); } }
+  /* Зрачки чуть пульсируют, глаз наливается красным ДО прыжка — отдельно от
+     финальной ярости smash, чтобы закипание читалось постепенно. */
+  .brand-mark.saga-quake-soft .mark-eye .pupil,
+  .brand-mark.saga-quake-hard .mark-eye .pupil { animation: pupilPulse 0.9s ease-in-out infinite; }
+  @keyframes pupilPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(0.72); } }
+  .brand-mark.saga-quake-hard .mark-eye,
+  .brand-mark.saga-breathe .mark-eye,
+  .brand-mark.saga-glitch .mark-eye,
+  .brand-mark.saga-crouch2 .mark-eye,
+  .brand-mark.saga-jump2 .mark-eye,
+  .brand-mark.saga-land2 .mark-eye { background: #FF3B30; box-shadow: 0 0 16px #FF3B30, 0 0 30px rgba(255,59,48,0.5); transition: background 0.5s ease, box-shadow 0.5s ease; }
+  .brand-mark.saga-quake-hard .mark-brow,
+  .brand-mark.saga-breathe .mark-brow,
+  .brand-mark.saga-glitch .mark-brow,
+  .brand-mark.saga-crouch2 .mark-brow,
+  .brand-mark.saga-jump2 .mark-brow,
+  .brand-mark.saga-land2 .mark-brow { opacity: 1; top: 37%; transition: top 0.8s ease, opacity 0.8s ease; }
+  .brand-mark.saga-quake-hard .mark-brow.l,
+  .brand-mark.saga-breathe .mark-brow.l,
+  .brand-mark.saga-glitch .mark-brow.l,
+  .brand-mark.saga-crouch2 .mark-brow.l,
+  .brand-mark.saga-jump2 .mark-brow.l,
+  .brand-mark.saga-land2 .mark-brow.l { transform: rotate(24deg); }
+  .brand-mark.saga-quake-hard .mark-brow.r,
+  .brand-mark.saga-breathe .mark-brow.r,
+  .brand-mark.saga-glitch .mark-brow.r,
+  .brand-mark.saga-crouch2 .mark-brow.r,
+  .brand-mark.saga-jump2 .mark-brow.r,
+  .brand-mark.saga-land2 .mark-brow.r { transform: rotate(-24deg); }
+
+  /* ---- Squash & Stretch перед каждым прыжком ---- */
+  .brand-mark.saga-crouch { transform: scaleY(0.68) scaleX(1.28) !important; transition: transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .brand-mark.saga-crouch2 { transform: scaleY(0.58) scaleX(1.4) !important; transition: transform 0.4s cubic-bezier(0.34, 1.9, 0.64, 1); }
+
+  /* ---- Motion Blur — активен во время полёта, ось движения = вертикаль ---- */
+  .motion-blur { filter: blur(0px); }
+  .brand-mark.saga-jump1 .motion-blur-layer,
+  .brand-mark.saga-jump2 .motion-blur-layer { }
+  .brand-mark.saga-jump1,
+  .brand-mark.saga-jump2 {
+    animation: motionBlurPulse 0.28s ease-in-out infinite alternate;
+  }
+  @keyframes motionBlurPulse {
+    0% { filter: blur(0px); }
+    100% { filter: blur(2.5px) brightness(1.08); }
+  }
+
+  /* ---- Прыжок 1: плавный кинематографичный взлёт (150-200px) ---- */
+  .brand-mark.saga-jump1 {
+    left: var(--saga-target-x, 50vw) !important; top: var(--saga-target-y, 50vh) !important;
+    transform: translateY(-180px) scaleY(1.15) scaleX(0.9) !important;
+    transition: top 1.7s cubic-bezier(0.4, 0.0, 0.2, 1), left 1.7s cubic-bezier(0.4, 0.0, 0.2, 1), transform 1.7s cubic-bezier(0.4, 0.0, 0.2, 1);
+  }
+  /* ---- Приземление 1 — тяжёлый удар вниз, лёгкий squash при контакте ---- */
+  .brand-mark.saga-land1 {
+    left: var(--saga-target-x, 50vw) !important; top: var(--saga-target-y, 50vh) !important;
+    transform: translateY(0) scaleY(0.82) scaleX(1.18) !important;
+    transition: top 0.32s cubic-bezier(0.7, 0, 1, 1), transform 0.32s cubic-bezier(0.7, 0, 1, 1);
+  }
+  body.saga-shake1 .wrap, body.saga-shake1 #mesh { animation: interfaceKick 0.32s cubic-bezier(0.36,0.07,0.19,0.97) 1; }
+
+  /* ---- Прыжок 2: выше и агрессивнее ---- */
+  .brand-mark.saga-jump2 {
+    left: var(--saga-target-x, 50vw) !important; top: var(--saga-target-y, 50vh) !important;
+    transform: translateY(-260px) scaleY(1.22) scaleX(0.85) rotate(-3deg) !important;
+    transition: top 1.5s cubic-bezier(0.3, 0.0, 0.15, 1), left 1.5s cubic-bezier(0.3, 0.0, 0.15, 1), transform 1.5s cubic-bezier(0.3, 0.0, 0.15, 1);
+  }
+  .brand-mark.saga-land2 {
+    left: var(--saga-target-x, 50vw) !important; top: var(--saga-target-y, 50vh) !important;
+    transform: translateY(0) scaleY(0.72) scaleX(1.3) !important;
+    transition: top 0.26s cubic-bezier(0.7, 0, 1, 1), transform 0.26s cubic-bezier(0.7, 0, 1, 1);
+  }
+  body.saga-shake2 .wrap, body.saga-shake2 #mesh { animation: interfaceKick2 0.5s cubic-bezier(0.36,0.07,0.19,0.97) 1; }
+  @keyframes interfaceKick2 {
+    0% { transform: translate(0,0) rotate(0deg) scale(1); }
+    10% { transform: translate(-14px, 9px) rotate(-1.6deg) scale(1.015); }
+    26% { transform: translate(13px, -11px) rotate(1.4deg) scale(0.99); }
+    44% { transform: translate(-9px, 7px) rotate(-0.9deg) scale(1.008); }
+    62% { transform: translate(6px, -4px) rotate(0.6deg) scale(1); }
+    80% { transform: translate(-3px, 2px) rotate(-0.25deg) scale(1); }
+    100% { transform: translate(0,0) rotate(0deg) scale(1); }
+  }
+
+  /* ---- Glitch — RGB-канальный сдвиг перед вторым прыжком ---- */
+  .brand-mark.saga-glitch { animation: glitchShift 0.09s steps(2) infinite; }
+  .brand-mark.saga-glitch::before,
+  .brand-mark.saga-glitch::after {
+    content: ''; position: absolute; inset: 0; border-radius: inherit;
+    background: inherit; mix-blend-mode: screen; pointer-events: none; opacity: 0.55;
+  }
+  .brand-mark.saga-glitch::before { transform: translate(3px, 0); filter: hue-rotate(90deg) saturate(3); animation: glitchSlideA 0.12s steps(2) infinite; }
+  .brand-mark.saga-glitch::after { transform: translate(-3px, 0); filter: hue-rotate(-90deg) saturate(3); animation: glitchSlideB 0.14s steps(2) infinite; }
+  @keyframes glitchShift { 0% { transform: translate(0,0); } 25% { transform: translate(-2px, 1px); } 50% { transform: translate(2px, -1px); } 75% { transform: translate(-1px, -1px); } 100% { transform: translate(0,0); } }
+  @keyframes glitchSlideA { 0% { transform: translate(3px, 0); } 50% { transform: translate(-2px, 1px); } 100% { transform: translate(3px, 0); } }
+  @keyframes glitchSlideB { 0% { transform: translate(-3px, 0); } 50% { transform: translate(2px, -1px); } 100% { transform: translate(-3px, 0); } }
+
+  /* ---- Тяжёлое дыхание между прыжками ---- */
+  .brand-mark.saga-breathe { animation: breatheHeavy 0.75s ease-in-out infinite; }
+  @keyframes breatheHeavy { 0%,100% { transform: scale(1.05); } 50% { transform: scale(0.95); } }
+
+  /* ---- Трещина на кнопке "Завершить инвентаризацию" ---- */
+  .btn.finish.cracked {
+    background-image:
+      linear-gradient(180deg, #4CFFA0 0%, #38E888 32%, #17B968 60%, #0B7A42 100%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'%3E%3Cg fill='none' stroke='%23063D1F' stroke-width='1.6' stroke-linecap='round' opacity='0.85'%3E%3Cpath d='M100 30 L70 8 M100 30 L60 30 M100 30 L78 54 M100 30 L128 6 M100 30 L142 22 M100 30 L136 48 M70 8 L58 2 M60 30 L38 26 M78 54 L64 58'/%3E%3C/g%3E%3C/svg%3E");
+    background-blend-mode: normal, normal;
+    box-shadow: 0 14px 30px var(--green-glow), 0 2px 0 rgba(255,255,255,0.15), inset 0 2px 5px rgba(255,255,255,0.75), inset 0 -6px 14px rgba(0,40,15,0.5), inset 0 0 24px rgba(255,60,40,0.35);
+    animation: crackGlow 1.1s ease-in-out infinite, pulseFinish 3s infinite;
+  }
+  @keyframes crackGlow { 0%,100% { filter: drop-shadow(0 0 0 rgba(255,60,40,0)); } 50% { filter: drop-shadow(0 0 6px rgba(255,120,40,0.6)); } }
+
+  /* ---- Фаза 4: рука с пистолетом на логотипе (переиспользует .mark-arm) ---- */
+  .mark-gun { position: absolute; left: 100%; top: 50%; width: 26px; height: 10px; margin: -5px 0 0 -4px; opacity: 0; transition: opacity 0.25s ease; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); }
+  .mark-gun-flash { position: absolute; left: 100%; top: 50%; width: 0; height: 0; margin-left: 14px; transform: translateY(-50%); border-radius: 50%; background: radial-gradient(circle, #FFFCEF 0%, #FFF2B0 20%, #FFD84D 42%, rgba(255,120,0,0.65) 68%, transparent 78%); opacity: 0; }
+  .brand-mark.saga-armout .mark-arm,
+  .brand-mark.saga-aim .mark-arm,
+  .brand-mark.saga-fire .mark-arm { opacity: 1; }
+  .brand-mark.saga-armout .mark-gun,
+  .brand-mark.saga-aim .mark-gun,
+  .brand-mark.saga-fire .mark-gun { opacity: 1; }
+  .brand-mark.saga-fire .mark-gun-flash { animation: markMuzzleFlash 0.3s ease-out; }
+  @keyframes markMuzzleFlash { 0% { width:0; height:0; opacity:0; } 20% { width:34px; height:34px; opacity:1; } 100% { width:6px; height:6px; opacity:0; } }
+  .brand-mark.saga-armout .mark-arm.l { transform: translate(-46px, 30px) rotate(-58deg) scale(1); transition: transform 0.9s var(--spring); }
+  .brand-mark.saga-armout .mark-arm.r { transform: translate(46px, 30px) rotate(58deg) scale(1); transition: transform 0.9s var(--spring); }
+  .brand-mark.saga-aim .mark-arm.l,
+  .brand-mark.saga-aim .mark-arm.r { animation: aimTremble 0.11s ease-in-out infinite; }
+  .brand-mark.saga-aim .mark-arm.l { transform: translate(-30px, 46px) rotate(-80deg) scale(1); }
+  .brand-mark.saga-aim .mark-arm.r { transform: translate(30px, 46px) rotate(80deg) scale(1); }
+  @keyframes aimTremble { 0%,100% { margin-top: -18px; } 50% { margin-top: -16px; } }
+  .brand-mark.saga-fire .mark-arm.l { transform: translate(-30px, 44px) rotate(-80deg) scale(1); }
+  .brand-mark.saga-fire .mark-arm.r { transform: translate(30px, 44px) rotate(80deg) scale(1); }
+  /* Пупилы фокусируются в центре на игрока во время aim/fire */
+  .brand-mark.saga-aim .mark-eye .pupil,
+  .brand-mark.saga-fire .mark-eye .pupil { transform: translate(0, 0) scale(1); transition: transform 0.5s var(--ease); }
+
+  /* ---- Вспышка выстрела на весь экран ---- */
+  #saga-fire-flash { position: fixed; inset: 0; z-index: 998; background: #fff; opacity: 0; pointer-events: none; }
+  #saga-fire-flash.show { animation: fireFlash 0.9s ease-out forwards; }
+  @keyframes fireFlash { 0% { opacity: 0; } 6% { opacity: 1; } 100% { opacity: 0; } }
+
+  /* ---- Финальная неловкость: бегающие зрачки + румянец + капля пота ---- */
+  .brand-mark.saga-awkward .mark-eye .pupil { animation: pupilLookAround 2.6s ease-in-out infinite; }
+  @keyframes pupilLookAround { 0%,100% { transform: translate(0,0); } 20% { transform: translate(-3px, 0); } 45% { transform: translate(3px, 1px); } 70% { transform: translate(-2px, -1px); } 90% { transform: translate(1px, 0); } }
+  .brand-mark.saga-awkward .mark-blush { opacity: 0.7; transition: opacity 0.6s ease; }
+  .brand-mark.saga-awkward .mark-sweat { opacity: 1; animation: sweatDrop 1.4s ease-in infinite; }
+  .brand-mark.saga-awkward .mark-brow.l { transform: rotate(-10deg); }
+  .brand-mark.saga-awkward .mark-brow.r { transform: rotate(10deg); }
 
   /* Вспышка удара */
   .brand-mark .impact-flash { position: absolute; left: 50%; bottom: -16px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: radial-gradient(circle, #fff, rgba(255,230,140,0.95) 40%, transparent 75%); opacity: 0; pointer-events: none; }
@@ -701,7 +864,9 @@
   /* ---------- ТРЯСКА ВСЕГО ИНТЕРФЕЙСА ----------
      body.eye-rampage-shake — нарастающая тряска всего приложения, кроме самого
      оверлея глаза (у него свой fixed-слой, не участвует в общем transform). */
-  body.eye-rampage-shake > *:not(.bot-eye):not(#eye-crack-overlay):not(#toast) {
+  body.eye-rampage-shake .wrap,
+  body.eye-rampage-shake #mesh,
+  body.eye-rampage-shake #noise {
     animation: interfaceShake 0.42s linear infinite;
   }
   @keyframes interfaceShake {
@@ -718,7 +883,9 @@
     100% { transform: translate(0, 0) rotate(0deg); }
   }
   /* Разовый резкий удар в момент выстрела — сильнее и короче, поверх обычной тряски. */
-  body.eye-rampage-kick > *:not(.bot-eye):not(#eye-crack-overlay):not(#toast) {
+  body.eye-rampage-kick .wrap,
+  body.eye-rampage-kick #mesh,
+  body.eye-rampage-kick #noise {
     animation: interfaceKick 0.35s cubic-bezier(0.36, 0.07, 0.19, 0.97) 1;
   }
   @keyframes interfaceKick {
@@ -759,50 +926,17 @@
     100% { translate: 0 0; }
   }
 
+  /* Пистолет — силуэт USP-тактикал (затвор + глушитель + спусковая скоба)
+     нарисован одним inline SVG вместо стопки CSS-полосок: так форма реально
+     читается как пистолет, а не как прямоугольник-"молоток". */
   .bot-gun {
-    position: absolute; top: -13px; left: 50%; width: 34px; height: 13px; margin-left: -6px;
+    position: absolute; top: -15px; left: 50%; width: 46px; height: 17px; margin-left: -8px;
     filter: drop-shadow(0 2px 3px rgba(0,0,0,0.6));
   }
-  /* Корпус/затвор пистолета — двухтоновый металл со сталью и бликом-полосой,
-     имитирующей отражение света вдоль ствола, как на реальном воронёном металле. */
-  .bot-gun-body {
-    position: absolute; inset: 0; border-radius: 2px 3px 3px 2px;
-    background:
-      linear-gradient(180deg, rgba(255,255,255,0.35) 0%, transparent 22%, transparent 78%, rgba(0,0,0,0.3) 100%),
-      linear-gradient(180deg, #6A6A74 0%, #3E3E46 38%, #232328 70%, #101012 100%);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -1px 0 rgba(0,0,0,0.5);
-  }
-  /* тонкая световая полоса-блик вдоль верхней грани ствола */
-  .bot-gun-body::after {
-    content: ''; position: absolute; top: 1px; left: 8%; width: 70%; height: 1.2px;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.85), transparent);
-    border-radius: 1px;
-  }
-  .bot-gun-body::before {
-    /* рукоять пистолета — с рифлением через повторяющийся линейный градиент */
-    content: ''; position: absolute; left: 0; top: 100%; width: 9px; height: 13px;
-    background:
-      repeating-linear-gradient(115deg, rgba(0,0,0,0.35) 0px, rgba(0,0,0,0.35) 1px, transparent 1px, transparent 3px),
-      linear-gradient(180deg, #3A3A40, #131316);
-    border-radius: 0 0 3px 2px;
-    box-shadow: inset 1px 0 0 rgba(255,255,255,0.08);
-  }
-  /* мушка на конце ствола */
-  .bot-gun::after {
-    content: ''; position: absolute; right: 2px; top: -2px; width: 2px; height: 4px;
-    background: linear-gradient(180deg, #8A8A92, #333338); border-radius: 1px 1px 0 0;
-  }
-  /* курок — маленький изогнутый элемент под корпусом, чуть двигается на fire */
-  .bot-gun-trigger {
-    position: absolute; left: 30%; top: 92%; width: 3px; height: 6px;
-    background: linear-gradient(180deg, #4A4A52, #1C1C1F);
-    border-radius: 0 0 2px 2px; transform-origin: top center; transform: rotate(0deg);
-    transition: transform 0.15s ease;
-  }
-  .bot-eye.eye-fire .bot-gun-trigger { transform: rotate(22deg); }
+  .bot-gun svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 
   .bot-gun-muzzle-flash {
-    position: absolute; right: -14px; top: 50%; width: 0; height: 0;
+    position: absolute; right: -16px; top: 44%; width: 0; height: 0;
     transform: translateY(-50%);
     background: radial-gradient(circle, #FFFCEF 0%, #FFF2B0 20%, #FFD84D 42%, rgba(255,120,0,0.65) 68%, transparent 78%);
     border-radius: 50%; opacity: 0;
@@ -817,7 +951,7 @@
   /* Дымок после выстрела — лёгкое размытое облачко, тает медленно, добавляет
      ощущение "порохового дыма" вместо мгновенного исчезновения вспышки. */
   .bot-gun-smoke {
-    position: absolute; right: -8px; top: 50%; width: 8px; height: 8px;
+    position: absolute; right: -10px; top: 44%; width: 8px; height: 8px;
     margin-top: -4px; border-radius: 50%;
     background: radial-gradient(circle, rgba(220,220,225,0.5), transparent 70%);
     opacity: 0; filter: blur(2px);
@@ -831,6 +965,20 @@
     0% { opacity: 0; transform: translateY(0) scale(1); }
     15% { opacity: 0.7; }
     100% { opacity: 0; transform: translateY(-22px) scale(3.2); }
+  }
+  .bot-gun-trigger-svg { transform-origin: 24.4px 12.4px; transition: transform 0.15s ease; }
+  .bot-eye.eye-fire .bot-gun-trigger-svg { transform: rotate(20deg); }
+  /* Гильза — вылетает вбок-вверх из окна выброса в момент выстрела, крутясь. */
+  .bot-gun-casing {
+    position: absolute; right: 10px; top: 2px; width: 3px; height: 5px;
+    border-radius: 0.5px; background: linear-gradient(180deg, #E8C46A, #B8923A);
+    opacity: 0; transform: translate(0, 0) rotate(0deg);
+  }
+  .bot-eye.eye-fire .bot-gun-casing { animation: casingEject 0.55s cubic-bezier(0.2, 0.7, 0.4, 1) forwards; }
+  @keyframes casingEject {
+    0% { opacity: 0; transform: translate(0, 0) rotate(0deg); }
+    10% { opacity: 1; }
+    100% { opacity: 0; transform: translate(14px, -16px) rotate(420deg); }
   }
 
   /* ---------- ЛОКАЛЬНЫЕ ТРЕЩИНЫ НА САМОМ ГЛАЗЕ (мгновенно на shatter) ---------- */
@@ -1186,7 +1334,23 @@
           </span>
           <span class="mark-vein l"></span><span class="mark-vein r"></span>
           <span class="mark-arm l" id="arm-l"><span class="fist"></span></span>
-          <span class="mark-arm r" id="arm-r"><span class="fist"></span></span>
+          <span class="mark-arm r" id="arm-r"><span class="fist"></span>
+            <svg class="mark-gun" viewBox="0 0 46 17" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <defs>
+                <linearGradient id="gunMetalM" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#7A7A84"/>
+                  <stop offset="40%" stop-color="#45454E"/>
+                  <stop offset="100%" stop-color="#131316"/>
+                </linearGradient>
+              </defs>
+              <rect x="0" y="5" width="17" height="6" rx="2.4" fill="url(#gunMetalM)"/>
+              <rect x="16" y="3.5" width="20" height="6.5" rx="1.2" fill="url(#gunMetalM)"/>
+              <rect x="34.5" y="1.6" width="1.6" height="2.4" fill="#8A8A92"/>
+              <rect x="18" y="9.6" width="12" height="3" rx="1" fill="#2C2C31"/>
+              <rect x="26" y="9.8" width="7.5" height="7" rx="1.2" fill="#1A1A1D"/>
+            </svg>
+            <span class="mark-gun-flash"></span>
+          </span>
           <span class="impact-flash"></span>
         </div>
       </div>
@@ -1257,8 +1421,41 @@
         </span>
         <span class="bot-arm">
           <span class="bot-gun">
-            <span class="bot-gun-body"></span>
-            <span class="bot-gun-trigger"></span>
+            <svg viewBox="0 0 46 17" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <defs>
+                <linearGradient id="gunMetalL" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#7A7A84"/>
+                  <stop offset="40%" stop-color="#45454E"/>
+                  <stop offset="100%" stop-color="#131316"/>
+                </linearGradient>
+              </defs>
+              <!-- глушитель -->
+              <rect x="0" y="5" width="17" height="6" rx="2.4" fill="url(#gunMetalL)"/>
+              <rect x="1" y="6.1" width="15" height="0.9" rx="0.4" fill="rgba(255,255,255,0.35)"/>
+              <line x1="6" y1="5" x2="6" y2="11" stroke="rgba(0,0,0,0.4)" stroke-width="0.6"/>
+              <line x1="11" y1="5" x2="11" y2="11" stroke="rgba(0,0,0,0.4)" stroke-width="0.6"/>
+              <!-- ствол/затвор -->
+              <rect x="16" y="3.5" width="20" height="6.5" rx="1.2" fill="url(#gunMetalL)"/>
+              <rect x="17" y="4.3" width="16" height="0.9" rx="0.4" fill="rgba(255,255,255,0.4)"/>
+              <!-- насечки прицела на затворе -->
+              <line x1="20" y1="3.5" x2="20" y2="6" stroke="rgba(0,0,0,0.35)" stroke-width="0.7"/>
+              <line x1="22.4" y1="3.5" x2="22.4" y2="6" stroke="rgba(0,0,0,0.35)" stroke-width="0.7"/>
+              <line x1="24.8" y1="3.5" x2="24.8" y2="6" stroke="rgba(0,0,0,0.35)" stroke-width="0.7"/>
+              <!-- мушка -->
+              <rect x="34.5" y="1.6" width="1.6" height="2.4" fill="#8A8A92"/>
+              <!-- рамка/корпус ниже затвора -->
+              <rect x="18" y="9.6" width="12" height="3" rx="1" fill="#2C2C31"/>
+              <!-- спусковая скоба -->
+              <path d="M22 12.2 Q22 15.6 25.4 15.6" fill="none" stroke="#1C1C1F" stroke-width="1.6" stroke-linecap="round"/>
+              <!-- курок -->
+              <rect class="bot-gun-trigger-svg" x="23.6" y="12.4" width="1.6" height="3" rx="0.6" fill="#1C1C1F"/>
+              <!-- рукоять с рифлением -->
+              <rect x="26" y="9.8" width="7.5" height="7" rx="1.2" fill="#1A1A1D"/>
+              <line x1="27.4" y1="10.5" x2="27.4" y2="16.2" stroke="rgba(0,0,0,0.5)" stroke-width="0.5"/>
+              <line x1="29.2" y1="10.5" x2="29.2" y2="16.2" stroke="rgba(0,0,0,0.5)" stroke-width="0.5"/>
+              <line x1="31" y1="10.5" x2="31" y2="16.2" stroke="rgba(0,0,0,0.5)" stroke-width="0.5"/>
+            </svg>
+            <span class="bot-gun-casing"></span>
             <span class="bot-gun-muzzle-flash"></span>
             <span class="bot-gun-smoke"></span>
           </span>
@@ -1276,8 +1473,33 @@
         </span>
         <span class="bot-arm">
           <span class="bot-gun">
-            <span class="bot-gun-body"></span>
-            <span class="bot-gun-trigger"></span>
+            <svg viewBox="0 0 46 17" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <defs>
+                <linearGradient id="gunMetalR" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#7A7A84"/>
+                  <stop offset="40%" stop-color="#45454E"/>
+                  <stop offset="100%" stop-color="#131316"/>
+                </linearGradient>
+              </defs>
+              <rect x="0" y="5" width="17" height="6" rx="2.4" fill="url(#gunMetalR)"/>
+              <rect x="1" y="6.1" width="15" height="0.9" rx="0.4" fill="rgba(255,255,255,0.35)"/>
+              <line x1="6" y1="5" x2="6" y2="11" stroke="rgba(0,0,0,0.4)" stroke-width="0.6"/>
+              <line x1="11" y1="5" x2="11" y2="11" stroke="rgba(0,0,0,0.4)" stroke-width="0.6"/>
+              <rect x="16" y="3.5" width="20" height="6.5" rx="1.2" fill="url(#gunMetalR)"/>
+              <rect x="17" y="4.3" width="16" height="0.9" rx="0.4" fill="rgba(255,255,255,0.4)"/>
+              <line x1="20" y1="3.5" x2="20" y2="6" stroke="rgba(0,0,0,0.35)" stroke-width="0.7"/>
+              <line x1="22.4" y1="3.5" x2="22.4" y2="6" stroke="rgba(0,0,0,0.35)" stroke-width="0.7"/>
+              <line x1="24.8" y1="3.5" x2="24.8" y2="6" stroke="rgba(0,0,0,0.35)" stroke-width="0.7"/>
+              <rect x="34.5" y="1.6" width="1.6" height="2.4" fill="#8A8A92"/>
+              <rect x="18" y="9.6" width="12" height="3" rx="1" fill="#2C2C31"/>
+              <path d="M22 12.2 Q22 15.6 25.4 15.6" fill="none" stroke="#1C1C1F" stroke-width="1.6" stroke-linecap="round"/>
+              <rect class="bot-gun-trigger-svg" x="23.6" y="12.4" width="1.6" height="3" rx="0.6" fill="#1C1C1F"/>
+              <rect x="26" y="9.8" width="7.5" height="7" rx="1.2" fill="#1A1A1D"/>
+              <line x1="27.4" y1="10.5" x2="27.4" y2="16.2" stroke="rgba(0,0,0,0.5)" stroke-width="0.5"/>
+              <line x1="29.2" y1="10.5" x2="29.2" y2="16.2" stroke="rgba(0,0,0,0.5)" stroke-width="0.5"/>
+              <line x1="31" y1="10.5" x2="31" y2="16.2" stroke="rgba(0,0,0,0.5)" stroke-width="0.5"/>
+            </svg>
+            <span class="bot-gun-casing"></span>
             <span class="bot-gun-muzzle-flash"></span>
             <span class="bot-gun-smoke"></span>
           </span>
@@ -1293,6 +1515,7 @@
 <div id="eye-crack-overlay" aria-hidden="true"></div>
 
 <div id="toast"></div>
+<div id="saga-fire-flash" aria-hidden="true"></div>
 
 <div id="sheet-overlay"></div>
 <div id="paste-sheet" class="glass-bubble">
@@ -1598,9 +1821,13 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     const STIFFNESS = opts.stiffness ?? 320;   // жёсткость пружины — выше = быстрее туда-обратно
     const DAMPING = opts.damping ?? 7.5;       // демпфирование — ниже = сильнее и дольше "прыгает"
     const MASS = 1;
-    const MAX_PULL = opts.maxPull ?? 34;       // px — предел, дальше палец/курсор "проскальзывает"
     const STRETCH = opts.stretch ?? 0.95;      // сила squash&stretch деформации
     const FLICK_BOOST = opts.flickBoost ?? 1.35; // множитель доп. импульса при быстром отпускании (свайп)
+    // maxPull может быть числом (px) или функцией (w,h)=>px — вторая нужна для
+    // широких кнопок (finish/paste-wms), у которых фиксированный px-предел на
+    // фоне их же ширины ощущается как "стена": та же амплитуда, что и для
+    // маленькой кнопки языка, на широкой кнопке визуально почти не заметна.
+    const maxPullOpt = opts.maxPull ?? 34;
 
     let w = 0, h = 0;
     let ox = 0, oy = 0;     // текущее смещение (px)
@@ -1610,6 +1837,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     let pointerId = null;
     let raf = null;
     let lastT = 0;
+    let MAX_PULL = typeof maxPullOpt === 'function' ? 34 : maxPullOpt;
     // Скользящее окно скорости пальца за последние ~60ms — нужно, чтобы при
     // быстром свайпе-отпускании "вылет" считался по реальной скорости жеста,
     // а не только по скорости пружины (которая на MAX_PULL уже клампится).
@@ -1618,6 +1846,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     function measure() {
       const r = btn.getBoundingClientRect();
       w = r.width; h = r.height;
+      if (typeof maxPullOpt === 'function') MAX_PULL = maxPullOpt(w, h);
     }
     measure();
     window.addEventListener('resize', measure);
@@ -1630,6 +1859,15 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
 
       btn.classList.add('elastic-live');
 
+      // Если во время активного драга/полёта пружины элемент вдруг занялся
+      // своей анимацией (сага стартовала) — гасим пружину и отдаём transform ей.
+      if (opts.blockedClass && btn.classList.contains(opts.blockedClass)) {
+        ox = 0; oy = 0; vx = 0; vy = 0; tox = 0; toy = 0; dragging = false;
+        btn.style.transform = ''; btn.style.filter = '';
+        btn.classList.remove('elastic-live');
+        raf = null; lastT = 0; return;
+      }
+
       // Классическая физика пружины: F = -k*x - c*v, a = F/m
       const ax = (-STIFFNESS * (ox - tox) - DAMPING * vx) / MASS;
       const ay = (-STIFFNESS * (oy - toy) - DAMPING * vy) / MASS;
@@ -1637,10 +1875,15 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       ox += vx * dt; oy += vy * dt;
 
       const speed = Math.hypot(vx, vy);
-      const stretchX = 1 + Math.min(0.62, Math.abs(ox) / w * STRETCH + speed / 1700);
-      const stretchY = 1 + Math.min(0.62, Math.abs(oy) / h * STRETCH + speed / 1700);
-      const squashX = 1 - Math.min(0.38, Math.abs(oy) / h * STRETCH * 0.45);
-      const squashY = 1 - Math.min(0.38, Math.abs(ox) / w * STRETCH * 0.45);
+      // squash&stretch считаем не только от доли смещения к размеру кнопки
+      // (для широких кнопок это давало почти нулевую деформацию), но и от
+      // абсолютного смещения — так широкая и узкая кнопка тянутся одинаково
+      // "сочно" при сравнимой силе жеста/клика.
+      const pullRatio = Math.min(1, Math.hypot(ox, oy) / MAX_PULL);
+      const stretchX = 1 + Math.min(0.62, (Math.abs(ox) / w + pullRatio * 0.5) * STRETCH + speed / 1700);
+      const stretchY = 1 + Math.min(0.62, (Math.abs(oy) / h + pullRatio * 0.5) * STRETCH + speed / 1700);
+      const squashX = 1 - Math.min(0.38, (Math.abs(oy) / h + pullRatio * 0.35) * STRETCH * 0.45);
+      const squashY = 1 - Math.min(0.38, (Math.abs(ox) / w + pullRatio * 0.35) * STRETCH * 0.45);
       // Лёгкий поворот в сторону вытяжения — усиливает ощущение "тянется", не только масштаб.
       const rot = Math.max(-9, Math.min(9, ox * 0.22));
       btn.style.transform =
@@ -1669,6 +1912,10 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     }
 
     btn.addEventListener('pointerdown', (e) => {
+      // Не начинаем эластичный драг, если элемент занят своей собственной
+      // анимацией (например .brand-mark во время saga-playing уже управляет
+      // transform сама — тянуть его поверх нельзя, будет дёргаться).
+      if (opts.blockedClass && btn.classList.contains(opts.blockedClass)) return;
       // Защита от «залипания»: если предыдущий драг не закрылся штатным
       // pointerup/cancel (например capture был перехвачен скроллом родителя),
       // dragging мог остаться true навсегда, и кнопка переставала реагировать.
@@ -1750,12 +1997,20 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     });
   }
 
-  makeElasticButton($('btn-finish'));
-  makeElasticButton($('btn-paste-wms'), { stiffness: 240, damping: 12, maxPull: 20, stretch: 0.6 });
+  // Сильная, одинаково "сочная" эластика на всех трёх ключевых элементах —
+  // maxPull для широких кнопок задан функцией от их реальной ширины (~28-30%
+  // от w), поэтому амплитуда ощущается так же живо, как у маленькой btn-lang,
+  // а не упирается в невидимый потолок на 34px посреди широкой кнопки.
+  makeElasticButton($('btn-finish'), { stiffness: 260, damping: 9, stretch: 1.05, flickBoost: 1.6, maxPull: (w) => Math.max(30, w * 0.28) });
+  makeElasticButton($('btn-paste-wms'), { stiffness: 300, damping: 9, stretch: 1.0, flickBoost: 1.55, maxPull: (w) => Math.max(26, w * 0.32) });
   // Переключатель языка — маленькая кнопка, поэтому пружина жёстче и короче ход
   // (иначе на 44px-кнопке большая амплитуда выглядит нелепо), но damping ниже,
   // чем у остальных — ей идёт более "дребезжащий", игривый отклик.
   makeElasticButton($('btn-lang'), { stiffness: 380, damping: 8, maxPull: 16, stretch: 0.85, flickBoost: 1.5 });
+  // Лого "U" — та же сочная эластика, что у btn-lang, но блокируется на время
+  // saga-playing (у лого своя click-анимация "разозлился/бьёт", ей нужен
+  // безраздельный контроль над transform — пружина уступает через blockedClass).
+  makeElasticButton($('brand-mark'), { stiffness: 400, damping: 7, maxPull: 18, stretch: 1.1, flickBoost: 1.6, blockedClass: 'saga-playing' });
 
   // ============================================================
   // BOT EYES — глазки под "Uzum Invent Bot" следят за курсором
@@ -1960,10 +2215,10 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         at(() => {
           document.body.classList.remove('eye-rampage-kick');
           el.classList.add('eye-shatter');
-          // Точка удара для трещин/осколков — текущий центр увеличенного глаза
-          // (он теперь fixed и растянут scale(5.x), поэтому берём rect заново).
-          const rf = el.getBoundingClientRect();
-          buildScreenCrack(rf.left + rf.width / 2, rf.top + rf.height / 2);
+          // Точка удара — центр вьюпорта, где глаз уже "висит" на fixed-слое
+          // (--fx/--fy и есть его якорная точка, transform лишь масштабирует
+          // относительно неё, поэтому центр не смещается между фазами).
+          buildScreenCrack(cx, cy);
           if (crackOverlay) { crackOverlay.classList.remove('healing'); crackOverlay.classList.add('show'); }
           haptic('heavy');
         }, 6520);
@@ -2214,12 +2469,8 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       playing = true;
       haptic('medium');
 
-      // На мобильных на время саги ставим на паузу фоновые decorative-анимации
-      // (мерцание орбов, дыхание кнопок, sheen карточек и т.д.) — они всё равно
-      // почти не видны за полноэкранным логотипом и взрывом, а параллельная работа
-      // GPU над ними вместе с растущим/двигающимся логотипом и была главной причиной
-      // подвисаний саги на слабых телефонах. Ничего не удаляется — просто откладывается
-      // на 4.3s самой сцены, после чего всё возобновляется с той же точки цикла.
+      // На мобильных на время саги ставим на паузу фоновые decorative-анимации —
+      // теперь сцена длится ~30s вместо 4.3s, экономия GPU ещё важнее.
       if (isMobile) document.body.classList.add('saga-active');
 
       // --- ПЕРЕМЕЩАЕМ ЛОГОТИП В BODY ---
@@ -2229,8 +2480,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       const targetRect = slot.getBoundingClientRect();
 
       const targetCx = targetRect.left + targetRect.width / 2;
-      // Поднимаем взрыв выше над кнопкой (на 60px выше)
-      const targetTopY = targetRect.top - 178; 
+      const targetTopY = targetRect.top - 178;
 
       setVar(mark, '--saga-home-x', startRect.left + 'px');
       setVar(mark, '--saga-home-y', startRect.top + 'px');
@@ -2239,60 +2489,117 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       setVar(mark, '--saga-target-x', (targetCx - 100) + 'px');
       setVar(mark, '--saga-target-y', targetTopY + 'px');
 
-      const CLASSES = ['saga-liftoff', 'saga-rage', 'saga-smash', 'saga-oops', 'saga-return'];
+      const CLASSES = [
+        'saga-liftoff', 'saga-quake-soft', 'saga-quake-hard', 'saga-crouch',
+        'saga-jump1', 'saga-land1', 'saga-breathe', 'saga-glitch', 'saga-crouch2',
+        'saga-jump2', 'saga-land2', 'saga-armout', 'saga-aim', 'saga-fire',
+        'saga-rage', 'saga-smash', 'saga-oops', 'saga-awkward', 'saga-return',
+      ];
       const TEXT_CLASSES = ['saga-rage', 'saga-oops', 'saga-return'];
       const timers = [];
       const at = (fn, ms) => timers.push(setTimeout(fn, ms));
+      const setPhase = (cls) => { mark.classList.remove(...CLASSES); if (cls) mark.classList.add(cls); };
 
       mark.classList.add('saga-playing');
 
-      // Сцены
-      at(() => { mark.classList.remove(...CLASSES); mark.classList.add('saga-liftoff'); }, 0);
-      
+      // ============================================================
+      // ФАЗА 1 — ЗАКИПАНИЕ (0 - 6s)
+      // ============================================================
+      at(() => setPhase('saga-liftoff'), 0);
+
+      at(() => { setPhase('saga-quake-soft'); }, 1000);
       at(() => {
-        mark.classList.remove(...CLASSES);
-        mark.classList.add('saga-rage');
-        textBlock.classList.remove(...TEXT_CLASSES);
-        textBlock.classList.add('saga-rage'); // Детальный тряс текста
+        mark.classList.add('saga-quake-hard');
+        mark.classList.remove('saga-quake-soft');
         haptic('warning');
-      }, 950);
+      }, 3000);
 
-      // ГЛАВНЫЙ УДАР И ВЗРЫВ
+      // ============================================================
+      // ФАЗА 2 — ПЕРВЫЙ ПРЫЖОК И ТРЕЩИНА (6 - 12s)
+      // ============================================================
+      at(() => { setPhase('saga-crouch'); haptic('light'); }, 6000);
+      at(() => { setPhase('saga-jump1'); haptic('medium'); }, 6800);
       at(() => {
-        mark.classList.remove(...CLASSES);
-        mark.classList.add('saga-smash');
+        setPhase('saga-land1');
+        document.body.classList.add('saga-shake1');
         haptic('heavy');
-        // Рассчитываем позицию взрыва
-        const smashRect = mark.getBoundingClientRect();
-        const cx = smashRect.left + smashRect.width / 2;
-        const cy = smashRect.top + smashRect.height / 2 - 40; // Смещаем эффекты вверх
-        triggerImpact(cx, cy);
-      }, 1750);
-
-      // Ломается кнопка и появляется дыра
+        const r = mark.getBoundingClientRect();
+        triggerImpact(r.left + r.width / 2, r.top + r.height / 2 - 20);
+      }, 8500);
+      at(() => document.body.classList.remove('saga-shake1'), 8900);
       at(() => {
+        finishBtn.classList.add('cracked');
+        haptic('medium');
+      }, 9500);
+      at(() => { setPhase('saga-breathe'); }, 10500);
+
+      // ============================================================
+      // ФАЗА 3 — ВТОРОЙ ПРЫЖОК И SHATTER (12 - 20s)
+      // ============================================================
+      at(() => {
+        setPhase('saga-glitch');
+        haptic('warning');
+      }, 12000);
+      at(() => { setPhase('saga-crouch2'); haptic('light'); }, 13000);
+      at(() => { setPhase('saga-jump2'); haptic('medium'); }, 13500);
+      at(() => {
+        setPhase('saga-land2');
+        document.body.classList.add('saga-shake2');
+        haptic('heavy');
+        const r = mark.getBoundingClientRect();
+        triggerImpact(r.left + r.width / 2, r.top + r.height / 2 - 20);
+      }, 15500);
+      at(() => document.body.classList.remove('saga-shake2'), 16000);
+
+      // Shatter — кнопка окончательно разлетается (переиспользуем smashed/hole,
+      // уже готовую механику "дыры" из исходной саги, плюс второй, более
+      // мощный триггер частиц ровно из центра кнопки).
+      at(() => {
+        finishBtn.classList.remove('cracked');
         finishBtn.classList.add('smashed');
         slot.classList.add('smashed');
         hole.classList.add('hole-active');
         haptic('heavy');
-      }, 2000);
+        const br = finishBtn.getBoundingClientRect();
+        triggerImpact(br.left + br.width / 2, br.top + br.height / 2);
+      }, 16500);
 
-      // Неловкость
+      // ============================================================
+      // ФАЗА 4 — ОРУЖИЕ (20 - 25s)
+      // ============================================================
+      at(() => { setPhase('saga-armout'); haptic('light'); }, 20000);
+      at(() => { setPhase('saga-aim'); haptic('medium'); }, 21500);
       at(() => {
-        mark.classList.remove(...CLASSES);
-        mark.classList.add('saga-oops');
+        mark.classList.add('saga-fire');
+        haptic('heavy');
+        const flash = $('saga-fire-flash');
+        if (flash) { flash.classList.remove('show'); void flash.offsetWidth; flash.classList.add('show'); }
+      }, 23000);
+      at(() => { setPhase('saga-aim'); }, 24000); // сцена "прицелился в камеру" удерживается до выстрела в фазе 5
+
+      // ============================================================
+      // ФАЗА 5 — РАЗВЯЗКА И НЕЛОВКОСТЬ (25 - 30s)
+      // ============================================================
+      at(() => {
+        mark.classList.add('saga-fire');
+        haptic('heavy');
+        const flash = $('saga-fire-flash');
+        if (flash) { flash.classList.remove('show'); void flash.offsetWidth; flash.classList.add('show'); }
+        const r = mark.getBoundingClientRect();
+        triggerImpact(r.left + r.width / 2, r.top + r.height / 2);
+      }, 25000);
+      at(() => { setPhase('saga-oops'); haptic('light'); }, 26000);
+      at(() => {
+        setPhase('saga-awkward');
         textBlock.classList.remove(...TEXT_CLASSES);
-        textBlock.classList.add('saga-oops'); // Медленный тряс текста
-        haptic('light');
-      }, 2450);
-
-      // Возврат
+        textBlock.classList.add('saga-oops');
+      }, 27000);
       at(() => {
-        mark.classList.remove(...CLASSES);
-        mark.classList.add('saga-return');
+        setPhase('saga-return');
         textBlock.classList.remove(...TEXT_CLASSES);
         textBlock.classList.add('saga-return');
-      }, 3350);
+        finishBtn.classList.remove('cracked');
+      }, 29000);
 
       // Финал и сброс состояния
       at(() => {
@@ -2303,7 +2610,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
 
         slot.classList.remove('smashed');
         hole.classList.remove('hole-active');
-        finishBtn.classList.remove('smashed');
+        finishBtn.classList.remove('smashed', 'cracked');
         finishBtn.classList.add('restoring');
         void finishBtn.offsetWidth;
         finishBtn.classList.add('restore-in');
@@ -2311,9 +2618,9 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
 
         // --- ВОЗВРАЩАЕМ ЛОГОТИП ОБРАТНО В КОНТЕЙНЕР ---
         container.appendChild(mark);
-        document.body.classList.remove('saga-active');
+        document.body.classList.remove('saga-active', 'saga-shake1', 'saga-shake2');
         playing = false;
-      }, 4250);
+      }, 29900);
     }
 
     // Если размер окна меняется во время анимации, обновляем цель
