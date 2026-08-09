@@ -27,9 +27,6 @@
     --accent-key-glow: rgba(255, 168, 214, 0.65);
     --green: #34C77B;
     --green-glow: rgba(52, 199, 123, 0.7);
-    --red: #FF3B30;
-    --orange: #FF9F0A;
-    --yellow: #FFD60A;
 
     --r-xl: 24px;
     --r-lg: 16px;
@@ -97,6 +94,17 @@
     color: inherit;
     cursor: pointer;
     outline: none;
+  }
+
+  /* touch-action: manipulation убирает встроенную 300ms задержку тапа в
+     мобильных браузерах/Telegram WebView (двойной тап = zoom всё ещё
+     возможен, поэтому manipulation, а не none) на ВСЕХ интерактивных
+     элементах. Элементы с собственным свайп/драг-жестом (эластичные кнопки,
+     .brand-mark, #liquid-ripple) уже объявляют touch-action: none локально —
+     их специфичность (класс/id) выше этого общего правила, так что здесь
+     они не переопределяются. */
+  button, [type="button"], [role="button"], a, .icon-btn, .lang-switch {
+    touch-action: manipulation;
   }
 
   /* Фоновые эффекты */
@@ -1697,21 +1705,24 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
 
   // ===== БЛОКИРОВКА PULL-TO-REFRESH / PULL-TO-CLOSE (Telegram WebView) =====
   // overscroll-behavior-y в CSS перекрывает большинство случаев, но некоторые
-  // Android WebView (особенно старые) его игнорируют — добавляем JS-предохранитель.
-  // Логика: блокируем touchmove ТОЛЬКО когда жест идёт вниз (пальцем от себя, т.е.
-  // экран должен проскроллиться вверх) И документ уже находится в самом верху —
-  // именно эта комбинация запускает нативный pull-to-refresh/закрытие Mini App.
-  // Обычный скролл внутри страницы (когда есть что скроллить) не трогаем — иначе
-  // сломали бы скролл контента и открытых панелей вроде #paste-sheet.
+  // Android WebView (особенно старые) его игнорируют — добавляем JS-предохранитель
+  // прямо на document.body, как и требует чек-лист телеграма.
+  // Логика: блокируем touchmove ТОЛЬКО когда жест идёт вниз (палец движется от
+  // верха экрана вниз, т.е. страница должна была бы проскроллиться вверх) И
+  // страница уже в самом верху — именно эта комбинация запускает нативный
+  // pull-to-refresh/сворачивание Mini App. Полная безусловная блокировка
+  // touchmove сломала бы обычный скролл страницы и скролл внутри открытой
+  // шторки #paste-sheet — то есть прямо нарушила бы запрет "не убирать
+  // функционал" из ТЗ, поэтому условие обязательно.
   (function preventPullToRefresh() {
     let startY = 0;
 
-    document.addEventListener('touchstart', (e) => {
+    document.body.addEventListener('touchstart', (e) => {
       if (e.touches.length !== 1) return;
       startY = e.touches[0].clientY;
     }, { passive: true });
 
-    document.addEventListener('touchmove', (e) => {
+    document.body.addEventListener('touchmove', (e) => {
       if (e.touches.length !== 1) return;
       const y = e.touches[0].clientY;
       const goingDown = y > startY;
@@ -2264,6 +2275,14 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       function clearTimers() { timers.forEach(clearTimeout); timers = []; }
       function at(fn, ms) { timers.push(setTimeout(fn, ms)); }
 
+      // Защита от утечки: если пользователь сворачивает Mini App или уходит со
+      // страницы посреди ~16s сцены, отменяем все ещё не сработавшие setTimeout —
+      // иначе они всё равно сработают в фоне и будут трогать DOM/классы впустую.
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) clearTimers();
+      });
+      window.addEventListener('pagehide', clearTimers);
+
       function playScene() {
         if (playing || rampageActive) return;
         playing = true;
@@ -2644,6 +2663,14 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       const at = (fn, ms) => timers.push(setTimeout(fn, ms));
       const setPhase = (cls) => { mark.classList.remove(...CLASSES); if (cls) mark.classList.add(cls); };
 
+      // Защита от утечки: если пользователь сворачивает Mini App или уходит со
+      // страницы посреди ~30s саги, отменяем все ещё не сработавшие setTimeout —
+      // иначе они сработают в фоне, дёргая классы/DOM без всякой пользы.
+      function clearSagaTimers() { timers.forEach(clearTimeout); }
+      const onHide = () => { if (document.hidden) clearSagaTimers(); };
+      document.addEventListener('visibilitychange', onHide);
+      window.addEventListener('pagehide', clearSagaTimers, { once: true });
+
       mark.classList.add('saga-playing');
 
       // ============================================================
@@ -2766,6 +2793,9 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         container.appendChild(mark);
         document.body.classList.remove('saga-active', 'saga-shake1', 'saga-shake2');
         playing = false;
+        // Сага доиграла штатно — снимаем per-run listener, чтобы при
+        // повторных запусках playSaga() они не накапливались.
+        document.removeEventListener('visibilitychange', onHide);
       }, 29900);
     }
 
