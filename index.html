@@ -232,6 +232,81 @@
   }
   .brand-mark .mark-letter { position: relative; z-index: 2; transition: opacity 0.4s ease; }
 
+  /* ================= PIXAR-QUALITY LIGHTING LAYER =================
+     Два световых слоя поверх логотипа, работающие вместе как одна система
+     "студийного" освещения:
+       .mark-sheen     — подвижный диагональный блик (как полированный пластик/
+                         стекло), который "переливается" туда-сюда по поверхности
+                         во время движения — не статичный, а едет вслед за фазой.
+       .mark-rim-light — тонкий контровой свет по краю (rim light), даёт объём
+                         и отделяет силуэт от фона на пике полёта/приземления.
+     Оба слоя pointer-events:none и не мешают кликам/сцене. */
+  .mark-sheen {
+    position: absolute; inset: 0; z-index: 4; border-radius: inherit;
+    pointer-events: none; overflow: hidden;
+  }
+  .mark-sheen::before {
+    content: ''; position: absolute; top: -40%; left: -60%; width: 60%; height: 220%;
+    background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.05) 30%, rgba(255,255,255,0.55) 48%, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0.55) 52%, rgba(255,255,255,0.05) 70%, transparent 100%);
+    transform: translateX(-40%) rotate(12deg);
+    filter: blur(0.5px);
+    will-change: transform;
+  }
+  /* Базовое "дыхание" блика — едва заметное скольжение туда-сюда в состоянии
+     покоя, чтобы поверхность логотипа никогда не выглядела плоской/мёртвой. */
+  .brand-mark:not(.saga-playing) .mark-sheen::before {
+    animation: markSheenIdle 5.5s ease-in-out infinite;
+  }
+  @keyframes markSheenIdle {
+    0%, 100% { transform: translateX(-40%) rotate(12deg); opacity: 0.5; }
+    50% { transform: translateX(180%) rotate(12deg); opacity: 0.85; }
+  }
+  /* Во время саги блик по-прежнему "живёт" вместе с движением, но теперь
+     плавно и рандомно гуляет по ВСЕЙ поверхности лого (не только по одной
+     диагонали туда-сюда) — угол и позиция меняются на каждом контрольном
+     кадре, длиннее и мягче, чем раньше (было 1.1s резких перескоков между
+     двумя точками, читалось как мигание одним уровнем). */
+  .brand-mark.saga-playing .mark-sheen::before {
+    animation: markSheenActive 2.6s ease-in-out infinite;
+  }
+  @keyframes markSheenActive {
+    0%   { transform: translateX(-55%) rotate(8deg) translateY(-6%); opacity: 0.32; }
+    18%  { transform: translateX(10%) rotate(22deg) translateY(4%); opacity: 0.6; }
+    36%  { transform: translateX(70%) rotate(-6deg) translateY(-3%); opacity: 0.88; }
+    50%  { transform: translateX(115%) rotate(16deg) translateY(5%); opacity: 0.95; }
+    68%  { transform: translateX(60%) rotate(-14deg) translateY(-5%); opacity: 0.7; }
+    84%  { transform: translateX(0%) rotate(20deg) translateY(2%); opacity: 0.5; }
+    100% { transform: translateX(-55%) rotate(8deg) translateY(-6%); opacity: 0.32; }
+  }
+  /* На приземлениях — короткая мягкая вспышка блика (свет чуть "отзывается"
+     на удар, без резкого хлопка одним уровнем яркости). */
+  .brand-mark.saga-land1 .mark-sheen::before,
+  .brand-mark.saga-land2 .mark-sheen::before,
+  .brand-mark.saga-smash .mark-sheen::before {
+    animation: markSheenFlash 0.5s ease-out 1;
+  }
+  @keyframes markSheenFlash {
+    0% { transform: translateX(-30%) rotate(9deg) translateY(-4%); opacity: 0.35; }
+    50% { transform: translateX(75%) rotate(13deg) translateY(2%); opacity: 0.9; }
+    100% { transform: translateX(150%) rotate(18deg) translateY(4%); opacity: 0.4; }
+  }
+
+  .mark-rim-light {
+    position: absolute; inset: 0; z-index: 4; border-radius: inherit; pointer-events: none;
+    box-shadow: inset 0 1.5px 2px rgba(255,255,255,0.55), inset 0 -1.5px 3px rgba(0,0,0,0.25);
+    opacity: 0.7;
+    transition: opacity 0.4s ease, box-shadow 0.4s ease;
+  }
+  /* Контровой свет усиливается на взлёте/прыжках/возврате — контур логотипа
+     "отрывается" от фона, читается объём даже на быстром движении. */
+  .brand-mark.saga-liftoff .mark-rim-light,
+  .brand-mark.saga-jump1 .mark-rim-light,
+  .brand-mark.saga-jump2 .mark-rim-light,
+  .brand-mark.saga-return .mark-rim-light {
+    opacity: 1;
+    box-shadow: inset 0 2px 3px rgba(255,255,255,0.75), inset 0 -2px 5px rgba(0,0,0,0.3), inset 0 0 0 1.5px rgba(255,255,255,0.18);
+  }
+
   /* Сцены — позиция теперь ТОЛЬКО через translate3d (--saga-tx/ty), заданный
      JS'ом один раз за фазу. width/height у "статичных" сцен (без частых
      переключений) оставлены как есть — это финальный визуальный размер
@@ -317,6 +392,7 @@
     64%  { transform: translate3d(calc(var(--saga-tx,0px) * 0.22), calc(var(--saga-ty,0px) * 0.22 - 4px), 0) scale(0.32, 0.33); filter: blur(1.8px); }
     82%  { transform: translate3d(calc(var(--saga-tx,0px) * 0.08), calc(var(--saga-ty,0px) * 0.08 + 2px), 0) scale(0.25, 0.26); filter: blur(0.6px); box-shadow: 0 16px 40px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 10px rgba(0,0,0,0.3); }
     92%  { transform: translate3d(calc(var(--saga-tx,0px) * 0.015), calc(var(--saga-ty,0px) * 0.015), 0) scale(0.235, 0.245); filter: blur(0px); box-shadow: 0 14px 30px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 10px rgba(0,0,0,0.3); }
+    96%  { transform: translate3d(0, 0, 0) scale(0.208, 0.238); filter: blur(0px); box-shadow: 0 8px 20px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.65), inset 0 -4px 10px rgba(0,0,0,0.3); }
     100% { transform: translate3d(0, 0, 0) scale(0.22, 0.2316); filter: blur(0px); box-shadow: 0 10px 25px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 10px rgba(0,0,0,0.3); }
   }
 
@@ -493,39 +569,60 @@
   .brand-mark.saga-crouch { transform: translate3d(var(--saga-tx,0px), var(--saga-ty,0px), 0) scaleY(0.68) scaleX(1.28) !important; transition: transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1); }
   .brand-mark.saga-crouch2 { transform: translate3d(var(--saga-tx,0px), var(--saga-ty,0px), 0) scaleY(0.58) scaleX(1.4) !important; transition: transform 0.4s cubic-bezier(0.34, 1.9, 0.64, 1); }
 
-  /* ---- Motion Blur — активен во время полёта, ось движения = вертикаль ---- */
-  .motion-blur { filter: blur(0px); }
-  .brand-mark.saga-jump1 .motion-blur-layer,
-  .brand-mark.saga-jump2 .motion-blur-layer { }
-  .brand-mark.saga-jump1,
-  .brand-mark.saga-jump2 {
-    animation: motionBlurPulse 0.28s ease-in-out infinite alternate;
-  }
-  @keyframes motionBlurPulse {
-    0% { filter: blur(0px); }
-    100% { filter: blur(2.5px) brightness(1.08); }
-  }
-
-  /* ---- Прыжок 1: плавный кинематографичный взлёт (150-200px) ---- */
+  /* ---- Motion Blur — физически осмысленная кривая: разгон → пик скорости
+     в середине полёта → торможение к вершине дуги, а не ровный "мигающий"
+     пульс. Скорость transform здесь максимальна в первой трети полёта
+     (резкий отрыв от земли), поэтому блюр так же резко нарастает и затем
+     плавно тает к верхней точке прыжка, где скорость на миг равна нулю. */
   .brand-mark.saga-jump1 {
     transform: translate3d(var(--saga-tx,0px), calc(var(--saga-ty,0px) - 180px), 0) scaleY(1.15) scaleX(0.9) !important;
     transition: transform 1.7s cubic-bezier(0.4, 0.0, 0.2, 1);
+    animation: motionBlurFlight1 1.7s cubic-bezier(0.4, 0.0, 0.2, 1) both;
   }
-  /* ---- Приземление 1 — тяжёлый удар вниз, лёгкий squash при контакте ---- */
+  @keyframes motionBlurFlight1 {
+    0%   { filter: blur(0px) brightness(1); }
+    12%  { filter: blur(6px) brightness(1.15); }
+    30%  { filter: blur(3.2px) brightness(1.1); }
+    55%  { filter: blur(1px) brightness(1.04); }
+    100% { filter: blur(0px) brightness(1); }
+  }
+  /* ---- Приземление 1 — тяжёлый удар вниз, лёгкий squash при контакте,
+     короткий compression-блюр в момент максимальной деформации ---- */
   .brand-mark.saga-land1 {
     transform: translate3d(var(--saga-tx,0px), var(--saga-ty,0px), 0) scaleY(0.82) scaleX(1.18) !important;
     transition: transform 0.32s cubic-bezier(0.7, 0, 1, 1);
+    animation: motionBlurLand 0.32s cubic-bezier(0.7, 0, 1, 1) both;
+  }
+  @keyframes motionBlurLand {
+    0%   { filter: blur(2px) brightness(1.12); }
+    60%  { filter: blur(1.4px) brightness(1.18); }
+    100% { filter: blur(0px) brightness(1); }
   }
   body.saga-shake1 .wrap, body.saga-shake1 #mesh { animation: interfaceKick 0.32s cubic-bezier(0.36,0.07,0.19,0.97) 1; }
 
-  /* ---- Прыжок 2: выше и агрессивнее ---- */
+  /* ---- Прыжок 2: выше и агрессивнее — блюр сильнее и держится дольше,
+     разгон резче (более крутая дуга), чем в прыжке 1 ---- */
   .brand-mark.saga-jump2 {
     transform: translate3d(var(--saga-tx,0px), calc(var(--saga-ty,0px) - 260px), 0) scaleY(1.22) scaleX(0.85) rotate(-3deg) !important;
     transition: transform 1.5s cubic-bezier(0.3, 0.0, 0.15, 1);
+    animation: motionBlurFlight2 1.5s cubic-bezier(0.3, 0.0, 0.15, 1) both;
+  }
+  @keyframes motionBlurFlight2 {
+    0%   { filter: blur(0px) brightness(1); }
+    10%  { filter: blur(8px) brightness(1.2); }
+    28%  { filter: blur(4.2px) brightness(1.14); }
+    55%  { filter: blur(1.4px) brightness(1.05); }
+    100% { filter: blur(0px) brightness(1); }
   }
   .brand-mark.saga-land2 {
     transform: translate3d(var(--saga-tx,0px), var(--saga-ty,0px), 0) scaleY(0.72) scaleX(1.3) !important;
     transition: transform 0.26s cubic-bezier(0.7, 0, 1, 1);
+    animation: motionBlurLand2 0.26s cubic-bezier(0.7, 0, 1, 1) both;
+  }
+  @keyframes motionBlurLand2 {
+    0%   { filter: blur(3px) brightness(1.16); }
+    60%  { filter: blur(1.8px) brightness(1.22); }
+    100% { filter: blur(0px) brightness(1); }
   }
   body.saga-shake2 .wrap, body.saga-shake2 #mesh { animation: interfaceKick2 0.5s cubic-bezier(0.36,0.07,0.19,0.97) 1; }
   @keyframes interfaceKick2 {
@@ -811,7 +908,7 @@
     border-radius: 50%; background: rgba(255,255,255,0.9); filter: blur(0.3px);
   }
 
-  /* ===== АНИМАЦИЯ "ГЛАЗ ПОКРАСНЕЛ" — детальная сцена ~20s без оружия/трещин экрана =====
+  /* ===== АНИМАЦИЯ "ГЛАЗ ПОКРАСНЕЛ" — детальная сцена ~12.7s без оружия/трещин экрана =====
      Клик по глазу запускает поэтапную сценку через JS-классы на .bot-eye + body
      (setTimeout-цепочка, как saga-анимация логотипа выше). Сам глаз становится
      position:fixed и растёт через transform:scale() поверх интерфейса. Фазы:
@@ -899,6 +996,40 @@
     border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,0.55), transparent 70%);
     filter: blur(1.5px); pointer-events: none; z-index: 3; opacity: 0.7;
     transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+
+  /* ===== ГЛУБИНА И ПАРАЛЛАКС (Pixar-quality) =====
+     .bot-eye-depth-ring — тонкое внутреннее затемнение по контуру склеры
+     (имитация лёгкой полой глубины глазницы, а не плоского круга) — статичный
+     слой, не завязан на JS.
+     .bot-pupil-glint — второй, отдельный от pupil::after блик, которым JS
+     двигает НЕЗАВИСИМО от самого зрачка и с другим коэффициентом смещения —
+     из-за разной "скорости" слоёв при движении курсора рождается настоящий
+     эффект параллакса (блик на поверхности радужки "плывёт" медленнее/иначе,
+     чем сам зрачок, как будто у поверхности глаза есть объём/кривизна). */
+  .bot-eye-depth-ring {
+    position: absolute; inset: 0; border-radius: 50%; pointer-events: none; z-index: 1;
+    box-shadow: inset 0 6px 14px rgba(80,20,140,0.16), inset 0 -3px 8px rgba(255,255,255,0.5), inset 0 0 0 1px rgba(120,40,200,0.08);
+  }
+  .bot-pupil-glint {
+    position: absolute; top: 16%; left: 20%; width: 26%; height: 26%;
+    border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,0.95), rgba(255,255,255,0.2) 70%, transparent 100%);
+    filter: blur(0.2px); pointer-events: none; z-index: 3;
+    transition: transform 0.16s cubic-bezier(0.34, 1.4, 0.64, 1);
+    will-change: transform, opacity;
+  }
+  /* Живой блик в состоянии покоя (не во время клик-сцены) — мягко и
+     медленно "дышит" яркостью/размером раз в несколько секунд, чтобы
+     глаз не выглядел плоским/мёртвым, пока с ним не взаимодействуют. */
+  .bot-eye:not(.eye-playing) .bot-pupil-glint {
+    animation: pupilGlintIdle 6.5s ease-in-out infinite;
+  }
+  .bot-eye:nth-child(2):not(.eye-playing) .bot-pupil-glint { animation-delay: -3.1s; }
+  @keyframes pupilGlintIdle {
+    0%, 100% { opacity: 0.75; transform: scale(1) translate(0, 0); }
+    30% { opacity: 0.95; transform: scale(1.08) translate(3%, -2%); }
+    55% { opacity: 0.65; transform: scale(0.94) translate(-2%, 3%); }
+    80% { opacity: 0.9; transform: scale(1.04) translate(2%, 1%); }
   }
 
   .bot-eye.eye-rage-build .bot-pupil,
@@ -993,21 +1124,12 @@
     .bot-eye.eye-frown { transform: translate3d(var(--eye-tx, 0px), var(--eye-ty, 0px), 0) scale(4.1); }
   }
 
-  /* Полупрозрачный тёмный купол-подложка позади крупного глаза — читаемость
-     на светлом фоне, лёгкая виньетка фокуса внимания на сцене. */
-  .bot-eye.eye-breakout::after {
-    content: ''; position: fixed; inset: 0; z-index: -1;
-    background: radial-gradient(circle at var(--fx,50%) var(--fy,50%), rgba(15,4,32,0.55) 0%, rgba(10,2,22,0.75) 55%, rgba(6,1,14,0.88) 100%);
-    opacity: 0; transition: opacity 0.7s ease;
-  }
-  .bot-eye.eye-irritate::after,
-  .bot-eye.eye-frown::after {
-    content: ''; position: fixed; inset: 0; z-index: -1;
-    background: radial-gradient(circle at var(--eye-cx,50%) var(--eye-cy,50%), rgba(15,4,32,0.55) 0%, rgba(10,2,22,0.75) 55%, rgba(6,1,14,0.88) 100%);
-    opacity: 0; transition: opacity 0.7s ease, background 0.9s ease;
-  }
-  .bot-eye.eye-breakout::after { opacity: 1; }
-  .bot-eye.eye-irritate::after, .bot-eye.eye-frown::after { opacity: 1; }
+  /* Тёмный купол-подложка позади глаза убран целиком — он смотрелся дёшево
+     (плоский чёрный прямоугольник за круглым глазом). Вместо него глубина и
+     читаемость на светлом фоне дальше даются самим глазом: направленной
+     тенью (drop-shadow ниже, уже была) + параллаксом радужки/блика
+     (.bot-eye-depth-ring / .bot-pupil-glint выше) — глаз сам выглядит
+     объёмным, без плашки-подложки. */
 
   /* ---------- ЛЁГКАЯ ТРЯСКА ИНТЕРФЕЙСА (только на breakout, коротко) ---------- */
   body.eye-rampage-shake .wrap,
@@ -1292,6 +1414,8 @@
       <div class="brand-logo-container" id="brand-logo-container">
         <div class="brand-mark glass-bubble glass-bubble--glow" id="brand-mark" role="button" tabindex="0" aria-label="Uzum">
           <span class="mark-letter">U</span>
+          <span class="mark-sheen" aria-hidden="true"></span>
+          <span class="mark-rim-light" aria-hidden="true"></span>
           <span class="mark-face" id="mark-face">
             <span class="mark-brow l"></span><span class="mark-brow r"></span>
             <span class="mark-eye l"><span class="pupil"></span></span>
@@ -1368,16 +1492,18 @@
       <button class="bot-eye" id="bot-eye-l" type="button" data-side="left" aria-label="Uzum bot eye">
         <span class="bot-eye-vein"></span>
         <span class="bot-eye-micro"></span>
+        <span class="bot-eye-depth-ring" aria-hidden="true"></span>
         <span class="bot-eye-lid">
-          <span class="bot-pupil" id="bot-pupil-l"></span>
+          <span class="bot-pupil" id="bot-pupil-l"><span class="bot-pupil-glint" id="bot-glint-l"></span></span>
           <span class="bot-brow l"></span><span class="bot-brow r"></span>
         </span>
       </button>
       <button class="bot-eye" id="bot-eye-r" type="button" data-side="right" aria-label="Uzum bot eye">
         <span class="bot-eye-vein"></span>
+        <span class="bot-eye-depth-ring" aria-hidden="true"></span>
         <span class="bot-eye-micro"></span>
         <span class="bot-eye-lid">
-          <span class="bot-pupil" id="bot-pupil-r"></span>
+          <span class="bot-pupil" id="bot-pupil-r"><span class="bot-pupil-glint" id="bot-glint-r"></span></span>
           <span class="bot-brow l"></span><span class="bot-brow r"></span>
         </span>
       </button>
@@ -1934,6 +2060,8 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     const MAX_OFFSET = 15; // px, радиус "плавания" зрачка внутри увеличенной склеры
+    const glintL = document.getElementById('bot-glint-l');
+    const glintR = document.getElementById('bot-glint-r');
     let px = 0, py = 0;
     let eyesRaf = null;
 
@@ -1949,35 +2077,50 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       if (!eyesRaf) eyesRaf = requestAnimationFrame(tickEyes);
     }, { passive: true });
 
+    // Параллакс: зрачок двигается на полный офсет, а блик на его поверхности —
+    // на треть меньше и в обратную сторону по X. Из-за этого расхождения
+    // скоростей слоёв глаз читается объёмным (кривая поверхность), а не как
+    // плоский зрачок, катающийся по плоскому кругу.
+    function applyParallax(pupilEl, glintEl, off) {
+      pupilEl.style.transform = `translate(${off.x.toFixed(1)}px, ${off.y.toFixed(1)}px)`;
+      if (glintEl) {
+        const gx = (off.x * -0.35).toFixed(1);
+        const gy = (off.y * -0.35).toFixed(1);
+        glintEl.style.transform = `translate(${gx}px, ${gy}px)`;
+      }
+    }
+
     function tickEyes() {
       if (!eyeBusy.l) {
         const rL = pupilL.closest('.bot-eye').getBoundingClientRect();
         const l = moveTo(rL.left + rL.width / 2, rL.top + rL.height / 2, px, py);
-        pupilL.style.transform = `translate(${l.x.toFixed(1)}px, ${l.y.toFixed(1)}px)`;
+        applyParallax(pupilL, glintL, l);
       }
       if (!eyeBusy.r) {
         const rR = pupilR.closest('.bot-eye').getBoundingClientRect();
         const r = moveTo(rR.left + rR.width / 2, rR.top + rR.height / 2, px, py);
-        pupilR.style.transform = `translate(${r.x.toFixed(1)}px, ${r.y.toFixed(1)}px)`;
+        applyParallax(pupilR, glintR, r);
       }
       eyesRaf = null;
     }
   })();
 
   // ============================================================
-  // BOT EYE CLICK SCENE — "глаз раздражён": детальная сценка на ~20s.
+  // BOT EYE CLICK SCENE — "глаз раздражён": сценка сжата до ~5.9s (было ~12.7s)
+  // — крупный план больше не держится подолгу, фаза irritate урезана с 4.6s
+  // почти до 1.3s. Возврат (heal) остаётся плавным, без рывков.
   // Та же схема, что у saga-анимации логотипа (класс на фазу + setTimeout-цепочка),
   // но глаз временно становится fixed-элементом и выходит поверх всего интерфейса.
   // Второй глаз в это время живёт своей жизнью (busy-флаг только на кликнутом).
   // Фазы и тайминг (мс от клика):
   //   0     eye-rage-build — краснеет: сосуды проступают, зрачок сужается
-  //   700   eye-rage-lock  — гримаса фиксируется, веко прищуривается
-  //   1500  eye-breakout   — глаз выходит на fixed-слой, растёт в центр экрана
-  //   3200  eye-irritate   — детальная 4К-текстура радужки, микротрещины на
+  //   400   eye-rage-lock  — гримаса фиксируется, веко прищуривается
+  //   900   eye-breakout   — глаз выходит на fixed-слой, растёт в центр экрана
+  //   2050  eye-irritate   — детальная 4К-текстура радужки, микротрещины на
   //                          поверхности глаза, зуд (дрожь зрачка/века)
-  //   11200 eye-frown      — глаз хмурится ("ай, не жми на меня")
-  //   16200 eye-heal       — глаз успокаивается, возвращается на место
-  //   18400 очистка классов, обычная жизнь глаз возвращается
+  //   3400  eye-frown      — глаз хмурится ("ай, не жми на меня")
+  //   4200  eye-heal       — глаз успокаивается, плавно возвращается на место
+  //   5900  очистка классов, обычная жизнь глаз возвращается
   // ============================================================
   (() => {
     const eyes = [
@@ -2029,8 +2172,14 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         el.style.setProperty('--eye-cx', (window.innerWidth / 2) + 'px');
         el.style.setProperty('--eye-cy', (window.innerHeight / 2) + 'px');
 
+        // Тайминг сжат до ~5.9s (было ~12.7s) — глаз больше не таращится
+        // крупным планом надолго: фаза irritate урезана с 4.6s почти до 1.3s,
+        // это была самая долгая и малодинамичная часть сцены. Каждый шаг
+        // всё ещё ждёт, пока полностью доиграет transition/animation
+        // предыдущей фазы (breakout 1.1s, heal 1.6s), чтобы не ловить тот же
+        // "рывок из-за обрыва CSS-перехода", что был у саги логотипа.
         at(() => { el.classList.add('eye-rage-build'); haptic('light'); }, 0);
-        at(() => { el.classList.add('eye-rage-lock'); haptic('light'); }, 700);
+        at(() => { el.classList.add('eye-rage-lock'); haptic('light'); }, 400);
         at(() => {
           // Переносим глаз в body до перехода в position:fixed — иначе он остаётся
           // потомком .wrap, а .wrap на время тряски (eye-rampage-shake) сам
@@ -2039,25 +2188,25 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
           el.classList.add('eye-breakout');
           document.body.classList.add('eye-rampage-shake');
           haptic('medium');
-        }, 1500);
-        at(() => document.body.classList.remove('eye-rampage-shake'), 2300);
+        }, 900);
+        at(() => document.body.classList.remove('eye-rampage-shake'), 1300);
         at(() => {
           el.classList.remove('eye-breakout');
           el.classList.add('eye-irritate');
           haptic('medium');
-        }, 3200);
-        // Детальная фаза раздражения держится дольше всего — здесь читается
-        // 4К-текстура радужки, микротрещины, зуд (по сценарию — самая долгая часть).
+        }, 2050);
+        // Раздражение — коротко: детали (текстура радужки, микротрещины, зуд)
+        // успевают проявиться за ~1.3s, но сцена не залипает крупным планом.
         at(() => {
           el.classList.remove('eye-irritate');
           el.classList.add('eye-frown');
           haptic('light');
-        }, 11200);
+        }, 3400);
         at(() => {
           el.classList.remove('eye-rage-build', 'eye-rage-lock', 'eye-frown');
           el.classList.add('eye-heal');
           haptic('light');
-        }, 16200);
+        }, 4200);
         at(() => {
           el.classList.remove('eye-heal', 'eye-playing');
           el.style.removeProperty('--fx');
@@ -2072,7 +2221,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
           eyeBusy[key] = false;
           rampageActive = false;
           playing = false;
-        }, 18400);
+        }, 5900);
       }
 
       if (reduceMotion) {
@@ -2434,20 +2583,23 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       mark.classList.add('saga-playing');
 
       // ============================================================
-      // СЦЕНАРИЙ (строгая последовательность, ~14.5s):
+      // СЦЕНАРИЙ (строгая последовательность, ~15.6s):
       //   0.0s   логотип плавно растёт и едет в центр экрана (liftoff)
       //   1.0s   злая мимика проявляется (закипание, quake)
       //   3.6s   первый тяжёлый прыжок
-      //   4.8s   приземление 1 — удар
-      //   6.3s   короткая пауза (breathe) перед вторым прыжком
-      //   7.3s   второй, более высокий прыжок
-      //   8.5s   приземление 2 — сильный удар → сразу взрыв
-      //   8.6s   ВЗРЫВ: вспышка, ударные кольца, ветер по интерфейсу,
+      //   5.9s   приземление 1 — удар (тайминг равен длительности transition
+      //          прыжка 1.7s, иначе класс сменяется раньше, чем логотип
+      //          долетает — визуально "телепорт")
+      //   6.7s   короткая пауза (breathe) перед вторым прыжком
+      //   7.7s   второй, более высокий прыжок
+      //   9.7s   приземление 2 — сильный удар → сразу взрыв (тайминг равен
+      //          длительности transition прыжка 2, 1.5s, по той же причине)
+      //   9.8s   ВЗРЫВ: вспышка, ударные кольца, ветер по интерфейсу,
       //          буквы всего интерфейса хаотично разлетаются
-      //   10.0s  злая мимика сменяется на неловкую ("ой, фух, я остыл")
-      //   12.0s  буквы возвращаются на место
-      //   12.5s  логотип плавно едет обратно на исходное место
-      //   14.5s  сцена полностью завершена, сброс состояния
+      //   11.1s  злая мимика сменяется на неловкую ("ой, фух, я остыл")
+      //   13.1s  буквы возвращаются на место
+      //   13.6s  логотип плавно едет обратно на исходное место
+      //   15.6s  сцена полностью завершена, сброс состояния
       // ============================================================
 
       // ---- ЗАКИПАНИЕ: рост + злая мимика (0 - 3.6s) ----
@@ -2460,7 +2612,9 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         haptic('warning');
       }, 2600);
 
-      // ---- ПРЫЖОК 1 (3.6 - 6.3s) — сохранённая механика тяжёлого прыжка ----
+      // ---- ПРЫЖОК 1 (3.6 - 7.7s) — тайминг растянут под реальную длительность
+      // transition прыжка (1.7s), иначе CSS-переход обрывается новым классом
+      // на середине полёта и логотип визуально "телепортируется". ----
       at(() => { setPhase('saga-crouch'); mark.classList.add('saga-rage'); haptic('light'); }, 3600);
       at(() => { setPhase('saga-jump1'); mark.classList.add('saga-rage'); haptic('medium'); }, 4200);
       at(() => {
@@ -2469,21 +2623,22 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         haptic('heavy');
         const r = mark.getBoundingClientRect();
         triggerImpact(r.left + r.width / 2, r.top + r.height / 2 - 20);
-      }, 5400);
-      at(() => document.body.classList.remove('saga-shake1'), 5800);
-      at(() => { setPhase('saga-breathe'); mark.classList.add('saga-rage'); }, 6300);
+      }, 5900);
+      at(() => document.body.classList.remove('saga-shake1'), 6300);
+      at(() => { setPhase('saga-breathe'); mark.classList.add('saga-rage'); }, 6700);
 
-      // ---- ПРЫЖОК 2, выше и агрессивнее (7.3 - 8.6s) ----
-      at(() => { setPhase('saga-crouch2'); mark.classList.add('saga-rage'); haptic('light'); }, 7300);
-      at(() => { setPhase('saga-jump2'); mark.classList.add('saga-rage'); haptic('medium'); }, 7700);
+      // ---- ПРЫЖОК 2, выше и агрессивнее (7.7 - 10.1s) — тайминг растянут
+      // под transition 1.5s, та же причина, что у прыжка 1. ----
+      at(() => { setPhase('saga-crouch2'); mark.classList.add('saga-rage'); haptic('light'); }, 7700);
+      at(() => { setPhase('saga-jump2'); mark.classList.add('saga-rage'); haptic('medium'); }, 8100);
       at(() => {
         setPhase('saga-land2'); mark.classList.add('saga-rage');
         document.body.classList.add('saga-shake2');
         haptic('heavy');
-      }, 8600);
-      at(() => document.body.classList.remove('saga-shake2'), 9100);
+      }, 9700);
+      at(() => document.body.classList.remove('saga-shake2'), 10200);
 
-      // ---- ВЗРЫВ: вспышка + ударные кольца + ветер + разлёт букв (8.6 - 10s) ----
+      // ---- ВЗРЫВ: вспышка + ударные кольца + ветер + разлёт букв (9.7 - 11.1s) ----
       at(() => {
         haptic('heavy');
         const r = mark.getBoundingClientRect();
@@ -2510,24 +2665,24 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         triggerImpact(cx, cy);
         document.body.classList.add('saga-wind');
         scatterInterfaceLetters();
-      }, 8700);
-      at(() => document.body.classList.remove('saga-wind'), 9800);
+      }, 9800);
+      at(() => document.body.classList.remove('saga-wind'), 10900);
 
-      // ---- Злая мимика → неловкая мимика ("ой, неловко вышло, фух") (10 - 12.5s) ----
+      // ---- Злая мимика → неловкая мимика ("ой, неловко вышло, фух") (11.1 - 13.6s) ----
       at(() => {
         setPhase('saga-oops');
         textBlock.classList.remove(...TEXT_CLASSES);
         textBlock.classList.add('saga-oops');
         haptic('light');
-      }, 10000);
-      at(() => { mark.classList.add('saga-awkward'); }, 10600);
+      }, 11100);
+      at(() => { mark.classList.add('saga-awkward'); }, 11700);
 
-      // ---- Плавный возврат на исходное место (12.5 - 14.5s) ----
+      // ---- Плавный возврат на исходное место (13.6 - 15.6s) ----
       at(() => {
         setPhase('saga-return');
         textBlock.classList.remove(...TEXT_CLASSES);
         textBlock.classList.add('saga-return');
-      }, 12500);
+      }, 13600);
 
       // Финал и сброс состояния
       at(() => {
@@ -2543,7 +2698,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         document.body.classList.remove('saga-active', 'saga-shake1', 'saga-shake2', 'saga-wind');
         playing = false;
         document.removeEventListener('visibilitychange', onHide);
-      }, 14500);
+      }, 15600);
     }
 
     // Если размер окна меняется во время анимации, обновляем цель.
