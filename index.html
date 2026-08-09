@@ -469,34 +469,38 @@
   }
   @keyframes crackGlow { 0%,100% { filter: drop-shadow(0 0 0 rgba(255,60,40,0)); } 50% { filter: drop-shadow(0 0 6px rgba(255,120,40,0.6)); } }
 
-  /* ---- Фаза 4: рука с пистолетом на логотипе (переиспользует .mark-arm) ---- */
-  .mark-gun { position: absolute; left: 100%; top: 50%; width: 26px; height: 10px; margin: -5px 0 0 -4px; opacity: 0; transition: opacity 0.25s ease; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); }
-  .mark-gun-flash { position: absolute; left: 100%; top: 50%; width: 0; height: 0; margin-left: 14px; transform: translateY(-50%); border-radius: 50%; background: radial-gradient(circle, #FFFCEF 0%, #FFF2B0 20%, #FFD84D 42%, rgba(255,120,0,0.65) 68%, transparent 78%); opacity: 0; }
-  .brand-mark.saga-armout .mark-arm,
-  .brand-mark.saga-aim .mark-arm,
-  .brand-mark.saga-fire .mark-arm { opacity: 1; }
-  .brand-mark.saga-armout .mark-gun,
-  .brand-mark.saga-aim .mark-gun,
-  .brand-mark.saga-fire .mark-gun { opacity: 1; }
-  .brand-mark.saga-fire .mark-gun-flash { animation: markMuzzleFlash 0.3s ease-out; }
-  @keyframes markMuzzleFlash { 0% { width:0; height:0; opacity:0; } 20% { width:34px; height:34px; opacity:1; } 100% { width:6px; height:6px; opacity:0; } }
-  .brand-mark.saga-armout .mark-arm.l { transform: translate(-46px, 30px) rotate(-58deg) scale(1); transition: transform 0.9s var(--spring); }
-  .brand-mark.saga-armout .mark-arm.r { transform: translate(46px, 30px) rotate(58deg) scale(1); transition: transform 0.9s var(--spring); }
-  .brand-mark.saga-aim .mark-arm.l,
-  .brand-mark.saga-aim .mark-arm.r { animation: aimTremble 0.11s ease-in-out infinite; }
-  .brand-mark.saga-aim .mark-arm.l { transform: translate(-30px, 46px) rotate(-80deg) scale(1); }
-  .brand-mark.saga-aim .mark-arm.r { transform: translate(30px, 46px) rotate(80deg) scale(1); }
-  @keyframes aimTremble { 0%,100% { margin-top: -18px; } 50% { margin-top: -16px; } }
-  .brand-mark.saga-fire .mark-arm.l { transform: translate(-30px, 44px) rotate(-80deg) scale(1); }
-  .brand-mark.saga-fire .mark-arm.r { transform: translate(30px, 44px) rotate(80deg) scale(1); }
-  /* Пупилы фокусируются в центре на игрока во время aim/fire */
-  .brand-mark.saga-aim .mark-eye .pupil,
-  .brand-mark.saga-fire .mark-eye .pupil { transform: translate(0, 0) scale(1); transition: transform 0.5s var(--ease); }
+  /* ---- Фаза 4: ВЗРЫВ — вспышка на весь экран + ударная волна ---- */
+  #saga-fire-flash { position: fixed; inset: 0; z-index: 998; background: radial-gradient(circle at var(--blast-x,50%) var(--blast-y,50%), #fff 0%, rgba(255,220,180,0.9) 30%, rgba(157,77,255,0.5) 60%, transparent 80%); opacity: 0; pointer-events: none; }
+  #saga-fire-flash.show { animation: fireFlash 0.7s ease-out forwards; }
+  @keyframes fireFlash { 0% { opacity: 0; } 10% { opacity: 1; } 100% { opacity: 0; } }
 
-  /* ---- Вспышка выстрела на весь экран ---- */
-  #saga-fire-flash { position: fixed; inset: 0; z-index: 998; background: #fff; opacity: 0; pointer-events: none; }
-  #saga-fire-flash.show { animation: fireFlash 0.9s ease-out forwards; }
-  @keyframes fireFlash { 0% { opacity: 0; } 6% { opacity: 1; } 100% { opacity: 0; } }
+  /* ---- Ударные кольца (расходятся от логотипа при взрыве) ---- */
+  .blast-ring { position: fixed; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.85); box-shadow: 0 0 30px rgba(157,77,255,0.6); opacity: 0; pointer-events: none; z-index: 997; }
+  .blast-ring.fly { animation: blastRingFly 0.9s cubic-bezier(0.15, 0.7, 0.3, 1) forwards; }
+  @keyframes blastRingFly { 0% { width: 10px; height: 10px; margin: -5px 0 0 -5px; opacity: 0.9; border-width: 3px; } 100% { width: 900px; height: 900px; margin: -450px 0 0 -450px; opacity: 0; border-width: 0.5px; } }
+
+  /* ---- Буквы интерфейса разлетаются от ветра взрыва (разбросанные span'ы текста) ---- */
+  .letter-fly { position: fixed; z-index: 996; pointer-events: none; will-change: transform, opacity; color: var(--text-main); animation: letterScatter var(--lf-dur, 1.4s) cubic-bezier(0.2, 0.6, 0.25, 1) forwards; }
+  @keyframes letterScatter {
+    0% { transform: translate3d(0,0,0) rotate(0deg) scale(1); opacity: 1; }
+    70% { opacity: 1; }
+    100% { transform: translate3d(var(--lf-x,0px), var(--lf-y,0px), 0) rotate(var(--lf-r,0deg)) scale(var(--lf-s,0.7)); opacity: 0; }
+  }
+  /* Исходный текст на время разлёта прячем (буквы-клоны летят поверх) */
+  .wind-hide { opacity: 0; transition: opacity 0.15s ease; }
+  .wind-hide.wind-return { opacity: 1; transition: opacity 0.8s ease 0.1s; }
+
+  /* ---- Общая тряска/ветер по всему интерфейсу в момент взрыва ---- */
+  body.saga-wind .wrap, body.saga-wind #mesh { animation: windKick 1.1s cubic-bezier(0.36,0.07,0.19,0.97) 1; }
+  @keyframes windKick {
+    0% { transform: translate(0,0) rotate(0deg) scale(1); }
+    8% { transform: translate(-18px, 10px) rotate(-1.8deg) scale(1.02); }
+    20% { transform: translate(16px, -14px) rotate(1.6deg) scale(0.985); }
+    35% { transform: translate(-12px, 9px) rotate(-1.1deg) scale(1.01); }
+    52% { transform: translate(8px, -6px) rotate(0.7deg) scale(1); }
+    70% { transform: translate(-4px, 3px) rotate(-0.3deg) scale(1); }
+    100% { transform: translate(0,0) rotate(0deg) scale(1); }
+  }
 
   /* ---- Финальная неловкость: бегающие зрачки + румянец + капля пота ---- */
   .brand-mark.saga-awkward .mark-eye .pupil { animation: pupilLookAround 2.6s ease-in-out infinite; }
@@ -710,22 +714,18 @@
     border-radius: 50%; background: rgba(255,255,255,0.9); filter: blur(0.3px);
   }
 
-  /* ===== АНИМАЦИЯ "ГЛАЗ ОБОЗЛИЛСЯ" — полноэкранная детальная сцена =====
-     Клик по глазу запускает длинную (~26s) поэтапную сценку через JS-классы
-     на .bot-eye + body (управляют таймингом через setTimeout-цепочку, как
-     saga-анимация логотипа выше). Сам глаз становится position:fixed и растёт
-     через transform:scale() поверх всего интерфейса — без клонирования DOM,
-     дёшево и надёжно. Фазы:
-       rage-build  — глаз краснеет детально: сосуды, блик, зрачок сужается
-       rage-lock   — веко хмурится, глаз чуть увеличивается на месте
-       breakout    — глаз "выходит на передний план" на fixed-слое, растёт
-                     до ~50% экрана, интерфейс под ним начинает трястись
-       arm-out     — рука с реалистичным пистолетом выезжает из-за глаза
-       aim         — прицеливается в пользователя (дуло растёт к камере)
-       fire        — выстрел: вспышка, отдача, экран дёргается резко
-       shatter     — вся страница покрывается трещинами, летят осколки
-       settle      — осколки покачиваются, пыль оседает (пауза-удержание)
-       heal        — трещины стягиваются, глаз возвращается на место
+  /* ===== АНИМАЦИЯ "ГЛАЗ ПОКРАСНЕЛ" — детальная сцена ~20s без оружия/трещин экрана =====
+     Клик по глазу запускает поэтапную сценку через JS-классы на .bot-eye + body
+     (setTimeout-цепочка, как saga-анимация логотипа выше). Сам глаз становится
+     position:fixed и растёт через transform:scale() поверх интерфейса. Фазы:
+       rage-build — глаз краснеет: сосуды проступают, зрачок сужается
+       rage-lock  — гримаса фиксируется, веко прищуривается
+       breakout   — глаз выходит на fixed-слой, растёт в центр экрана
+       irritate   — глаз ещё сильнее краснеет, проявляется детальная 4К-текстура
+                    радужки и микротрещины на самой поверхности белка (не экрана!),
+                    лёгкий зуд — мелкая дрожь/подёргивание века
+       frown      — глаз хмурится ("ай, не жми на меня"), веко опускается
+       heal       — глаз успокаивается и плавно возвращается на место
      Тайминг задаёт JS (BOT EYE CLICK SCENE ниже) — здесь только визуал фаз. */
 
   /* ---------- ФАЗА 1: RAGE — детальная текстура злого глаза ---------- */
@@ -739,37 +739,31 @@
   .bot-eye.eye-rage-build .bot-brow,
   .bot-eye.eye-rage-lock .bot-brow,
   .bot-eye.eye-breakout .bot-brow,
-  .bot-eye.eye-arm-out .bot-brow,
-  .bot-eye.eye-aim .bot-brow,
-  .bot-eye.eye-fire .bot-brow { opacity: 1; }
+  .bot-eye.eye-irritate .bot-brow,
+  .bot-eye.eye-frown .bot-brow { opacity: 1; }
   .bot-eye.eye-rage-build .bot-brow.l,
   .bot-eye.eye-rage-lock .bot-brow.l,
   .bot-eye.eye-breakout .bot-brow.l,
-  .bot-eye.eye-arm-out .bot-brow.l,
-  .bot-eye.eye-aim .bot-brow.l,
-  .bot-eye.eye-fire .bot-brow.l { transform: translateY(2px) rotate(20deg); }
+  .bot-eye.eye-irritate .bot-brow.l { transform: translateY(2px) rotate(20deg); }
   .bot-eye.eye-rage-build .bot-brow.r,
   .bot-eye.eye-rage-lock .bot-brow.r,
   .bot-eye.eye-breakout .bot-brow.r,
-  .bot-eye.eye-arm-out .bot-brow.r,
-  .bot-eye.eye-aim .bot-brow.r,
-  .bot-eye.eye-fire .bot-brow.r { transform: translateY(2px) rotate(-20deg); }
+  .bot-eye.eye-irritate .bot-brow.r { transform: translateY(2px) rotate(-20deg); }
   /* rage-lock — брови ещё сильнее хмурятся и опускаются, финальная гримаса */
   .bot-eye.eye-rage-lock .bot-brow.l,
   .bot-eye.eye-breakout .bot-brow.l,
-  .bot-eye.eye-arm-out .bot-brow.l,
-  .bot-eye.eye-aim .bot-brow.l,
-  .bot-eye.eye-fire .bot-brow.l { transform: translateY(5px) rotate(26deg); }
+  .bot-eye.eye-irritate .bot-brow.l { transform: translateY(5px) rotate(26deg); }
   .bot-eye.eye-rage-lock .bot-brow.r,
   .bot-eye.eye-breakout .bot-brow.r,
-  .bot-eye.eye-arm-out .bot-brow.r,
-  .bot-eye.eye-aim .bot-brow.r,
-  .bot-eye.eye-fire .bot-brow.r { transform: translateY(5px) rotate(-26deg); }
+  .bot-eye.eye-irritate .bot-brow.r { transform: translateY(5px) rotate(-26deg); }
+  /* frown — брови опускаются ещё ниже и почти сходятся, самая хмурая гримаса */
+  .bot-eye.eye-frown .bot-brow.l { transform: translateY(8px) rotate(32deg); }
+  .bot-eye.eye-frown .bot-brow.r { transform: translateY(8px) rotate(-32deg); }
 
   /* Радужка получает многослойную "живую" текстуру вместо плоского градиента:
      базовый радиальный цвет + конический узор волокон радужки + отдельный
-     детальный блик-слой (маленький яркий + большой мягкий рефлекс), поверх —
-     тонкие сосудики на склере, проявляющиеся отдельным элементом .bot-eye-vein. */
+     детальный блик-слой, поверх — тонкие сосудики на склере (.bot-eye-vein)
+     и микротрещины на поверхности глаза в фазе irritate (.bot-eye-micro). */
   .bot-eye .bot-pupil {
     position: relative; width: 26px; height: 26px; border-radius: 50%;
     background: radial-gradient(circle at 35% 30%, var(--purple-light) 0%, var(--purple) 45%, #2A0073 100%);
@@ -781,8 +775,7 @@
   }
   .bot-eye .bot-pupil::before {
     /* конический узор "волокон" радужки — тонкие радиальные полоски, придают
-       глубину вместо плоской заливки; включается только в rage+ фазах, чтобы
-       в спокойном состоянии зрачок оставался лёгким и не грузил рендер лишним слоем */
+       глубину вместо плоской заливки; включается только в rage+ фазах */
     content: ''; position: absolute; inset: 1px; border-radius: 50%;
     background: conic-gradient(from 0deg,
       rgba(0,0,0,0.22) 0deg, transparent 8deg, transparent 16deg, rgba(0,0,0,0.18) 24deg,
@@ -803,8 +796,7 @@
     border-radius: 50%; background: rgba(255,255,255,0.9); filter: blur(0.3px);
     transition: top 0.4s ease, left 0.4s ease, width 0.4s ease, height 0.4s ease, opacity 0.3s ease;
   }
-  /* Второй, более мягкий и крупный рефлекс — имитирует отражение источника
-     света под другим углом, добавляет "мокрый" вид стекла глаза. */
+  /* Второй, более мягкий и крупный рефлекс — "мокрый" вид стекла глаза. */
   .bot-eye-lid::before {
     content: ''; position: absolute; top: 8%; left: 58%; width: 22%; height: 16%;
     border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,0.55), transparent 70%);
@@ -815,9 +807,8 @@
   .bot-eye.eye-rage-build .bot-pupil,
   .bot-eye.eye-rage-lock .bot-pupil,
   .bot-eye.eye-breakout .bot-pupil,
-  .bot-eye.eye-arm-out .bot-pupil,
-  .bot-eye.eye-aim .bot-pupil,
-  .bot-eye.eye-fire .bot-pupil {
+  .bot-eye.eye-irritate .bot-pupil,
+  .bot-eye.eye-frown .bot-pupil {
     width: 15px; height: 15px;
     background: radial-gradient(circle at 35% 30%, #FF6B6B 0%, #E22F2F 42%, #7A0000 78%, #4A0000 100%);
     box-shadow: 0 0 16px rgba(226,47,47,0.75), inset 0 -3px 6px rgba(0,0,0,0.45), inset 0 2px 3px rgba(255,180,180,0.4);
@@ -825,14 +816,14 @@
   .bot-eye.eye-rage-build .bot-pupil::before,
   .bot-eye.eye-rage-lock .bot-pupil::before,
   .bot-eye.eye-breakout .bot-pupil::before,
-  .bot-eye.eye-arm-out .bot-pupil::before,
-  .bot-eye.eye-aim .bot-pupil::before,
-  .bot-eye.eye-fire .bot-pupil::before { opacity: 1; }
-  .bot-eye.eye-aim .bot-pupil { animation: pupilJitter 0.1s linear infinite; }
-  @keyframes pupilJitter { 0%,100% { margin: 0; } 25% { margin: -1px 0 0 1px; } 50% { margin: 1px -1px 0 0; } 75% { margin: 0 1px -1px 0; } }
+  .bot-eye.eye-irritate .bot-pupil::before,
+  .bot-eye.eye-frown .bot-pupil::before { opacity: 1; }
+  /* irritate — зрачок сужается сильнее и мелко подрагивает ("зудит") */
+  .bot-eye.eye-irritate .bot-pupil { width: 11px; height: 11px; animation: pupilItch 0.09s linear infinite; }
+  @keyframes pupilItch { 0%,100% { margin: 0; } 25% { margin: -0.6px 0 0 0.6px; } 50% { margin: 0.6px -0.6px 0 0; } 75% { margin: 0 0.6px -0.6px 0; } }
 
   /* Сосуды на белке — тонкие красные прожилки, проступают постепенно (rage-build),
-     полностью проявлены к rage-lock, имитируют настоящее "налитый кровью глаз". */
+     полностью проявлены к rage-lock, максимально налиты кровью к irritate. */
   .bot-eye-vein {
     position: absolute; inset: 0; border-radius: 50%; pointer-events: none; z-index: 1;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%23E22F2F' stroke-width='0.7' stroke-linecap='round' opacity='0.75'%3E%3Cpath d='M6 20 Q16 24 22 30'/%3E%3Cpath d='M4 34 Q14 33 20 36'/%3E%3Cpath d='M8 46 Q17 40 23 38'/%3E%3Cpath d='M58 22 Q48 26 42 31'/%3E%3Cpath d='M60 36 Q50 34 44 36'/%3E%3Cpath d='M56 48 Q47 42 41 39'/%3E%3Cpath d='M22 10 Q26 18 28 24'/%3E%3Cpath d='M42 9 Q38 17 36 24'/%3E%3C/g%3E%3C/svg%3E");
@@ -842,46 +833,52 @@
   }
   .bot-eye.eye-rage-build .bot-eye-vein { opacity: 0.55; transition-duration: 0.6s; }
   .bot-eye.eye-rage-lock .bot-eye-vein,
-  .bot-eye.eye-breakout .bot-eye-vein,
-  .bot-eye.eye-arm-out .bot-eye-vein,
-  .bot-eye.eye-aim .bot-eye-vein,
-  .bot-eye.eye-fire .bot-eye-vein { opacity: 1; }
+  .bot-eye.eye-breakout .bot-eye-vein { opacity: 1; }
+  .bot-eye.eye-irritate .bot-eye-vein { opacity: 1; animation: veinThrob 0.5s ease-in-out infinite; }
+  @keyframes veinThrob { 0%,100% { opacity: 1; } 50% { opacity: 0.75; } }
 
-  .bot-eye-lid { transition: border-color 0.4s ease, box-shadow 0.4s ease, background 0.5s ease; }
+  /* Микротрещины/микрораздражение НА ПОВЕРХНОСТИ САМОГО ГЛАЗА (не экрана!) —
+     тонкая сеть сухих трещинок на белке, детально проступает только в irritate,
+     имитирует "раздражённый, зудящий" крупный план глаза в высоком разрешении. */
+  .bot-eye-micro {
+    position: absolute; inset: 0; border-radius: 50%; pointer-events: none; z-index: 3;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%23FFD6D6' stroke-width='0.35' stroke-linecap='round' opacity='0.5'%3E%3Cpath d='M20 14 L23 19 L21 24'/%3E%3Cpath d='M44 16 L41 21 L43 25'/%3E%3Cpath d='M14 40 L19 38 L23 42'/%3E%3Cpath d='M48 42 L44 40 L41 44'/%3E%3Cpath d='M30 50 L32 46 L35 49'/%3E%3Cpath d='M12 28 L16 27 L15 31'/%3E%3Cpath d='M50 30 L47 29 L48 33'/%3E%3C/g%3E%3C/svg%3E");
+    background-size: 100% 100%;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+  }
+  .bot-eye.eye-irritate .bot-eye-micro,
+  .bot-eye.eye-frown .bot-eye-micro { opacity: 1; }
+
+  .bot-eye-lid { transition: border-color 0.4s ease, box-shadow 0.4s ease, background 0.5s ease, transform 0.4s var(--spring); }
   .bot-eye.eye-rage-build .bot-eye-lid,
   .bot-eye.eye-rage-lock .bot-eye-lid,
   .bot-eye.eye-breakout .bot-eye-lid,
-  .bot-eye.eye-arm-out .bot-eye-lid,
-  .bot-eye.eye-aim .bot-eye-lid,
-  .bot-eye.eye-fire .bot-eye-lid {
+  .bot-eye.eye-irritate .bot-eye-lid,
+  .bot-eye.eye-frown .bot-eye-lid {
     border-color: rgba(226,47,47,0.9);
     background: radial-gradient(circle at 32% 26%, #FFF5F5 0%, #FFE0E0 45%, #FFC9C9 100%);
     box-shadow: 0 0 0 1px rgba(255,255,255,0.15), 0 10px 24px rgba(0,0,0,0.45), 0 0 30px rgba(226,47,47,0.55), inset 0 -6px 10px rgba(226,47,47,0.2);
   }
-  /* rage-lock — веко чуть прищуривается по вертикали, злая гримаса перед рывком вперёд */
+  /* rage-lock — веко чуть прищуривается, злая гримаса */
   .bot-eye.eye-rage-lock .bot-eye-lid,
   .bot-eye.eye-breakout .bot-eye-lid,
-  .bot-eye.eye-arm-out .bot-eye-lid,
-  .bot-eye.eye-aim .bot-eye-lid,
-  .bot-eye.eye-fire .bot-eye-lid { transform: scaleY(0.82); }
+  .bot-eye.eye-irritate .bot-eye-lid { transform: scaleY(0.82); }
+  /* irritate — лёгкое подёргивание века от зуда */
+  .bot-eye.eye-irritate .bot-eye-lid { animation: eyeTwitch 0.5s ease-in-out infinite; }
+  @keyframes eyeTwitch { 0%,100% { transform: scaleY(0.82); } 50% { transform: scaleY(0.74); } }
+  /* frown — веко опускается сильнее всего, самая нахмуренная гримаса ("не жми на меня") */
+  .bot-eye.eye-frown .bot-eye-lid { transform: scaleY(0.62); }
 
   /* ---------- ФАЗА 2: BREAKOUT — глаз выходит на fixed-слой поверх интерфейса ----------
      JS фиксирует текущий getBoundingClientRect() глаза в CSS-переменные --fx/--fy
      (центр глаза в вьюпорте) перед добавлением класса, чтобы переход из "в потоке"
-     в "fixed" был бесшовным (глаз не дёргается в исходную позицию 0,0).
-     ВАЖНО: top/left = --fx/--fy остаются ЗАФИКСИРОВАННЫМИ на исходной точке
-     глаза (край экрана, где по нему кликнули) на все фазы — раньше именно
-     здесь только рос scale(), поэтому весь прицел-выстрел-трещина держались
-     в углу экрана, а не по центру. Теперь --eye-tx/ty (тоже задаются JS'ом)
-     довозят сцену от исходной точки глаза К ЦЕНТРУ ЭКРАНА через translate3d
-     — начиная с arm-out (когда пистолет уже вышел и должен целиться в
-     зрителя), поэтому прицеливание/выстрел/трещина стекла всегда происходят
-     из центра экрана, а не из угла, где висит глаз-кнопка. */
+     в "fixed" был бесшовным. top/left = --fx/--fy остаются на исходной точке
+     глаза; --eye-tx/ty (задаются JS) довозят сцену от исходной точки К ЦЕНТРУ
+     ЭКРАНА через translate3d, чтобы крупный план глаза был по центру. */
   .bot-eye.eye-breakout,
-  .bot-eye.eye-arm-out,
-  .bot-eye.eye-aim,
-  .bot-eye.eye-fire,
-  .bot-eye.eye-shatter {
+  .bot-eye.eye-irritate,
+  .bot-eye.eye-frown {
     position: fixed;
     top: var(--fy, 50%); left: var(--fx, 50%);
     width: 64px; height: 64px;
@@ -892,43 +889,30 @@
     filter: drop-shadow(0 20px 60px rgba(0,0,0,0.6));
   }
   .bot-eye.eye-breakout { transform: translate3d(0, 0, 0) scale(1.15); }
-  .bot-eye.eye-arm-out,
-  .bot-eye.eye-aim { transform: translate3d(var(--eye-tx, 0px), var(--eye-ty, 0px), 0) scale(5.2); }
-  .bot-eye.eye-fire,
-  .bot-eye.eye-shatter { transform: translate3d(var(--eye-tx, 0px), var(--eye-ty, 0px), 0) scale(5.4); }
-  /* Небольшая коррекция позиции при полном увеличении — глаз всплывает чуть
-     выше центра, чтобы под ним было видно тряску интерфейса и оставалось
-     место для полностью вытянутой руки с пистолетом. */
-  .bot-eye.eye-arm-out, .bot-eye.eye-aim, .bot-eye.eye-fire, .bot-eye.eye-shatter { margin-top: -32px; }
+  .bot-eye.eye-irritate,
+  .bot-eye.eye-frown { transform: translate3d(var(--eye-tx, 0px), var(--eye-ty, 0px), 0) scale(5.2); margin-top: -32px; }
   @media (max-width: 480px) {
-    .bot-eye.eye-arm-out, .bot-eye.eye-aim { transform: translate3d(var(--eye-tx, 0px), var(--eye-ty, 0px), 0) scale(4.1); }
-    .bot-eye.eye-fire, .bot-eye.eye-shatter { transform: translate3d(var(--eye-tx, 0px), var(--eye-ty, 0px), 0) scale(4.1); }
+    .bot-eye.eye-irritate,
+    .bot-eye.eye-frown { transform: translate3d(var(--eye-tx, 0px), var(--eye-ty, 0px), 0) scale(4.1); }
   }
 
   /* Полупрозрачный тёмный купол-подложка позади крупного глаза — читаемость
-     на светлом фоне, лёгкая виньетка фокуса внимания на сцене. Центр
-     виньетки следует за сценой: в breakout — точка клика (--fx/--fy), а
-     начиная с arm-out — уже центр экрана (--eye-cx/--eye-cy), синхронно
-     с translate3d выше, чтобы подсветка не отставала от глаза. */
+     на светлом фоне, лёгкая виньетка фокуса внимания на сцене. */
   .bot-eye.eye-breakout::after {
     content: ''; position: fixed; inset: 0; z-index: -1;
     background: radial-gradient(circle at var(--fx,50%) var(--fy,50%), rgba(15,4,32,0.55) 0%, rgba(10,2,22,0.75) 55%, rgba(6,1,14,0.88) 100%);
     opacity: 0; transition: opacity 0.7s ease;
   }
-  .bot-eye.eye-arm-out::after,
-  .bot-eye.eye-aim::after,
-  .bot-eye.eye-fire::after,
-  .bot-eye.eye-shatter::after {
+  .bot-eye.eye-irritate::after,
+  .bot-eye.eye-frown::after {
     content: ''; position: fixed; inset: 0; z-index: -1;
     background: radial-gradient(circle at var(--eye-cx,50%) var(--eye-cy,50%), rgba(15,4,32,0.55) 0%, rgba(10,2,22,0.75) 55%, rgba(6,1,14,0.88) 100%);
     opacity: 0; transition: opacity 0.7s ease, background 0.9s ease;
   }
   .bot-eye.eye-breakout::after { opacity: 1; }
-  .bot-eye.eye-arm-out::after, .bot-eye.eye-aim::after, .bot-eye.eye-fire::after, .bot-eye.eye-shatter::after { opacity: 1; }
+  .bot-eye.eye-irritate::after, .bot-eye.eye-frown::after { opacity: 1; }
 
-  /* ---------- ТРЯСКА ВСЕГО ИНТЕРФЕЙСА ----------
-     body.eye-rampage-shake — нарастающая тряска всего приложения, кроме самого
-     оверлея глаза (у него свой fixed-слой, не участвует в общем transform). */
+  /* ---------- ЛЁГКАЯ ТРЯСКА ИНТЕРФЕЙСА (только на breakout, коротко) ---------- */
   body.eye-rampage-shake .wrap,
   body.eye-rampage-shake #mesh,
   body.eye-rampage-shake #noise {
@@ -947,195 +931,11 @@
     90% { transform: translate(-1px, -1px) rotate(-0.1deg); }
     100% { transform: translate(0, 0) rotate(0deg); }
   }
-  /* Разовый резкий удар в момент выстрела — сильнее и короче, поверх обычной тряски. */
-  body.eye-rampage-kick .wrap,
-  body.eye-rampage-kick #mesh,
-  body.eye-rampage-kick #noise {
-    animation: interfaceKick 0.35s cubic-bezier(0.36, 0.07, 0.19, 0.97) 1;
-  }
-  @keyframes interfaceKick {
-    0% { transform: translate(0,0) rotate(0deg) scale(1); }
-    12% { transform: translate(-10px, 6px) rotate(-1.2deg) scale(1.01); }
-    28% { transform: translate(9px, -8px) rotate(1deg) scale(0.995); }
-    46% { transform: translate(-6px, 5px) rotate(-0.6deg) scale(1.005); }
-    64% { transform: translate(4px, -3px) rotate(0.4deg) scale(1); }
-    82% { transform: translate(-2px, 1px) rotate(-0.15deg) scale(1); }
-    100% { transform: translate(0,0) rotate(0deg) scale(1); }
-  }
 
-  /* ---------- РУКА С ПИСТОЛЕТОМ — детальный реалистичный рендер ----------
-     Многослойный "металл": градиент корпуса + отдельный слайд (затвор) +
-     блик вдоль ствола + курок + мушка + рукоять с текстурой рифления. Всё
-     чистый CSS (градиенты/box-shadow), без изображений — держит вес файла. */
-  .bot-arm {
-    position: absolute; top: 50%; left: 50%; width: 5px; height: 30px;
-    margin: -15px 0 0 -2.5px; border-radius: 2px;
-    background: linear-gradient(180deg, #D8B892 0%, #B0895D 50%, #8A6642 100%);
-    transform-origin: top center;
-    transform: scaleY(0) rotate(0deg);
-    opacity: 0;
-    transition: transform 0.5s var(--spring), opacity 0.25s ease;
-    z-index: 903;
-  }
-  .bot-eye.eye-arm-out .bot-arm,
-  .bot-eye.eye-aim .bot-arm,
-  .bot-eye.eye-fire .bot-arm { opacity: 1; transform: scaleY(1) rotate(90deg) translateX(2px); }
-  .bot-eye[data-side="right"].eye-arm-out .bot-arm,
-  .bot-eye[data-side="right"].eye-aim .bot-arm,
-  .bot-eye[data-side="right"].eye-fire .bot-arm { transform: scaleY(1) rotate(-90deg) translateX(2px); }
-  .bot-eye.eye-fire .bot-arm { animation: gunRecoil 0.22s ease-out; }
-  @keyframes gunRecoil {
-    0% { translate: 0 0; }
-    25% { translate: -4px 0; }
-    55% { translate: 1px 0; }
-    100% { translate: 0 0; }
-  }
-
-  /* Пистолет — силуэт USP-тактикал (затвор + глушитель + спусковая скоба)
-     нарисован одним inline SVG вместо стопки CSS-полосок: так форма реально
-     читается как пистолет, а не как прямоугольник-"молоток". */
-  .bot-gun {
-    position: absolute; top: -15px; left: 50%; width: 46px; height: 17px; margin-left: -8px;
-    filter: drop-shadow(0 2px 3px rgba(0,0,0,0.6));
-  }
-  .bot-gun svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-
-  .bot-gun-muzzle-flash {
-    position: absolute; right: -16px; top: 44%; width: 0; height: 0;
-    transform: translateY(-50%);
-    background: radial-gradient(circle, #FFFCEF 0%, #FFF2B0 20%, #FFD84D 42%, rgba(255,120,0,0.65) 68%, transparent 78%);
-    border-radius: 50%; opacity: 0;
-  }
-  .bot-eye.eye-fire .bot-gun-muzzle-flash { animation: muzzleFlash 0.32s ease-out; }
-  @keyframes muzzleFlash {
-    0% { width: 0; height: 0; opacity: 0; }
-    18% { width: 46px; height: 46px; opacity: 1; }
-    45% { width: 22px; height: 22px; opacity: 0.85; }
-    100% { width: 6px; height: 6px; opacity: 0; }
-  }
-  /* Дымок после выстрела — лёгкое размытое облачко, тает медленно, добавляет
-     ощущение "порохового дыма" вместо мгновенного исчезновения вспышки. */
-  .bot-gun-smoke {
-    position: absolute; right: -10px; top: 44%; width: 8px; height: 8px;
-    margin-top: -4px; border-radius: 50%;
-    background: radial-gradient(circle, rgba(220,220,225,0.5), transparent 70%);
-    opacity: 0; filter: blur(2px);
-  }
-  .bot-eye.eye-fire .bot-gun-smoke,
-  .bot-eye.eye-shatter .bot-gun-smoke,
-  .bot-eye.eye-settle .bot-gun-smoke {
-    animation: gunSmoke 2.2s ease-out forwards;
-  }
-  @keyframes gunSmoke {
-    0% { opacity: 0; transform: translateY(0) scale(1); }
-    15% { opacity: 0.7; }
-    100% { opacity: 0; transform: translateY(-22px) scale(3.2); }
-  }
-  .bot-gun-trigger-svg { transform-origin: 24.4px 12.4px; transition: transform 0.15s ease; }
-  .bot-eye.eye-fire .bot-gun-trigger-svg { transform: rotate(20deg); }
-  /* Гильза — вылетает вбок-вверх из окна выброса в момент выстрела, крутясь. */
-  .bot-gun-casing {
-    position: absolute; right: 10px; top: 2px; width: 3px; height: 5px;
-    border-radius: 0.5px; background: linear-gradient(180deg, #E8C46A, #B8923A);
-    opacity: 0; transform: translate(0, 0) rotate(0deg);
-  }
-  .bot-eye.eye-fire .bot-gun-casing { animation: casingEject 0.55s cubic-bezier(0.2, 0.7, 0.4, 1) forwards; }
-  @keyframes casingEject {
-    0% { opacity: 0; transform: translate(0, 0) rotate(0deg); }
-    10% { opacity: 1; }
-    100% { opacity: 0; transform: translate(14px, -16px) rotate(420deg); }
-  }
-
-  /* ---------- ЛОКАЛЬНЫЕ ТРЕЩИНЫ НА САМОМ ГЛАЗЕ (мгновенно на shatter) ---------- */
-  .bot-crack {
-    position: absolute; inset: 0; border-radius: 50%; pointer-events: none; z-index: 4;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%232A0073' stroke-width='1.4' stroke-linecap='round'%3E%3Cpath d='M32 32 L14 10 M32 32 L8 30 M32 32 L18 54 M32 32 L40 8 M32 32 L54 16 M32 32 L56 34 M32 32 L46 52 M32 32 L26 6 M14 10 L20 4 M14 10 L6 14 M8 30 L2 26 M8 30 L2 36 M18 54 L10 58 M40 8 L46 2 M54 16 L60 12 M56 34 L62 30 M46 52 L52 58'/%3E%3C/g%3E%3C/svg%3E");
-    background-size: 100% 100%;
-    opacity: 0;
-  }
-  .bot-eye.eye-shatter .bot-crack,
-  .bot-eye.eye-settle .bot-crack { opacity: 1; transition: opacity 0.04s linear; }
-  .bot-eye.eye-heal .bot-crack { opacity: 0; transition: opacity 0.9s ease 0.4s; }
-
-  /* Осколки на самом глазе — разлетаются локально, гаснут к heal. */
-  .bot-shards { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
-  .bot-shards i {
-    position: absolute; top: 50%; left: 50%; width: 6px; height: 6px;
-    background: linear-gradient(135deg, #fff, #C9B8FF); border-radius: 1px;
-    opacity: 0; transform: translate(-50%, -50%) scale(0.6);
-  }
-  .bot-eye.eye-shatter .bot-shards i { animation: shardFly 1.1s cubic-bezier(0.2,0.85,0.3,1) forwards; }
-  .bot-shards i:nth-child(1) { animation-delay: 0.0s; --sx: -30px; --sy: -22px; }
-  .bot-shards i:nth-child(2) { animation-delay: 0.02s; --sx: 24px; --sy: -28px; }
-  .bot-shards i:nth-child(3) { animation-delay: 0.04s; --sx: -34px; --sy: 10px; }
-  .bot-shards i:nth-child(4) { animation-delay: 0.01s; --sx: 32px; --sy: 14px; }
-  .bot-shards i:nth-child(5) { animation-delay: 0.06s; --sx: -14px; --sy: 32px; }
-  .bot-shards i:nth-child(6) { animation-delay: 0.03s; --sx: 16px; --sy: 34px; }
-  .bot-shards i:nth-child(7) { animation-delay: 0.05s; --sx: -6px; --sy: -36px; }
-  .bot-shards i:nth-child(8) { animation-delay: 0.01s; --sx: 6px; --sy: -34px; }
-  @keyframes shardFly {
-    0% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
-    70% { opacity: 1; }
-    100% { opacity: 0; transform: translate(calc(-50% + var(--sx)), calc(-50% + var(--sy))) scale(0.2) rotate(220deg); }
-  }
-
-  /* ---------- ПОЛНОЭКРАННЫЙ ОВЕРЛЕЙ "РАЗБИТЫЙ ЭКРАН" ----------
-     Отдельный fixed div во всю страницу (#eye-crack-overlay, добавлен в HTML),
-     JS включает класс .show на body в момент shatter. SVG-трещины растут из
-     точки удара (--ox/--oy передаются из JS = позиция выстрелившего глаза),
-     плюс крупные стеклянные осколки-полигоны раскиданы по всему вьюпорту. */
-  #eye-crack-overlay {
-    position: fixed; inset: 0; z-index: 850; pointer-events: none;
-    opacity: 0; transition: opacity 0.05s linear;
-  }
-  #eye-crack-overlay.show { opacity: 1; }
-  #eye-crack-overlay.healing { opacity: 0; transition: opacity 1.2s ease 0.2s; }
-  #eye-crack-overlay svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-  /* Крупные полигональные осколки экрана — разлетаются от точки удара наружу,
-     каждый со своим лёгким градиентом "стекла" и bevel-обводкой. */
-  .screen-shard {
-    position: absolute; top: var(--oy, 50%); left: var(--ox, 50%);
-    width: var(--sw, 60px); height: var(--sh, 60px);
-    margin: calc(var(--sh, 60px) / -2) 0 0 calc(var(--sw, 60px) / -2);
-    background: linear-gradient(var(--sang, 135deg), rgba(255,255,255,0.14), rgba(112,0,255,0.1) 55%, rgba(0,0,0,0.22));
-    clip-path: var(--clip, polygon(50% 0%, 100% 40%, 70% 100%, 20% 90%, 0% 30%));
-    border: 1px solid rgba(255,255,255,0.18);
-    opacity: 0; transform: translate(0,0) rotate(0deg) scale(1);
-    transition: none;
-  }
-  #eye-crack-overlay.show .screen-shard {
-    animation: screenShardFly 1.4s cubic-bezier(0.15,0.85,0.3,1) forwards;
-    animation-delay: var(--sdelay, 0s);
-  }
-  @keyframes screenShardFly {
-    0% { opacity: 0; transform: translate(0,0) scale(0.3) rotate(0deg); }
-    8% { opacity: 0.95; }
-    60% { opacity: 0.85; }
-    100% { opacity: 0; transform: translate(var(--tx,60px), var(--ty,60px)) scale(0.75) rotate(var(--trot,140deg)); }
-  }
-  #eye-crack-overlay.healing .screen-shard { animation: none; opacity: 0; transition: opacity 0.5s ease; }
-
-  /* ---------- SETTLE — покачивание после разбития, пыль оседает ----------
-     Остаётся там же, где стояло при выстреле — в центре экрана
-     (--eye-tx/ty), а не откатывается к исходной точке клика по глазу. */
-  .bot-eye.eye-settle { animation: settleSway 2.4s ease-in-out infinite; }
-  @keyframes settleSway {
-    0%, 100% { transform: translate3d(var(--eye-tx, 0px), var(--eye-ty, 0px), 0) scale(5.2) rotate(0deg); }
-    50% { transform: translate3d(var(--eye-tx, 0px), var(--eye-ty, 0px), 0) scale(5.2) rotate(0.8deg); }
-  }
-  @media (max-width: 480px) {
-    .bot-eye.eye-settle { animation-name: settleSwayMobile; }
-    @keyframes settleSwayMobile {
-      0%, 100% { transform: translate3d(var(--eye-tx, 0px), var(--eye-ty, 0px), 0) scale(4.1) rotate(0deg); }
-      50% { transform: translate3d(var(--eye-tx, 0px), var(--eye-ty, 0px), 0) scale(4.1) rotate(0.8deg); }
-    }
-  }
-
-  /* ---------- HEAL — глаз "стягивается" и плавно возвращается на место ----------
+  /* ---------- HEAL — глаз успокаивается и плавно возвращается на место ----------
      top/left остаются --fx/--fy (исходная точка глаза) — тот же якорь, что
-     был всё время. transform едет от центра экрана (где стоял eye-settle)
-     обратно к translate3d(0,0,0), то есть к самому якорю — плавный полёт
-     домой, а не телепорт. */
+     был всё время. transform едет от центра экрана обратно к
+     translate3d(0,0,0), то есть к самому якорю — плавный полёт домой. */
   .bot-eye.eye-heal {
     position: fixed; top: var(--fy, 50%); left: var(--fx, 50%);
     width: 64px; height: 64px; margin: -32px 0 0 -32px; z-index: 900;
@@ -1405,23 +1205,7 @@
           </span>
           <span class="mark-vein l"></span><span class="mark-vein r"></span>
           <span class="mark-arm l" id="arm-l"><span class="fist"></span></span>
-          <span class="mark-arm r" id="arm-r"><span class="fist"></span>
-            <svg class="mark-gun" viewBox="0 0 46 17" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <defs>
-                <linearGradient id="gunMetalM" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#7A7A84"/>
-                  <stop offset="40%" stop-color="#45454E"/>
-                  <stop offset="100%" stop-color="#131316"/>
-                </linearGradient>
-              </defs>
-              <rect x="0" y="5" width="17" height="6" rx="2.4" fill="url(#gunMetalM)"/>
-              <rect x="16" y="3.5" width="20" height="6.5" rx="1.2" fill="url(#gunMetalM)"/>
-              <rect x="34.5" y="1.6" width="1.6" height="2.4" fill="#8A8A92"/>
-              <rect x="18" y="9.6" width="12" height="3" rx="1" fill="#2C2C31"/>
-              <rect x="26" y="9.8" width="7.5" height="7" rx="1.2" fill="#1A1A1D"/>
-            </svg>
-            <span class="mark-gun-flash"></span>
-          </span>
+          <span class="mark-arm r" id="arm-r"><span class="fist"></span></span>
           <span class="impact-flash"></span>
         </div>
       </div>
@@ -1486,107 +1270,29 @@
     <div class="bot-eyes" id="bot-eyes">
       <button class="bot-eye" id="bot-eye-l" type="button" data-side="left" aria-label="Uzum bot eye">
         <span class="bot-eye-vein"></span>
+        <span class="bot-eye-micro"></span>
         <span class="bot-eye-lid">
           <span class="bot-pupil" id="bot-pupil-l"></span>
           <span class="bot-brow l"></span><span class="bot-brow r"></span>
         </span>
-        <span class="bot-arm">
-          <span class="bot-gun">
-            <svg viewBox="0 0 46 17" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <defs>
-                <linearGradient id="gunMetalL" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#7A7A84"/>
-                  <stop offset="40%" stop-color="#45454E"/>
-                  <stop offset="100%" stop-color="#131316"/>
-                </linearGradient>
-              </defs>
-              <!-- глушитель -->
-              <rect x="0" y="5" width="17" height="6" rx="2.4" fill="url(#gunMetalL)"/>
-              <rect x="1" y="6.1" width="15" height="0.9" rx="0.4" fill="rgba(255,255,255,0.35)"/>
-              <line x1="6" y1="5" x2="6" y2="11" stroke="rgba(0,0,0,0.4)" stroke-width="0.6"/>
-              <line x1="11" y1="5" x2="11" y2="11" stroke="rgba(0,0,0,0.4)" stroke-width="0.6"/>
-              <!-- ствол/затвор -->
-              <rect x="16" y="3.5" width="20" height="6.5" rx="1.2" fill="url(#gunMetalL)"/>
-              <rect x="17" y="4.3" width="16" height="0.9" rx="0.4" fill="rgba(255,255,255,0.4)"/>
-              <!-- насечки прицела на затворе -->
-              <line x1="20" y1="3.5" x2="20" y2="6" stroke="rgba(0,0,0,0.35)" stroke-width="0.7"/>
-              <line x1="22.4" y1="3.5" x2="22.4" y2="6" stroke="rgba(0,0,0,0.35)" stroke-width="0.7"/>
-              <line x1="24.8" y1="3.5" x2="24.8" y2="6" stroke="rgba(0,0,0,0.35)" stroke-width="0.7"/>
-              <!-- мушка -->
-              <rect x="34.5" y="1.6" width="1.6" height="2.4" fill="#8A8A92"/>
-              <!-- рамка/корпус ниже затвора -->
-              <rect x="18" y="9.6" width="12" height="3" rx="1" fill="#2C2C31"/>
-              <!-- спусковая скоба -->
-              <path d="M22 12.2 Q22 15.6 25.4 15.6" fill="none" stroke="#1C1C1F" stroke-width="1.6" stroke-linecap="round"/>
-              <!-- курок -->
-              <rect class="bot-gun-trigger-svg" x="23.6" y="12.4" width="1.6" height="3" rx="0.6" fill="#1C1C1F"/>
-              <!-- рукоять с рифлением -->
-              <rect x="26" y="9.8" width="7.5" height="7" rx="1.2" fill="#1A1A1D"/>
-              <line x1="27.4" y1="10.5" x2="27.4" y2="16.2" stroke="rgba(0,0,0,0.5)" stroke-width="0.5"/>
-              <line x1="29.2" y1="10.5" x2="29.2" y2="16.2" stroke="rgba(0,0,0,0.5)" stroke-width="0.5"/>
-              <line x1="31" y1="10.5" x2="31" y2="16.2" stroke="rgba(0,0,0,0.5)" stroke-width="0.5"/>
-            </svg>
-            <span class="bot-gun-casing"></span>
-            <span class="bot-gun-muzzle-flash"></span>
-            <span class="bot-gun-smoke"></span>
-          </span>
-        </span>
-        <span class="bot-crack"></span>
-        <span class="bot-shards">
-          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-        </span>
       </button>
       <button class="bot-eye" id="bot-eye-r" type="button" data-side="right" aria-label="Uzum bot eye">
         <span class="bot-eye-vein"></span>
+        <span class="bot-eye-micro"></span>
         <span class="bot-eye-lid">
           <span class="bot-pupil" id="bot-pupil-r"></span>
           <span class="bot-brow l"></span><span class="bot-brow r"></span>
-        </span>
-        <span class="bot-arm">
-          <span class="bot-gun">
-            <svg viewBox="0 0 46 17" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <defs>
-                <linearGradient id="gunMetalR" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#7A7A84"/>
-                  <stop offset="40%" stop-color="#45454E"/>
-                  <stop offset="100%" stop-color="#131316"/>
-                </linearGradient>
-              </defs>
-              <rect x="0" y="5" width="17" height="6" rx="2.4" fill="url(#gunMetalR)"/>
-              <rect x="1" y="6.1" width="15" height="0.9" rx="0.4" fill="rgba(255,255,255,0.35)"/>
-              <line x1="6" y1="5" x2="6" y2="11" stroke="rgba(0,0,0,0.4)" stroke-width="0.6"/>
-              <line x1="11" y1="5" x2="11" y2="11" stroke="rgba(0,0,0,0.4)" stroke-width="0.6"/>
-              <rect x="16" y="3.5" width="20" height="6.5" rx="1.2" fill="url(#gunMetalR)"/>
-              <rect x="17" y="4.3" width="16" height="0.9" rx="0.4" fill="rgba(255,255,255,0.4)"/>
-              <line x1="20" y1="3.5" x2="20" y2="6" stroke="rgba(0,0,0,0.35)" stroke-width="0.7"/>
-              <line x1="22.4" y1="3.5" x2="22.4" y2="6" stroke="rgba(0,0,0,0.35)" stroke-width="0.7"/>
-              <line x1="24.8" y1="3.5" x2="24.8" y2="6" stroke="rgba(0,0,0,0.35)" stroke-width="0.7"/>
-              <rect x="34.5" y="1.6" width="1.6" height="2.4" fill="#8A8A92"/>
-              <rect x="18" y="9.6" width="12" height="3" rx="1" fill="#2C2C31"/>
-              <path d="M22 12.2 Q22 15.6 25.4 15.6" fill="none" stroke="#1C1C1F" stroke-width="1.6" stroke-linecap="round"/>
-              <rect class="bot-gun-trigger-svg" x="23.6" y="12.4" width="1.6" height="3" rx="0.6" fill="#1C1C1F"/>
-              <rect x="26" y="9.8" width="7.5" height="7" rx="1.2" fill="#1A1A1D"/>
-              <line x1="27.4" y1="10.5" x2="27.4" y2="16.2" stroke="rgba(0,0,0,0.5)" stroke-width="0.5"/>
-              <line x1="29.2" y1="10.5" x2="29.2" y2="16.2" stroke="rgba(0,0,0,0.5)" stroke-width="0.5"/>
-              <line x1="31" y1="10.5" x2="31" y2="16.2" stroke="rgba(0,0,0,0.5)" stroke-width="0.5"/>
-            </svg>
-            <span class="bot-gun-casing"></span>
-            <span class="bot-gun-muzzle-flash"></span>
-            <span class="bot-gun-smoke"></span>
-          </span>
-        </span>
-        <span class="bot-crack"></span>
-        <span class="bot-shards">
-          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
         </span>
       </button>
     </div>
   </div>
 </div>
-<div id="eye-crack-overlay" aria-hidden="true"></div>
 
 <div id="toast"></div>
 <div id="saga-fire-flash" aria-hidden="true"></div>
+<div class="blast-ring" aria-hidden="true"></div>
+<div class="blast-ring" aria-hidden="true"></div>
+<div class="blast-ring" aria-hidden="true"></div>
 
 <div id="sheet-overlay"></div>
 <div id="paste-sheet" class="glass-bubble">
@@ -2162,110 +1868,27 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
   })();
 
   // ============================================================
-  // BOT EYE CLICK SCENE — "глаз обозлился": полноэкранная детальная сценка.
+  // BOT EYE CLICK SCENE — "глаз раздражён": детальная сценка на ~20s.
   // Та же схема, что у saga-анимации логотипа (класс на фазу + setTimeout-цепочка),
-  // но глаз временно становится fixed-элементом и выходит поверх всего интерфейса,
-  // а сам интерфейс трясётся и покрывается трещинами через #eye-crack-overlay.
+  // но глаз временно становится fixed-элементом и выходит поверх всего интерфейса.
   // Второй глаз в это время живёт своей жизнью (busy-флаг только на кликнутом).
-  // Фазы и тайминг (мс от клика) — растянуто нарочно, чтобы каждая деталь
-  // (текстура радужки, металл пистолета, разлёт осколков) успевала прочитаться:
+  // Фазы и тайминг (мс от клика):
   //   0     eye-rage-build — краснеет: сосуды проступают, зрачок сужается
   //   700   eye-rage-lock  — гримаса фиксируется, веко прищуривается
-  //   1500  eye-breakout   — глаз выходит на fixed-слой, растёт, интерфейс трясётся
-  //   3200  eye-arm-out    — рука с пистолетом выезжает из-за глаза
-  //   4300  eye-aim        — прицеливается в пользователя, дрожь прицела
-  //   6200  eye-fire       — выстрел: вспышка, отдача, резкий удар по экрану
-  //   6520  eye-shatter    — весь экран покрывается трещинами, летят осколки
-  //   8200  eye-settle     — осколки покачиваются, пыль оседает (удержание кадра)
-  //   14200 eye-heal       — трещины стягиваются, глаз возвращается на место
-  //   16400 очистка классов, обычная жизнь глаз возвращается
+  //   1500  eye-breakout   — глаз выходит на fixed-слой, растёт в центр экрана
+  //   3200  eye-irritate   — детальная 4К-текстура радужки, микротрещины на
+  //                          поверхности глаза, зуд (дрожь зрачка/века)
+  //   11200 eye-frown      — глаз хмурится ("ай, не жми на меня")
+  //   16200 eye-heal       — глаз успокаивается, возвращается на место
+  //   18400 очистка классов, обычная жизнь глаз возвращается
   // ============================================================
   (() => {
     const eyes = [
       { el: $('bot-eye-l'), pupil: $('bot-pupil-l'), key: 'l' },
       { el: $('bot-eye-r'), pupil: $('bot-pupil-r'), key: 'r' },
     ];
-    const crackOverlay = $('eye-crack-overlay');
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     let rampageActive = false; // глобальный лок — пока сцена играет у одного глаза, второй клик игнорим
-
-    // Генерирует SVG-трещины (расходятся от точки удара по всему вьюпорту) +
-    // набор крупных полигональных осколков экрана. Создаётся один раз на сцену,
-    // удаляется после heal — не копим мёртвую разметку в DOM между сценами.
-    function buildScreenCrack(originX, originY) {
-      if (!crackOverlay) return;
-      crackOverlay.innerHTML = '';
-      crackOverlay.style.setProperty('--ox', originX + 'px');
-      crackOverlay.style.setProperty('--oy', originY + 'px');
-
-      const vw = window.innerWidth, vh = window.innerHeight;
-      const svgNS = 'http://www.w3.org/2000/svg';
-      const svg = document.createElementNS(svgNS, 'svg');
-      svg.setAttribute('viewBox', `0 0 ${vw} ${vh}`);
-      const mainLines = 14;
-      let paths = '';
-      for (let i = 0; i < mainLines; i++) {
-        const ang = (Math.PI * 2 * i) / mainLines + (Math.random() - 0.5) * 0.35;
-        const len = Math.max(vw, vh) * (0.55 + Math.random() * 0.55);
-        const midLen = len * (0.35 + Math.random() * 0.2);
-        const jitterAng = ang + (Math.random() - 0.5) * 0.4;
-        const mx = originX + Math.cos(ang) * midLen + (Math.random() - 0.5) * 40;
-        const my = originY + Math.sin(ang) * midLen + (Math.random() - 0.5) * 40;
-        const ex = originX + Math.cos(jitterAng) * len;
-        const ey = originY + Math.sin(jitterAng) * len;
-        paths += `<path d="M${originX} ${originY} L${mx} ${my} L${ex} ${ey}" />`;
-        // короткие боковые ответвления от средней точки — как настоящее битое стекло
-        if (Math.random() > 0.35) {
-          const bAng = jitterAng + (Math.random() > 0.5 ? 1 : -1) * (0.5 + Math.random() * 0.6);
-          const bLen = len * (0.18 + Math.random() * 0.2);
-          const bx = mx + Math.cos(bAng) * bLen;
-          const by = my + Math.sin(bAng) * bLen;
-          paths += `<path d="M${mx.toFixed(0)} ${my.toFixed(0)} L${bx.toFixed(0)} ${by.toFixed(0)}" />`;
-        }
-      }
-      // пара концентрических колец рядом с эпицентром — типичный узор удара по стеклу
-      const ring1 = Math.max(vw, vh) * 0.06, ring2 = Math.max(vw, vh) * 0.13;
-      svg.innerHTML =
-        `<g fill="none" stroke="rgba(230,225,255,0.85)" stroke-width="1.6" stroke-linecap="round">${paths}
-          <circle cx="${originX}" cy="${originY}" r="${ring1.toFixed(0)}" stroke-width="1.1" opacity="0.7"/>
-          <circle cx="${originX}" cy="${originY}" r="${ring2.toFixed(0)}" stroke-width="0.9" opacity="0.5"/>
-        </g>`;
-      crackOverlay.appendChild(svg);
-
-      // Крупные осколки — раскиданы по вьюпорту, каждый со своим случайным
-      // многоугольником, размером, углом вылета и задержкой (волна, не всё разом).
-      const shardCount = 22;
-      for (let i = 0; i < shardCount; i++) {
-        const shard = document.createElement('div');
-        shard.className = 'screen-shard';
-        const ang = Math.random() * Math.PI * 2;
-        const dist = 40 + Math.random() * 60;
-        const size = 34 + Math.random() * 70;
-        const tx = Math.cos(ang) * (Math.max(vw, vh) * (0.35 + Math.random() * 0.5));
-        const ty = Math.sin(ang) * (Math.max(vw, vh) * (0.35 + Math.random() * 0.5));
-        const px = originX + Math.cos(ang) * dist;
-        const py = originY + Math.sin(ang) * dist;
-        // случайный неправильный многоугольник — чтобы осколки не выглядели одинаково
-        const pts = [];
-        const sides = 5 + Math.floor(Math.random() * 2);
-        for (let s = 0; s < sides; s++) {
-          const a = (Math.PI * 2 * s) / sides + Math.random() * 0.5;
-          const r = 35 + Math.random() * 20;
-          pts.push(`${(50 + Math.cos(a) * r).toFixed(0)}% ${(50 + Math.sin(a) * r).toFixed(0)}%`);
-        }
-        shard.style.setProperty('--ox', px + 'px');
-        shard.style.setProperty('--oy', py + 'px');
-        shard.style.setProperty('--sw', size.toFixed(0) + 'px');
-        shard.style.setProperty('--sh', (size * (0.7 + Math.random() * 0.6)).toFixed(0) + 'px');
-        shard.style.setProperty('--clip', `polygon(${pts.join(',')})`);
-        shard.style.setProperty('--tx', tx.toFixed(0) + 'px');
-        shard.style.setProperty('--ty', ty.toFixed(0) + 'px');
-        shard.style.setProperty('--trot', (Math.random() * 360 - 180).toFixed(0) + 'deg');
-        shard.style.setProperty('--sang', (Math.random() * 360).toFixed(0) + 'deg');
-        shard.style.setProperty('--sdelay', (Math.random() * 0.5).toFixed(2) + 's');
-        crackOverlay.appendChild(shard);
-      }
-    }
 
     eyes.forEach(({ el, pupil, key }) => {
       if (!el) return;
@@ -2276,7 +1899,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       function at(fn, ms) { timers.push(setTimeout(fn, ms)); }
 
       // Защита от утечки: если пользователь сворачивает Mini App или уходит со
-      // страницы посреди ~16s сцены, отменяем все ещё не сработавшие setTimeout —
+      // страницы посреди сцены, отменяем все ещё не сработавшие setTimeout —
       // иначе они всё равно сработают в фоне и будут трогать DOM/классы впустую.
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) clearTimers();
@@ -2301,9 +1924,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         el.style.setProperty('--fy', cy + 'px');
 
         // Смещение ОТ точки клика (--fx/--fy) ДО центра экрана — используется
-        // начиная с arm-out, чтобы пистолет реально целился и стрелял в
-        // центр (в зрителя), а не оставался висеть в углу, где кликнули по
-        // глазу. Центр экрана = центр вьюпорта в текущий момент.
+        // начиная с breakout, чтобы крупный план глаза был по центру экрана.
         const eyeTx = (window.innerWidth / 2) - cx;
         const eyeTy = (window.innerHeight / 2) - cy;
         el.style.setProperty('--eye-tx', eyeTx + 'px');
@@ -2315,56 +1936,31 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         at(() => { el.classList.add('eye-rage-lock'); haptic('light'); }, 700);
         at(() => {
           // Переносим глаз в body до перехода в position:fixed — иначе он остаётся
-          // потомком .wrap, а .wrap на время тряски (eye-rampage-shake/kick) сам
-          // получает transform и становится containing block для fixed-потомков:
-          // "неподвижный" полноэкранный глаз начинал бы дёргаться вместе с тряской
-          // фона вместо того, чтобы быть её неподвижным центром. Та же техника,
-          // что и у document.body.appendChild(mark) в саге логотипа.
+          // потомком .wrap, а .wrap на время тряски (eye-rampage-shake) сам
+          // получает transform и становится containing block для fixed-потомков.
           document.body.appendChild(el);
           el.classList.add('eye-breakout');
           document.body.classList.add('eye-rampage-shake');
           haptic('medium');
         }, 1500);
+        at(() => document.body.classList.remove('eye-rampage-shake'), 2300);
         at(() => {
           el.classList.remove('eye-breakout');
-          el.classList.add('eye-arm-out');
-          haptic('light');
-        }, 3200);
-        at(() => {
-          el.classList.remove('eye-arm-out');
-          el.classList.add('eye-aim');
+          el.classList.add('eye-irritate');
           haptic('medium');
-        }, 4300);
+        }, 3200);
+        // Детальная фаза раздражения держится дольше всего — здесь читается
+        // 4К-текстура радужки, микротрещины, зуд (по сценарию — самая долгая часть).
         at(() => {
-          el.classList.remove('eye-aim');
-          el.classList.add('eye-fire');
-          document.body.classList.remove('eye-rampage-shake');
-          document.body.classList.add('eye-rampage-kick');
-          haptic('heavy');
-        }, 6200);
-        at(() => {
-          document.body.classList.remove('eye-rampage-kick');
-          el.classList.add('eye-shatter');
-          // Точка удара — ЦЕНТР ЭКРАНА, куда сцена уже доехала к фазе arm-out
-          // (см. --eye-tx/ty выше), а не исходная точка клика по глазу
-          // (--fx/--fy). Раньше трещина рисовалась от угла экрана, где
-          // висел глаз, хотя сам пистолет к этому моменту целился в центр —
-          // визуально трещина и выстрел были не в одном месте.
-          const crackCx = window.innerWidth / 2, crackCy = window.innerHeight / 2;
-          buildScreenCrack(crackCx, crackCy);
-          if (crackOverlay) { crackOverlay.classList.remove('healing'); crackOverlay.classList.add('show'); }
-          haptic('heavy');
-        }, 6520);
-        at(() => {
-          el.classList.remove('eye-shatter');
-          el.classList.add('eye-settle');
-        }, 8200);
-        at(() => {
-          el.classList.remove('eye-rage-build', 'eye-rage-lock', 'eye-fire', 'eye-settle');
-          el.classList.add('eye-heal');
-          if (crackOverlay) { crackOverlay.classList.remove('show'); crackOverlay.classList.add('healing'); }
+          el.classList.remove('eye-irritate');
+          el.classList.add('eye-frown');
           haptic('light');
-        }, 14200);
+        }, 11200);
+        at(() => {
+          el.classList.remove('eye-rage-build', 'eye-rage-lock', 'eye-frown');
+          el.classList.add('eye-heal');
+          haptic('light');
+        }, 16200);
         at(() => {
           el.classList.remove('eye-heal', 'eye-playing');
           el.style.removeProperty('--fx');
@@ -2373,14 +1969,13 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
           el.style.removeProperty('--eye-ty');
           el.style.removeProperty('--eye-cx');
           el.style.removeProperty('--eye-cy');
-          if (crackOverlay) { crackOverlay.classList.remove('healing'); crackOverlay.innerHTML = ''; }
           // Возвращаем глаз обратно в #bot-eyes, откуда его забрали в фазе eye-breakout.
           const home = document.getElementById('bot-eyes');
           if (home) home.appendChild(el);
           eyeBusy[key] = false;
           rampageActive = false;
           playing = false;
-        }, 16400);
+        }, 18400);
       }
 
       if (reduceMotion) {
@@ -2394,6 +1989,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       }
     });
   })();
+
 
   // ============================================================
   // BOTTOM-SHEET (ШТОРКА)
@@ -2606,24 +2202,93 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
 
     const SAGA_SCENE_SIZE = 200; // ширина/высота сцены в фазах liftoff/rage/jump/land
 
-    // Целевая точка "над кнопкой Завершить" как СМЕЩЕНИЕ ОТ ЯКОРЯ (не
-    // абсолютные координаты) — используется и при старте саги, и при resize,
-    // единая формула исключает рассинхронизацию между ними.
+    // Целевая точка — ЦЕНТР ЭКРАНА (по сценарию логотип едет в центр, а не
+    // к какой-то конкретной кнопке), как смещение ОТ ЯКОРЯ (не абсолютные
+    // координаты) — используется и при старте саги, и при resize.
     function computeSagaOffset(startRect) {
-      const vw = window.innerWidth;
-      const targetRect = slot.getBoundingClientRect();
-      const targetCenterX = targetRect.left + targetRect.width / 2;
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const targetCenterX = vw / 2;
+      const targetCenterY = vh / 2;
       let tx = (targetCenterX - SAGA_SCENE_SIZE / 2) - startRect.left;
-      // Прыжок 2 поднимается на 260px — оставляем зазор сверху, чтобы логотип
-      // на пике прыжка не улетал за верхний край экрана (была причина
-      // "прыгает в жопу мира" на маленьких/проскролленных экранах).
-      const topMargin = 260 + 40;
-      let ty = Math.max(targetRect.top - SAGA_SCENE_SIZE - 24, topMargin) - startRect.top;
-      // Клампим по горизонтали, чтобы 200px-сцена не вылезала за края вьюпорта.
+      let ty = (targetCenterY - SAGA_SCENE_SIZE / 2) - startRect.top;
+      // Клампим, чтобы 200px-сцена не вылезала за края вьюпорта (важно при
+      // высоком прыжке 2, который дополнительно поднимается на 260px).
       const minTx = 8 - startRect.left;
       const maxTx = (vw - SAGA_SCENE_SIZE - 8) - startRect.left;
       tx = Math.min(Math.max(tx, minTx), maxTx);
+      const minTy = 8 - startRect.top;
+      const maxTy = (vh - SAGA_SCENE_SIZE - 8) - startRect.top;
+      ty = Math.min(Math.max(ty, minTy), maxTy);
       return { tx, ty };
+    }
+
+    // --- РАЗЛЁТ БУКВ ИНТЕРФЕЙСА ОТ ВЕТРА ВЗРЫВА ---
+    // Берём видимые текстовые узлы карточек, клонируем их посимвольно в
+    // fixed-позиционированные span'ы поверх страницы, разбрасываем каждую
+    // букву в случайном направлении/на случайное расстояние (неравномерно —
+    // часть букв улетает недалеко, часть — почти за край экрана), затем
+    // прячем оригинальный текст на время полёта и плавно возвращаем.
+    function scatterInterfaceLetters() {
+      const nodes = Array.from(document.querySelectorAll(
+        '.brand-name, .brand-sub, .section-label, .hint-text, .footer-mark, .lang-cur'
+      )).filter(el => el.offsetParent !== null);
+
+      const flyLayer = document.createDocumentFragment();
+      const createdSpans = [];
+
+      nodes.forEach(el => {
+        const text = el.textContent;
+        if (!text || !text.trim()) return;
+        const rect = el.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+
+        // Меряем позицию каждой буквы через временный canvas-independent приём:
+        // раскладываем буквы по ширине узла пропорционально их доле в строке.
+        el.classList.add('wind-hide');
+        const cs = getComputedStyle(el);
+        const chars = text.split('');
+        const approxCharW = rect.width / Math.max(chars.length, 1);
+
+        chars.forEach((ch, i) => {
+          if (ch === ' ') return;
+          const span = document.createElement('span');
+          span.textContent = ch;
+          span.className = 'letter-fly';
+          span.style.left = (rect.left + i * approxCharW) + 'px';
+          span.style.top = rect.top + 'px';
+          span.style.fontSize = cs.fontSize;
+          span.style.fontWeight = cs.fontWeight;
+          span.style.fontFamily = cs.fontFamily;
+          span.style.letterSpacing = cs.letterSpacing;
+          span.style.lineHeight = cs.lineHeight;
+
+          // Случайное, неравномерное направление/дистанция/поворот — не
+          // равномерный радиальный разлёт, а "хаос от порыва ветра".
+          const ang = Math.random() * Math.PI * 2;
+          const dist = 60 + Math.random() * 420;
+          const lx = Math.cos(ang) * dist + (Math.random() - 0.5) * 120;
+          const ly = Math.sin(ang) * dist - Math.random() * 80; // общий снос чуть вверх, как от волны
+          span.style.setProperty('--lf-x', lx.toFixed(0) + 'px');
+          span.style.setProperty('--lf-y', ly.toFixed(0) + 'px');
+          span.style.setProperty('--lf-r', ((Math.random() * 720) - 360).toFixed(0) + 'deg');
+          span.style.setProperty('--lf-s', (0.4 + Math.random() * 0.7).toFixed(2));
+          span.style.setProperty('--lf-dur', (1.1 + Math.random() * 0.8).toFixed(2) + 's');
+
+          flyLayer.appendChild(span);
+          createdSpans.push(span);
+        });
+      });
+
+      document.body.appendChild(flyLayer);
+
+      // Возврат: убираем клоны-буквы, плавно проявляем исходный текст обратно.
+      setTimeout(() => {
+        nodes.forEach(el => el.classList.add('wind-return'));
+        setTimeout(() => {
+          createdSpans.forEach(s => s.remove());
+          nodes.forEach(el => el.classList.remove('wind-hide', 'wind-return'));
+        }, 900);
+      }, 1900);
     }
 
     function playSaga() {
@@ -2631,8 +2296,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       playing = true;
       haptic('medium');
 
-      // На мобильных на время саги ставим на паузу фоновые decorative-анимации —
-      // теперь сцена длится ~30s вместо 4.3s, экономия GPU ещё важнее.
+      // На мобильных на время саги ставим на паузу фоновые decorative-анимации.
       if (isMobile) document.body.classList.add('saga-active');
 
       // --- ПЕРЕМЕЩАЕМ ЛОГОТИП В BODY ---
@@ -2655,7 +2319,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       const CLASSES = [
         'saga-liftoff', 'saga-quake-soft', 'saga-quake-hard', 'saga-crouch',
         'saga-jump1', 'saga-land1', 'saga-breathe', 'saga-glitch', 'saga-crouch2',
-        'saga-jump2', 'saga-land2', 'saga-armout', 'saga-aim', 'saga-fire',
+        'saga-jump2', 'saga-land2',
         'saga-rage', 'saga-smash', 'saga-oops', 'saga-awkward', 'saga-return',
       ];
       const TEXT_CLASSES = ['saga-rage', 'saga-oops', 'saga-return'];
@@ -2664,8 +2328,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       const setPhase = (cls) => { mark.classList.remove(...CLASSES); if (cls) mark.classList.add(cls); };
 
       // Защита от утечки: если пользователь сворачивает Mini App или уходит со
-      // страницы посреди ~30s саги, отменяем все ещё не сработавшие setTimeout —
-      // иначе они сработают в фоне, дёргая классы/DOM без всякой пользы.
+      // страницы посреди сцены, отменяем все ещё не сработавшие setTimeout.
       function clearSagaTimers() { timers.forEach(clearTimeout); }
       const onHide = () => { if (document.hidden) clearSagaTimers(); };
       document.addEventListener('visibilitychange', onHide);
@@ -2674,129 +2337,116 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       mark.classList.add('saga-playing');
 
       // ============================================================
-      // ФАЗА 1 — ЗАКИПАНИЕ (0 - 6s)
+      // СЦЕНАРИЙ (строгая последовательность, ~14.5s):
+      //   0.0s   логотип плавно растёт и едет в центр экрана (liftoff)
+      //   1.0s   злая мимика проявляется (закипание, quake)
+      //   3.6s   первый тяжёлый прыжок
+      //   4.8s   приземление 1 — удар
+      //   6.3s   короткая пауза (breathe) перед вторым прыжком
+      //   7.3s   второй, более высокий прыжок
+      //   8.5s   приземление 2 — сильный удар → сразу взрыв
+      //   8.6s   ВЗРЫВ: вспышка, ударные кольца, ветер по интерфейсу,
+      //          буквы всего интерфейса хаотично разлетаются
+      //   10.0s  злая мимика сменяется на неловкую ("ой, фух, я остыл")
+      //   12.0s  буквы возвращаются на место
+      //   12.5s  логотип плавно едет обратно на исходное место
+      //   14.5s  сцена полностью завершена, сброс состояния
       // ============================================================
-      at(() => setPhase('saga-liftoff'), 0);
 
-      at(() => { setPhase('saga-quake-soft'); }, 1000);
+      // ---- ЗАКИПАНИЕ: рост + злая мимика (0 - 3.6s) ----
+      at(() => setPhase('saga-liftoff'), 0);
+      at(() => { mark.classList.add('saga-rage'); textBlock.classList.add('saga-rage'); }, 700);
+      at(() => { setPhase('saga-quake-soft'); mark.classList.add('saga-rage'); }, 1400);
       at(() => {
-        mark.classList.add('saga-quake-hard');
+        mark.classList.add('saga-quake-hard', 'saga-rage');
         mark.classList.remove('saga-quake-soft');
         haptic('warning');
-      }, 3000);
+      }, 2600);
 
-      // ============================================================
-      // ФАЗА 2 — ПЕРВЫЙ ПРЫЖОК И ТРЕЩИНА (6 - 12s)
-      // ============================================================
-      at(() => { setPhase('saga-crouch'); haptic('light'); }, 6000);
-      at(() => { setPhase('saga-jump1'); haptic('medium'); }, 6800);
+      // ---- ПРЫЖОК 1 (3.6 - 6.3s) — сохранённая механика тяжёлого прыжка ----
+      at(() => { setPhase('saga-crouch'); mark.classList.add('saga-rage'); haptic('light'); }, 3600);
+      at(() => { setPhase('saga-jump1'); mark.classList.add('saga-rage'); haptic('medium'); }, 4200);
       at(() => {
-        setPhase('saga-land1');
+        setPhase('saga-land1'); mark.classList.add('saga-rage');
         document.body.classList.add('saga-shake1');
         haptic('heavy');
         const r = mark.getBoundingClientRect();
         triggerImpact(r.left + r.width / 2, r.top + r.height / 2 - 20);
-      }, 8500);
-      at(() => document.body.classList.remove('saga-shake1'), 8900);
-      at(() => {
-        finishBtn.classList.add('cracked');
-        haptic('medium');
-      }, 9500);
-      at(() => { setPhase('saga-breathe'); }, 10500);
+      }, 5400);
+      at(() => document.body.classList.remove('saga-shake1'), 5800);
+      at(() => { setPhase('saga-breathe'); mark.classList.add('saga-rage'); }, 6300);
 
-      // ============================================================
-      // ФАЗА 3 — ВТОРОЙ ПРЫЖОК И SHATTER (12 - 20s)
-      // ============================================================
+      // ---- ПРЫЖОК 2, выше и агрессивнее (7.3 - 8.6s) ----
+      at(() => { setPhase('saga-crouch2'); mark.classList.add('saga-rage'); haptic('light'); }, 7300);
+      at(() => { setPhase('saga-jump2'); mark.classList.add('saga-rage'); haptic('medium'); }, 7700);
       at(() => {
-        setPhase('saga-glitch');
-        haptic('warning');
-      }, 12000);
-      at(() => { setPhase('saga-crouch2'); haptic('light'); }, 13000);
-      at(() => { setPhase('saga-jump2'); haptic('medium'); }, 13500);
-      at(() => {
-        setPhase('saga-land2');
+        setPhase('saga-land2'); mark.classList.add('saga-rage');
         document.body.classList.add('saga-shake2');
         haptic('heavy');
+      }, 8600);
+      at(() => document.body.classList.remove('saga-shake2'), 9100);
+
+      // ---- ВЗРЫВ: вспышка + ударные кольца + ветер + разлёт букв (8.6 - 10s) ----
+      at(() => {
+        haptic('heavy');
         const r = mark.getBoundingClientRect();
-        triggerImpact(r.left + r.width / 2, r.top + r.height / 2 - 20);
-      }, 15500);
-      at(() => document.body.classList.remove('saga-shake2'), 16000);
+        const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
 
-      // Shatter — кнопка окончательно разлетается (переиспользуем smashed/hole,
-      // уже готовую механику "дыры" из исходной саги, плюс второй, более
-      // мощный триггер частиц ровно из центра кнопки).
-      at(() => {
-        finishBtn.classList.remove('cracked');
-        finishBtn.classList.add('smashed');
-        slot.classList.add('smashed');
-        hole.classList.add('hole-active');
-        haptic('heavy');
-        const br = finishBtn.getBoundingClientRect();
-        triggerImpact(br.left + br.width / 2, br.top + br.height / 2);
-      }, 16500);
-
-      // ============================================================
-      // ФАЗА 4 — ОРУЖИЕ (20 - 25s)
-      // ============================================================
-      at(() => { setPhase('saga-armout'); haptic('light'); }, 20000);
-      at(() => { setPhase('saga-aim'); haptic('medium'); }, 21500);
-      at(() => {
-        mark.classList.add('saga-fire');
-        haptic('heavy');
         const flash = $('saga-fire-flash');
-        if (flash) { flash.classList.remove('show'); void flash.offsetWidth; flash.classList.add('show'); }
-      }, 23000);
-      at(() => { setPhase('saga-aim'); }, 24000); // сцена "прицелился в камеру" удерживается до выстрела в фазе 5
+        if (flash) {
+          flash.style.setProperty('--blast-x', cx + 'px');
+          flash.style.setProperty('--blast-y', cy + 'px');
+          flash.classList.remove('show'); void flash.offsetWidth; flash.classList.add('show');
+        }
 
-      // ============================================================
-      // ФАЗА 5 — РАЗВЯЗКА И НЕЛОВКОСТЬ (25 - 30s)
-      // ============================================================
+        // Несколько ударных колец подряд — читается как настоящая волна.
+        const rings = document.querySelectorAll('.blast-ring');
+        [0, 90, 180].forEach((delay, i) => {
+          setTimeout(() => {
+            const ring = rings[i] || document.querySelectorAll('.blast-ring')[i];
+            if (!ring) return;
+            ring.style.left = cx + 'px'; ring.style.top = cy + 'px';
+            ring.classList.remove('fly'); void ring.offsetWidth; ring.classList.add('fly');
+          }, delay);
+        });
+
+        triggerImpact(cx, cy);
+        document.body.classList.add('saga-wind');
+        scatterInterfaceLetters();
+      }, 8700);
+      at(() => document.body.classList.remove('saga-wind'), 9800);
+
+      // ---- Злая мимика → неловкая мимика ("ой, неловко вышло, фух") (10 - 12.5s) ----
       at(() => {
-        mark.classList.add('saga-fire');
-        haptic('heavy');
-        const flash = $('saga-fire-flash');
-        if (flash) { flash.classList.remove('show'); void flash.offsetWidth; flash.classList.add('show'); }
-        const r = mark.getBoundingClientRect();
-        triggerImpact(r.left + r.width / 2, r.top + r.height / 2);
-      }, 25000);
-      at(() => { setPhase('saga-oops'); haptic('light'); }, 26000);
-      at(() => {
-        setPhase('saga-awkward');
+        setPhase('saga-oops');
         textBlock.classList.remove(...TEXT_CLASSES);
         textBlock.classList.add('saga-oops');
-      }, 27000);
+        haptic('light');
+      }, 10000);
+      at(() => { mark.classList.add('saga-awkward'); }, 10600);
+
+      // ---- Плавный возврат на исходное место (12.5 - 14.5s) ----
       at(() => {
         setPhase('saga-return');
         textBlock.classList.remove(...TEXT_CLASSES);
         textBlock.classList.add('saga-return');
-        finishBtn.classList.remove('cracked');
-      }, 29000);
+      }, 12500);
 
       // Финал и сброс состояния
       at(() => {
-        mark.classList.remove(...CLASSES, 'saga-playing');
+        mark.classList.remove(...CLASSES, 'saga-playing', 'saga-awkward');
         mark.style.removeProperty('--saga-x');
         mark.style.removeProperty('--saga-y');
         mark.style.removeProperty('--saga-tx');
         mark.style.removeProperty('--saga-ty');
         textBlock.classList.remove(...TEXT_CLASSES);
 
-        slot.classList.remove('smashed');
-        hole.classList.remove('hole-active');
-        finishBtn.classList.remove('smashed', 'cracked');
-        finishBtn.classList.add('restoring');
-        void finishBtn.offsetWidth;
-        finishBtn.classList.add('restore-in');
-        setTimeout(() => { finishBtn.classList.remove('restoring', 'restore-in'); }, 600);
-
         // --- ВОЗВРАЩАЕМ ЛОГОТИП ОБРАТНО В КОНТЕЙНЕР ---
         container.appendChild(mark);
-        document.body.classList.remove('saga-active', 'saga-shake1', 'saga-shake2');
+        document.body.classList.remove('saga-active', 'saga-shake1', 'saga-shake2', 'saga-wind');
         playing = false;
-        // Сага доиграла штатно — снимаем per-run listener, чтобы при
-        // повторных запусках playSaga() они не накапливались.
         document.removeEventListener('visibilitychange', onHide);
-      }, 29900);
+      }, 14500);
     }
 
     // Если размер окна меняется во время анимации, обновляем цель.
