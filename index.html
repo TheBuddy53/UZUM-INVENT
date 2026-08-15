@@ -1483,10 +1483,11 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         // для слабого GPU, тот же силуэт ряби остаётся.
         app.liquidPlane.material.metalness = isMobileGL ? 0 : 0.75;
         app.liquidPlane.material.roughness = isMobileGL ? 1 : 0.25;
-        // Было 5 → 1.8 (треть силы). Теперь разводим по устройствам: 1.2 на ПК (чуть
-        // спокойнее прежнего 1.8, тот же стеклянный вид) и 1.0 на мобильных — меньше
-        // геометрии смещения пересчитывает GPU на слабых экранах.
-        app.liquidPlane.uniforms.displacementScale.value = isMobileGL ? 1.0 : 1.2;
+        // Было 5 → 1.8 → 1.2/1.0 (стало почти незаметно при движении курсора).
+        // Чуть вернули силы обратно: 1.35 на ПК и 1.12 на мобильных — на пару
+        // процентов заметнее рябь при движении, не переходя обратно в прежнюю
+        // тяжёлую версию.
+        app.liquidPlane.uniforms.displacementScale.value = isMobileGL ? 1.12 : 1.35;
         app.setRain(false);
         window.__liquidApp = app;
       })
@@ -1754,32 +1755,306 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
   // AudioContext создаётся ЛЕНИВО при первом клике — браузеры запрещают стартовать
   // звук без явного жеста пользователя.
   let audioCtx = null;
-  function playGlassTick() {
+  function getAC() {
     try {
       if (!audioCtx) {
         const AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return;
+        if (!AC) return null;
         audioCtx = new AC();
       }
       if (audioCtx.state === 'suspended') audioCtx.resume();
-      const now = audioCtx.currentTime;
-      const master = audioCtx.createGain();
+      return audioCtx;
+    } catch (err) { return null; }
+  }
+
+  function playGlassTick() {
+    try {
+      const ac = getAC();
+      if (!ac) return;
+      const now = ac.currentTime;
+      const master = ac.createGain();
       master.gain.setValueAtTime(0.0001, now);
       master.gain.exponentialRampToValueAtTime(0.16, now + 0.008);
       master.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
-      master.connect(audioCtx.destination);
+      master.connect(ac.destination);
       // Основной тон + тихая квинта сверху — лёгкий "стеклянный" призвук вместо
       // плоского писка одной синусоиды.
       [[1760, 1], [2637, 0.4]].forEach(([freq, vol]) => {
-        const osc = audioCtx.createOscillator();
+        const osc = ac.createOscillator();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, now);
-        const g = audioCtx.createGain();
+        const g = ac.createGain();
         g.gain.value = vol;
         osc.connect(g); g.connect(master);
         osc.start(now); osc.stop(now + 0.17);
       });
     } catch (err) { /* Web Audio недоступен (ограничение WebView и т.п.) — тихо игнорируем */ }
+  }
+
+  // ===== РАСШИРЕННАЯ ЗВУКОВАЯ ПАЛИТРА =====
+  // Всё синтезируется на лету (осцилляторы + генерируемый шум), без base64-сэмплов,
+  // чтобы не раздувать вес файла. Громкость держим низкой — это тактильный отклик
+  // под тему конкретного элемента, а не саундтрек поверх интерфейса.
+  let noiseBuffer = null;
+  function getNoiseBuffer(ac) {
+    if (noiseBuffer) return noiseBuffer;
+    const len = ac.sampleRate * 0.3;
+    const buf = ac.createBuffer(1, len, ac.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    noiseBuffer = buf;
+    return buf;
+  }
+
+  // Очень тихий короткий "тик" на наведение курсора — для акцентных слов
+  // (.key, .format-val) и буквы лого. Троттлится снаружи по времени, чтобы частый
+  // pointerenter/mousemove не заваливал звуками.
+  function playHoverTick() {
+    try {
+      const ac = getAC();
+      if (!ac) return;
+      const now = ac.currentTime;
+      const master = ac.createGain();
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.exponentialRampToValueAtTime(0.045, now + 0.006);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
+      master.connect(ac.destination);
+      const osc = ac.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(3200 + Math.random() * 400, now);
+      osc.connect(master);
+      osc.start(now); osc.stop(now + 0.08);
+    } catch (err) {}
+  }
+
+  // Раздражённый "рык" — короткая низкая пила с тремоло-дрожью громкости, под
+  // фазу saga-rage (лого злится перед ударом).
+  function playAngryGrowl() {
+    try {
+      const ac = getAC();
+      if (!ac) return;
+      const now = ac.currentTime;
+      const master = ac.createGain();
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.exponentialRampToValueAtTime(0.14, now + 0.03);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+      master.connect(ac.destination);
+
+      const osc = ac.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(95, now);
+      osc.frequency.linearRampToValueAtTime(70, now + 0.5);
+      const filt = ac.createBiquadFilter();
+      filt.type = 'lowpass';
+      filt.frequency.setValueAtTime(500, now);
+      osc.connect(filt);
+
+      const trem = ac.createOscillator();
+      trem.type = 'sine';
+      trem.frequency.setValueAtTime(28, now);
+      const tremGain = ac.createGain();
+      tremGain.gain.value = 0.5;
+      const tremBase = ac.createGain();
+      tremBase.gain.value = 0.5;
+      trem.connect(tremGain); tremGain.connect(tremBase.gain);
+
+      filt.connect(tremBase);
+      tremBase.connect(master);
+
+      osc.start(now); osc.stop(now + 0.55);
+      trem.start(now); trem.stop(now + 0.55);
+    } catch (err) {}
+  }
+
+  // Удар — глухой низкочастотный "бум" (просевшая синусоида) + короткий шумовой
+  // треск сверху, под фазу saga-smash и коллапс кнопки завершения инвента.
+  function playImpactBoom() {
+    try {
+      const ac = getAC();
+      if (!ac) return;
+      const now = ac.currentTime;
+
+      const master = ac.createGain();
+      master.gain.setValueAtTime(0.22, now);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.42);
+      master.connect(ac.destination);
+
+      const osc = ac.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(160, now);
+      osc.frequency.exponentialRampToValueAtTime(38, now + 0.35);
+      osc.connect(master);
+      osc.start(now); osc.stop(now + 0.42);
+
+      const noise = ac.createBufferSource();
+      noise.buffer = getNoiseBuffer(ac);
+      const noiseFilt = ac.createBiquadFilter();
+      noiseFilt.type = 'bandpass';
+      noiseFilt.frequency.value = 1400;
+      noiseFilt.Q.value = 0.7;
+      const noiseGain = ac.createGain();
+      noiseGain.gain.setValueAtTime(0.18, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+      noise.connect(noiseFilt); noiseFilt.connect(noiseGain); noiseGain.connect(ac.destination);
+      noise.start(now); noise.stop(now + 0.12);
+    } catch (err) {}
+  }
+
+  // Смущённый "ой" — мягкий писк со скользящим вверх тоном, под фазу saga-oops.
+  function playOopsBlip() {
+    try {
+      const ac = getAC();
+      if (!ac) return;
+      const now = ac.currentTime;
+      const master = ac.createGain();
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.exponentialRampToValueAtTime(0.11, now + 0.02);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+      master.connect(ac.destination);
+      const osc = ac.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(520, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.18);
+      osc.connect(master);
+      osc.start(now); osc.stop(now + 0.22);
+    } catch (err) {}
+  }
+
+  // Мягкое "приземление" — под фазу saga-return, когда лого возвращается домой.
+  function playSoftLand() {
+    try {
+      const ac = getAC();
+      if (!ac) return;
+      const now = ac.currentTime;
+      const master = ac.createGain();
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.exponentialRampToValueAtTime(0.1, now + 0.01);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+      master.connect(ac.destination);
+      const osc = ac.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(300, now);
+      osc.frequency.exponentialRampToValueAtTime(180, now + 0.18);
+      osc.connect(master);
+      osc.start(now); osc.stop(now + 0.2);
+    } catch (err) {}
+  }
+
+  // Клик по глазу бота — короткий "органический" щелчок-моргание: две близкие
+  // высокие ноты внахлёст, мягче обычного glassTick.
+  function playEyeBlink() {
+    try {
+      const ac = getAC();
+      if (!ac) return;
+      const now = ac.currentTime;
+      const master = ac.createGain();
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.exponentialRampToValueAtTime(0.13, now + 0.006);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.13);
+      master.connect(ac.destination);
+      [[2100, 1], [3150, 0.35]].forEach(([freq, vol], idx) => {
+        const osc = ac.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.01);
+        const g = ac.createGain();
+        g.gain.value = vol;
+        osc.connect(g); g.connect(master);
+        osc.start(now + idx * 0.01); osc.stop(now + 0.14);
+      });
+    } catch (err) {}
+  }
+
+  // Взлёт лого (saga-liftoff) — короткий восходящий шумовой свист.
+  function playLiftoffWhoosh() {
+    try {
+      const ac = getAC();
+      if (!ac) return;
+      const now = ac.currentTime;
+      const master = ac.createGain();
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.exponentialRampToValueAtTime(0.1, now + 0.05);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+      master.connect(ac.destination);
+      const noise = ac.createBufferSource();
+      noise.buffer = getNoiseBuffer(ac);
+      const filt = ac.createBiquadFilter();
+      filt.type = 'bandpass';
+      filt.Q.value = 0.9;
+      filt.frequency.setValueAtTime(600, now);
+      filt.frequency.exponentialRampToValueAtTime(2600, now + 0.38);
+      noise.connect(filt); filt.connect(master);
+      noise.start(now); noise.stop(now + 0.4);
+    } catch (err) {}
+  }
+
+  // ===== НИЗКИЙ "БАСОВЫЙ" ГУЛ ЖИДКОГО ФОНА ПРИ ДВИЖЕНИИ КУРСОРА =====
+  // Не одноразовый щелчок, а непрерывный тон-подложка: плотный низкий бас с лёгким
+  // волнистым дрожанием (LFO по частоте), громкость плавно нарастает пока курсор
+  // движется по пустому фону и плавно затухает, когда останавливается или уходит на
+  // интерактивный элемент. Один персистентный узел вместо create/destroy на каждое
+  // движение — так нет щелчков на границах и не плодятся ноды.
+  let bgHumNodes = null;
+  let bgHumFadeTimer = null;
+  function ensureBgHum() {
+    if (bgHumNodes) return bgHumNodes;
+    const ac = getAC();
+    if (!ac) return null;
+    const now = ac.currentTime;
+
+    const master = ac.createGain();
+    master.gain.setValueAtTime(0.0001, now);
+    master.connect(ac.destination);
+
+    // Плотный низкочастотный бас: два осциллятора чуть расстроены друг относительно
+    // друга — даёт "плотненькое" биение вместо сухого чистого тона.
+    const oscA = ac.createOscillator();
+    oscA.type = 'sine';
+    oscA.frequency.setValueAtTime(58, now);
+    const oscB = ac.createOscillator();
+    oscB.type = 'sine';
+    oscB.frequency.setValueAtTime(61, now);
+
+    const filt = ac.createBiquadFilter();
+    filt.type = 'lowpass';
+    filt.frequency.setValueAtTime(220, now);
+
+    // LFO по частоте основного тона — создаёт ощущение волнистой ряби, а не ровного гула.
+    const lfo = ac.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.setValueAtTime(4.5, now);
+    const lfoGain = ac.createGain();
+    lfoGain.gain.value = 5;
+    lfo.connect(lfoGain);
+    lfoGain.connect(oscA.frequency);
+    lfoGain.connect(oscB.frequency);
+
+    oscA.connect(filt);
+    oscB.connect(filt);
+    filt.connect(master);
+
+    oscA.start(now); oscB.start(now); lfo.start(now);
+    bgHumNodes = { master, oscA, oscB, lfo };
+    return bgHumNodes;
+  }
+  // Целевая громкость гула зависит от скорости движения курсора — быстрее двигаешь,
+  // плотнее рябь. Клампится, чтобы не перекрикивать остальные звуки интерфейса.
+  function bgHumPulse(speed) {
+    const nodes = ensureBgHum();
+    if (!nodes) return;
+    const ac = audioCtx;
+    const now = ac.currentTime;
+    const target = Math.min(0.09, 0.02 + speed * 0.00035);
+    nodes.master.gain.cancelScheduledValues(now);
+    nodes.master.gain.setValueAtTime(nodes.master.gain.value, now);
+    nodes.master.gain.linearRampToValueAtTime(target, now + 0.08);
+    clearTimeout(bgHumFadeTimer);
+    bgHumFadeTimer = setTimeout(() => {
+      if (!bgHumNodes) return;
+      const t2 = audioCtx.currentTime;
+      bgHumNodes.master.gain.cancelScheduledValues(t2);
+      bgHumNodes.master.gain.setValueAtTime(bgHumNodes.master.gain.value, t2);
+      bgHumNodes.master.gain.linearRampToValueAtTime(0.0001, t2 + 0.35);
+    }, 90);
   }
 
   document.querySelectorAll('.btn').forEach(btn => {
@@ -1839,11 +2114,41 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       meshRaf = requestAnimationFrame(tickMesh);
     } else { meshRaf = null; meshLastT = 0; }
   }
+  let bgHumLastX = null, bgHumLastY = null, bgHumLastT = 0;
+  const BG_HUM_SELECTOR = 'a, button, input, textarea, .btn, .card, .icon-btn, .lang-switch, .bot-eye, .brand-mark, .format-val, .hint-text .key, #paste-sheet, #sheet-overlay';
   window.addEventListener('pointermove', (e) => {
     tx = ((e.clientX / window.innerWidth) - 0.5) * PARALLAX_AMP;
     ty = ((e.clientY / window.innerHeight) - 0.5) * PARALLAX_AMP;
     if (!meshRaf) meshRaf = requestAnimationFrame(tickMesh);
+
+    // Басовый гул фона — только когда курсор реально движется по пустому месту,
+    // не поверх кнопок/карточек/текста (у тех своя звуковая тема).
+    if (e.pointerType && e.pointerType !== 'mouse') return;
+    const overInteractive = e.target.closest && e.target.closest(BG_HUM_SELECTOR);
+    const now = performance.now();
+    if (overInteractive) { bgHumLastX = null; bgHumLastY = null; return; }
+    if (bgHumLastX !== null) {
+      const dt = Math.max(1, now - bgHumLastT);
+      const dist = Math.hypot(e.clientX - bgHumLastX, e.clientY - bgHumLastY);
+      const speed = (dist / dt) * 1000; // px/сек
+      if (speed > 8) bgHumPulse(speed);
+    }
+    bgHumLastX = e.clientX; bgHumLastY = e.clientY; bgHumLastT = now;
   }, { passive: true });
+
+  // Уход курсора с окна или сворачивание вкладки — гасим гул сразу, чтобы не завис
+  // на последней громкости (иначе следующий bgHumPulse на границе окна дал бы щелчок).
+  function fadeBgHumNow() {
+    if (!bgHumNodes || !audioCtx) return;
+    clearTimeout(bgHumFadeTimer);
+    const t = audioCtx.currentTime;
+    bgHumNodes.master.gain.cancelScheduledValues(t);
+    bgHumNodes.master.gain.setValueAtTime(bgHumNodes.master.gain.value, t);
+    bgHumNodes.master.gain.linearRampToValueAtTime(0.0001, t + 0.25);
+    bgHumLastX = null; bgHumLastY = null;
+  }
+  document.addEventListener('pointerleave', fadeBgHumNow);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) fadeBgHumNow(); });
 
   document.querySelectorAll('.card').forEach(card => {
     card.addEventListener('pointermove', (e) => {
@@ -1854,6 +2159,22 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     card.addEventListener('pointerleave', () => {
       card.style.setProperty('--mouse-x', '50%');
       card.style.setProperty('--mouse-y', '-20%');
+    });
+  });
+
+  // ===== ТИХИЙ ЗВУК ПРИ НАВЕДЕНИИ НА АКЦЕНТНЫЕ СЛОВА И БУКВУ ЛОГО =====
+  // .key/.format-val — выделенные слова в подсказках ("ID заказа", "ячейка" и т.д.),
+  // .mark-letter — буква "U" в лого. Только для мыши (pointerType 'mouse'), чтобы на
+  // тачах не стрелять звуком при обычном скролле/тапе. Троттлинг 120мс на элемент —
+  // защита от повторных enter/leave при дрожании курсора на границе.
+  document.querySelectorAll('.hint-text .key, .format-val, .mark-letter').forEach(el => {
+    let lastPlay = 0;
+    el.addEventListener('pointerenter', (e) => {
+      if (e.pointerType && e.pointerType !== 'mouse') return;
+      const now = performance.now();
+      if (now - lastPlay < 120) return;
+      lastPlay = now;
+      playHoverTick();
     });
   });
 
@@ -2235,6 +2556,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         playing = true;
         eyeBusy[key] = true; // приостанавливаем курсорный трекинг зрачка на время сцены
         haptic('medium');
+        playEyeBlink();
         pupil.style.transform = 'translate(0, 0)'; // смотрит прямо перед сценой
 
         // Перезапуск CSS-анимаций на повторном клике: снять класс, форсировать
@@ -2621,7 +2943,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
 
       mark.classList.add('saga-playing');
 
-      at(() => { mark.classList.remove(...CLASSES); mark.classList.add('saga-liftoff'); }, 0);
+      at(() => { mark.classList.remove(...CLASSES); mark.classList.add('saga-liftoff'); playLiftoffWhoosh(); }, 0);
 
       at(() => {
         mark.classList.remove(...CLASSES);
@@ -2629,12 +2951,14 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         textBlock.classList.remove(...TEXT_CLASSES);
         textBlock.classList.add('saga-rage');
         haptic('warning');
+        playAngryGrowl();
       }, 950);
 
       at(() => {
         mark.classList.remove(...CLASSES);
         mark.classList.add('saga-smash');
         haptic('heavy');
+        playImpactBoom();
         const smashRect = mark.getBoundingClientRect();
         const cx = smashRect.left + smashRect.width / 2;
         const cy = smashRect.top + smashRect.height / 2 - 40;
@@ -2651,6 +2975,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         finishBtn.classList.add('smashed');
         hole.classList.add('hole-active');
         haptic('heavy');
+        playImpactBoom();
       }, 2000);
 
       at(() => {
@@ -2659,6 +2984,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         textBlock.classList.remove(...TEXT_CLASSES);
         textBlock.classList.add('saga-oops');
         haptic('light');
+        playOopsBlip();
       }, 2450);
 
       // Возврат маскота домой НЕ ждёт буквы — по новому ТЗ буквы/фрагменты интерфейса
@@ -2672,6 +2998,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         mark.classList.add('saga-return');
         textBlock.classList.remove(...TEXT_CLASSES);
         textBlock.classList.add('saga-return');
+        playSoftLand();
       }, 3600);
 
       // Клинап ждёт, пока маскот долетит домой (возврат стартует на 3600, летит 1.3s →
