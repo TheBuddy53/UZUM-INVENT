@@ -34,8 +34,21 @@
 
     --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
     --ease: cubic-bezier(0.25, 1, 0.15, 1);
+    --saga-epic: cubic-bezier(0.22, 1.1, 0.36, 1);
     --epic: cubic-bezier(0.16, 1.36, 0.4, 1);
     --epic-out: cubic-bezier(0.6, 0, 0.85, 0.35);
+
+    /* Статичный PNG-шум (64x64, 32 градации серого, ~2.8KB) вместо SVG feTurbulence.
+       feTurbulence — это дорогой per-pixel software-фильтр, который на слабых Android GPU
+       (Adreno 618 и слабее — Redmi Note 10 Pro и т.п.) пересчитывается при каждой композиции
+       слоя (opacity/transform соседних элементов инвалидирует растр фильтра). Растровый PNG
+       декодируется ОДИН раз и дальше просто тайлится/двигается композитором — на порядок
+       дешевле, а на глаз при таких низких opacity (0.05–0.08) разница неразличима. Один
+       общий URL — два потребителя (#vignette::after, .card .grain) переиспользуют
+       один и тот же decoded-кадр из кеша браузера вместо раздельных SVG-фильтров.
+       (#noise, третий потребитель, полностью отключён ниже — см. комментарий у #noise.)
+ */
+    --noise-png-url: url("data:image/png;base64,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");
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -74,7 +87,8 @@
   }
   #vignette::after {
     content: ''; position: absolute; inset: 0; opacity: 0.05; mix-blend-mode: overlay;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 300 300' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+    background-image: var(--noise-png-url); background-repeat: repeat; background-size: 128px 128px;
+    transform: translateZ(0); backface-visibility: hidden;
   }
   /* Тёмно-фиолетовое "покрытие" поверх mesh-орбов — сами орбы (b1/b2/b3) яркие и
      светлые сами по себе, виньетка по краям их не гасит в центре экрана. Этот
@@ -83,6 +97,14 @@
   #bg-tint { position: fixed; inset: 0; z-index: -1; pointer-events: none;
     background: linear-gradient(160deg, rgba(20, 4, 45, 0.55), rgba(8, 1, 20, 0.7));
     mix-blend-mode: multiply;
+    /* Медленная пульсация тона (#14042D → #28124D, период ~8s) — оба стопа градиента
+       одной структуры в каждом кадре keyframes, поэтому браузер честно интерполирует
+       цвет между ними, а не дёргает значение скачком. Дёшево: раз в 8с, не per-frame. */
+    animation: bgTintPulse 8s ease-in-out infinite;
+  }
+  @keyframes bgTintPulse {
+    0%, 100% { background: linear-gradient(160deg, rgba(20, 4, 45, 0.55), rgba(8, 1, 20, 0.7)); }
+    50% { background: linear-gradient(160deg, rgba(40, 18, 77, 0.55), rgba(8, 1, 20, 0.7)); }
   }
 
   /* ФИКС КНОПОК */
@@ -107,31 +129,40 @@
   }
 
   /* Фоновые эффекты */
-  /* Зерно снижено с 0.12 до ~0.05 (легче считать на слабом Android) и текстура упрощена —
-     numOctaves 3→1 сильно сокращает стоимость feTurbulence на каждый кадр смещения
-     background-position, при этом зерно всё ещё едва заметно "живёт" на фоне. */
-  #noise { position: fixed; inset: -50%; z-index: 999; pointer-events: none; opacity: 0.05; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='1' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); animation: noiseShift 8s steps(10) infinite; transition: opacity 0.4s ease; will-change: transform; transform: translateZ(0); contain: paint; }
-  #noise.flash { opacity: 0.22; }
-  :root { --grain-url: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
-  @keyframes noiseShift { 0% { transform: translate(0,0); } 10% { transform: translate(-5%,-5%); } 20% { transform: translate(-10%,5%); } 30% { transform: translate(5%,-10%); } 40% { transform: translate(-5%,15%); } 50% { transform: translate(-10%,5%); } 60% { transform: translate(15%,0); } 70% { transform: translate(0,15%); } 80% { transform: translate(3%,35%); } 90% { transform: translate(-10%,10%); } 100% { transform: translate(0,0); } }
-  /* Мобильная оптимизация шума: та же текстура и амплитуда, но более дешёвая анимация —
-     steps(10) на каждый кадр пересчитывает blend/paint слоя; linear даёт браузеру компоузить
-     плавный transform-тур, а не 10 дискретных перерисовок в секунду. */
-  @media (max-width: 480px) {
-    #noise { animation-timing-function: linear; }
-  }
+  /* Зерно снижено с 0.12 до ~0.05 (легче считать на слабом Android). Раньше текстура была
+     живым SVG feTurbulence-фильтром — теперь это статичный decoded-once PNG (--noise-png-url,
+     см. :root), а "жизнь" зерна даёт только translate3d-анимация самого слоя, без per-frame
+     пересчёта фильтра. */
+  /* #noise ПОЛНОСТЬЮ ОТКЛЮЧЁН по прямому запросу — этот слой был inset:-50% (200%×200%
+     площади вьюпорта, в 4 раза больше экрана) с infinite mix-blend-mode анимацией.
+     mix-blend-mode заставляет компоузитор пересчитывать блендинг слоя со всем, что под
+     ним, на КАЖДЫЙ кадр анимации — даже после перевода текстуры на статичный PNG (см.
+     :root выше) сама механика "большой блендящийся слой + постоянное движение" осталась
+     главным источником просадки FPS на слабых Android GPU. display:none убирает слой из
+     рендер-дерева полностью (ноль paint/composite), id и класс .flash оставлены пустыми
+     (без background/animation), чтобы не трогать JS (playWash() переключает .flash) —
+     переключение теперь просто ничего не делает, а не бросает ошибку на несуществующем
+     элементе. */
+  #noise, #noise.flash { display: none; }
+  :root { --grain-url: var(--noise-png-url); }
 
-  #mesh { position: fixed; inset: 0; z-index: -1; pointer-events: none; filter: blur(70px) saturate(160%) url(#liquidWarp); overflow: hidden; will-change: filter, transform; transform: translateZ(0); contain: paint; transition: filter 0.6s var(--ease), transform 0.6s var(--ease); }
+  #mesh { position: fixed; inset: 0; z-index: -1; pointer-events: none; filter: blur(70px) saturate(160%) url(#liquidWarp); overflow: hidden; will-change: filter, transform; transform: translateZ(0); backface-visibility: hidden; contain: paint; transition: filter 0.6s var(--ease), transform 0.6s var(--ease); }
   #mesh.ripple { filter: blur(80px) saturate(180%) brightness(1.2) url(#liquidWarp); transform: scale(1.02); }
   /* На мобильных большой blur-радиус на весь fixed-слой — самая дорогая операция в композиторе
-     (GPU считает blur на полноэкранной area каждый кадр анимации орбов). Уменьшаем радиус —
-     свечение остаётся тем же по ощущению, просто чуть менее "растянутым". SVG-искажение
-     (feTurbulence) тоже отключаем на мобильных — на слабом Android composited filter chain
-     с displacement дороже чистого blur, а разница на маленьком экране почти не видна. */
+     (GPU считает blur на полноэкранной area каждый кадр анимации орбов), а SVG-искажение
+     (feTurbulence в #liquidWarp) поверх него на составном filter-chain ещё дороже — на слабом
+     Android GPU (Adreno 618 и слабее) именно эта пара — главный "жор" кадра. На мобильных
+     держим радиус строго в 30-40px (свечение по ощущению то же, просто менее "растянутое")
+     и полностью убираем url(#liquidWarp) — визуальная разница на маленьком экране не видна,
+     а composited filter chain с displacement схлопывается до одного дешёвого blur-прохода.
+     Триггерим и по ширине вьюпорта, и по User-Agent (html.is-android, см. JS) — виджет/фолдабл
+     Android с широким экраном всё ещё имеет слабый GPU, а по одной ширине его бы не поймали. */
   @media (max-width: 480px) {
-    #mesh { filter: blur(38px) saturate(160%); }
-    #mesh.ripple { filter: blur(44px) saturate(180%) brightness(1.2); }
+    #mesh { filter: blur(34px) saturate(160%); }
+    #mesh.ripple { filter: blur(38px) saturate(180%) brightness(1.2); }
   }
+  html.is-android #mesh { filter: blur(34px) saturate(160%); }
+  html.is-android #mesh.ripple { filter: blur(38px) saturate(180%) brightness(1.2); }
   #mesh-track { position: absolute; inset: -10%; }
   #mesh span { position: absolute; border-radius: 50%; will-change: transform; mix-blend-mode: screen; }
   /* Жидкий фон: те же 3 "капли", что и раньше, но чуть более вытянутые (border-radius
@@ -139,9 +170,9 @@
      на самом #mesh — вместе это даёт эффект медленно текущей жидкости вместо статичных
      кругов. Интенсивность (opacity/размер) занижена на ~20% против исходного макета —
      легче и элегантнее, чтобы не спорить с интерфейсом поверх. */
-  #mesh .b1 { width: 80vw; height: 80vw; left: -10%; top: -10%; background: radial-gradient(circle, rgba(130,40,255,0.37), transparent 70%); animation: orbFloat1 26s infinite alternate var(--ease), blobMorph1 14s infinite alternate ease-in-out; }
-  #mesh .b2 { width: 70vw; height: 70vw; right: -20%; top: 40%; background: radial-gradient(circle, rgba(200,100,255,0.28), transparent 70%); animation: orbFloat2 32s infinite alternate-reverse var(--ease), blobMorph2 17s infinite alternate ease-in-out; }
-  #mesh .b3 { width: 90vw; height: 90vw; left: 10%; bottom: -30%; background: radial-gradient(circle, rgba(52, 199, 123, 0.2), transparent 70%); animation: orbFloat3 29s infinite alternate var(--ease), blobMorph3 20s infinite alternate ease-in-out; }
+  #mesh .b1 { width: 80vw; height: 80vw; left: -10%; top: -10%; background: radial-gradient(circle, rgba(130,40,255,0.30), transparent 70%); animation: orbFloat1 26s infinite alternate var(--ease), blobMorph1 14s infinite alternate ease-in-out; }
+  #mesh .b2 { width: 70vw; height: 70vw; right: -20%; top: 40%; background: radial-gradient(circle, rgba(200,100,255,0.22), transparent 70%); animation: orbFloat2 32s infinite alternate-reverse var(--ease), blobMorph2 17s infinite alternate ease-in-out; }
+  #mesh .b3 { width: 90vw; height: 90vw; left: 10%; bottom: -30%; background: radial-gradient(circle, rgba(52, 199, 123, 0.15), transparent 70%); animation: orbFloat3 29s infinite alternate var(--ease), blobMorph3 20s infinite alternate ease-in-out; }
   @keyframes orbFloat1 { 0% { transform: translate(0, 0) scale(1) rotate(0deg); } 100% { transform: translate(20vw, 15vh) scale(1.22) rotate(45deg); } }
   @keyframes orbFloat2 { 0% { transform: translate(0, 0) scale(1) rotate(0deg); } 100% { transform: translate(-30vw, -20vh) scale(1.12) rotate(-30deg); } }
   @keyframes orbFloat3 { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(10vw, -30vh) scale(1.3); } }
@@ -184,59 +215,281 @@
     transform: translate3d(0, 0, 0) scale(1);
     transition: transform 0.4s var(--ease), box-shadow 0.4s var(--ease);
     touch-action: none;
+    backface-visibility: hidden;
     z-index: 2;
   }
   /* Пока эластика JS активно пишет transform каждый кадр — снимаем CSS-transition,
      иначе он "тормозит" каждое обновление кадра пружины, деформация будет вязкой,
      а не резкой/сочной (тот же паттерн, что у finish/paste-wms). */
   .brand-mark.elastic-live { transition: none; }
+  .brand-mark:active:not(.saga-playing) { transform: scale(0.92) translateZ(0); }
 
-  /* =====================================================================
-     КЛИК-МИКРОАНИМАЦИЯ ЛОГОТИПА — полностью переписана.
-     Раньше клик запускал ~15-секундную "сагу": элемент вырывался из потока
-     (document.body.appendChild), становился position:fixed, летал по экрану
-     через смену left/top и десятков CSS-классов с разными transition-
-     duration. Именно из-за скрещивания layout-свойств (left/top/margin) с
-     конкурирующими transition'ами и происходили телепортации — на быстрой
-     смене классов браузер иногда откатывал элемент к незавершённому
-     предыдущему переходу.
-
-     НОВАЯ ЛОГИКА:
-       — Логотип НИКОГДА не покидает .brand-logo-container и не получает
-         position:fixed — он всегда обычный поточный элемент.
-       — Единственное анимируемое свойство положения/размера — transform
-         (translate3d/scale/rotate). Ни left, ни top, ни margin, ни width/
-         height не участвуют — нулевой reflow, ничего вокруг не сдвигается.
-       — Вся сцена держится на ОДНОМ классе .mark-pulse, включаемом и
-         выключаемом через один обработчик клика — никакой цепочки
-         setTimeout с разными transition-длительностями, которые могли бы
-         гоняться друг с другом. Класс снимается JS'ом ровно через
-         длительность самой CSS-анимации (см. SCENE_MS в JS ниже), то есть
-         уже после того, как markPulse естественно завершилась на своём
-         последнем кадре.
-       — Возврат в состояние покоя — это просто отсутствие класса: браузер
-         плавно интерполирует transform обратно к 1/0 через тот же transition
-         с cubic-bezier(0.25, 1, 0.5, 1), который задан на самом .brand-mark. */
-  .brand-mark.mark-pulse {
-    transition: transform 0.55s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.55s var(--ease);
-    animation: markPulse 0.68s cubic-bezier(0.25, 1, 0.5, 1) 1;
+  /* Сюжетный режим — логотип в теле */
+  .brand-mark.saga-playing {
+    position: fixed !important;
+    z-index: 999999 !important;
+    left: var(--saga-x, 0px);
+    top: var(--saga-y, 0px);
+    width: var(--saga-w, 44px);
+    height: var(--saga-h, 44px);
+    margin: 0;
+    pointer-events: none !important;
+    will-change: transform, left, top, width, height, box-shadow, background, filter;
+    transition:
+      left 1.8s var(--saga-epic), top 1.8s var(--saga-epic),
+      width 1.8s var(--saga-epic), height 1.8s var(--saga-epic),
+      box-shadow 1.2s var(--ease), background 1.2s var(--ease),
+      border-radius 1.2s var(--ease), filter 0.5s ease;
   }
-  @keyframes markPulse {
-    0%   { transform: translate3d(0,0,0) scale(1, 1) rotate(0deg); }
-    32%  { transform: translate3d(0,0,0) scale(0.86, 1.16) rotate(-3deg); }
-    58%  { transform: translate3d(0,0,0) scale(1.1, 0.9) rotate(2deg); }
-    80%  { transform: translate3d(0,0,0) scale(0.97, 1.03) rotate(-0.6deg); }
-    100% { transform: translate3d(0,0,0) scale(1, 1) rotate(0deg); }
-  }
-  .brand-mark.mark-pulse {
-    box-shadow: 0 14px 34px var(--purple-glow), 0 0 40px rgba(157,77,255,0.55), inset 0 2px 4px rgba(255,255,255,0.7), inset 0 -4px 10px rgba(0,0,0,0.3);
-  }
-  /* Возврат: явный класс на короткое окно после mark-pulse, чтобы гарантировать
-     плавную посадку ровно в translate(0,0) scale(1) даже если JS снимает
-     mark-pulse на границе кадра — transform уже совпадает с базовым состоянием
-     .brand-mark, так что дополнительных keyframes для "возврата" не нужно:
-     это тот же путь, что и обычный transition к состоянию покоя. */
   .brand-mark .mark-letter { position: relative; z-index: 2; transition: opacity 0.4s ease; }
+
+  /* Моушен-блюр при быстром перелёте (лифтофф) — направленное смазывание.
+     Раньше было статичным blur(1.5px) на весь лифтофф — читалось плоско, "пушком".
+     Теперь blur — часть keyframe-анимации liftoffLaunch ниже: нарастает на разгоне,
+     держится на пике скорости, гаснет к моменту приземления. То же для saga-return
+     (returnMotion) — направленный блюр на обратном перелёте домой. */
+  .brand-mark.saga-rage, .brand-mark.saga-smash, .brand-mark.saga-oops { filter: blur(0px); }
+
+  /* Лёгкий глитч-параллакс поверх лого во время быстрых фаз (взлёт/возврат) —
+     призрачный дубль слоя со сдвигом на несколько px и лёгким сдвигом оттенка,
+     включается только на 1 короткий проход (не infinite), недорого: только
+     transform/opacity/filter на маленьком элементе, не на весь экран. Держит
+     фокус глаза на лого в момент броска. */
+  .brand-mark::before {
+    content: ''; position: absolute; inset: 0; border-radius: inherit; z-index: 1;
+    pointer-events: none; opacity: 0; background: inherit; mix-blend-mode: screen;
+    will-change: transform, opacity; backface-visibility: hidden;
+  }
+  .brand-mark.saga-liftoff::before { animation: markGlitch 0.95s steps(2, jump-end) 1; }
+  .brand-mark.saga-return::before { animation: markGlitch 0.95s steps(2, jump-end) 1; }
+  @keyframes markGlitch {
+    0%   { opacity: 0; transform: translate3d(0,0,0); filter: hue-rotate(0deg); }
+    9%   { opacity: 0.5; transform: translate3d(4px,-2px,0); filter: hue-rotate(80deg); }
+    17%  { opacity: 0; transform: translate3d(-3px,1px,0); filter: hue-rotate(0deg); }
+    32%  { opacity: 0.35; transform: translate3d(-4px,2px,0); filter: hue-rotate(-70deg); }
+    40%  { opacity: 0; }
+    58%  { opacity: 0.28; transform: translate3d(3px,-2px,0); filter: hue-rotate(60deg); }
+    66%  { opacity: 0; }
+    100% { opacity: 0; transform: translate3d(0,0,0); filter: hue-rotate(0deg); }
+  }
+
+  /* Мягкие переливающиеся блики света поверх лого во время сцены */
+  .mark-gleam {
+    position: absolute; inset: 0; border-radius: inherit; z-index: 4; pointer-events: none;
+    background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.55) 46%, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0.55) 54%, transparent 70%);
+    background-size: 260% 100%; background-position: 160% 0;
+    opacity: 0; mix-blend-mode: overlay;
+  }
+  .brand-mark.saga-liftoff .mark-gleam,
+  .brand-mark.saga-rage .mark-gleam,
+  .brand-mark.saga-smash .mark-gleam,
+  .brand-mark.saga-oops .mark-gleam {
+    opacity: 0.9;
+    animation: gleamSweep 1.4s ease-in-out infinite;
+  }
+  @keyframes gleamSweep {
+    0%   { background-position: 160% 0; }
+    50%  { background-position: -60% 0; }
+    100% { background-position: 160% 0; }
+  }
+
+  /* Сцены */
+  .brand-mark.saga-liftoff {
+    left: var(--saga-target-x, 50vw); top: var(--saga-target-y, 50vh);
+    width: 200px; height: 200px; border-radius: 40px;
+    box-shadow: 0 50px 120px rgba(112,0,255,0.8), 0 0 60px rgba(157,77,255,0.5), inset 0 4px 10px rgba(255,255,255,0.5), inset 0 -10px 24px rgba(0,0,0,0.35);
+    /* Лёгкая задержка (90ms) на left/top/width/height — то самое "приседание" перед
+       прыжком: тело ещё физически не тронулось с места, но уже начало сжиматься
+       (см. liftoffLaunch). Дальше бросок на var(--saga-epic) — как и было, ничего
+       не меняем в целевых координатах/размерах, чтобы не сломать позиционирование
+       над кнопкой — трогаем только момент старта и добавляем transform/filter поверх. */
+    /* Раньше позиция летела 1.8s+90ms (≈1890мс) — на ~540мс ДОЛЬШЕ, чем длится
+       liftoffLaunch+landImpact (≈950+400=1350мс). Тело уже "приземлилось" и
+       отыграло удар, но продолжало ещё полсекунды скользить к цели — веса не
+       было. Теперь позиция доезжает к 860мс, за 90мс до смены фазы на rage —
+       контакт с целью и landImpact почти совпадают, как и должно быть у прыжка. */
+    transition:
+      left 0.8s var(--saga-epic) 60ms, top 0.8s var(--saga-epic) 60ms,
+      width 0.8s var(--saga-epic) 60ms, height 0.8s var(--saga-epic) 60ms,
+      box-shadow 1.2s var(--ease), background 1.2s var(--ease), border-radius 1.2s var(--ease);
+    animation: liftoffLaunch 0.95s cubic-bezier(0.16, 1, 0.3, 1) 1;
+  }
+  .brand-mark.saga-liftoff .mark-letter { font-size: 90px; }
+  /* Приседание (сжатие, углублено и растянуто до 14% — раньше 9% проглатывалось
+     глазом за 85мс) → пружинный толчок-растяжение → лёгкий покач на подлёте →
+     гашение к моменту приземления. Только transform/filter — left/top/width/height
+     не участвуют, поэтому центрирование над кнопкой не затрагивается. */
+  @keyframes liftoffLaunch {
+    0%   { transform: scaleY(1) scaleX(1) skewX(0deg); filter: blur(0px); }
+    14%  { transform: scaleY(0.74) scaleX(1.2) skewX(-2.5deg); filter: blur(0.5px); }
+    32%  { transform: scaleY(1.26) scaleX(0.86) skewX(3deg); filter: blur(5.5px); }
+    58%  { transform: scaleY(1.08) scaleX(0.96) skewX(-1deg); filter: blur(6.5px); }
+    84%  { transform: scaleY(0.98) scaleX(1.01) skewX(0.4deg); filter: blur(1.5px); }
+    100% { transform: scaleY(1) scaleX(1) skewX(0deg); filter: blur(0px); }
+  }
+
+  .brand-mark.saga-rage {
+    left: var(--saga-target-x, 50vw); top: var(--saga-target-y, 50vh);
+    width: 230px; height: 220px; border-radius: 36px;
+    background: linear-gradient(135deg, #FF5C5C, #C41818);
+    box-shadow: 0 50px 150px rgba(255,40,40,0.85), 0 0 80px rgba(255,100,100,0.4), inset 0 4px 10px rgba(255,255,255,0.4), inset 0 -12px 26px rgba(0,0,0,0.5);
+    /* Приземление с весом: один проход landImpact (тяжёлый неравномерный сквош,
+       не пушинка) — и сразу следом, без разрыва (delay = длительности landImpact),
+       обычный infinite rageShake подхватывает дрожь ярости. Обе анимации трогают
+       transform, но по очереди — конфликта нет. */
+    animation: landImpact 0.4s var(--spring) 1, rageShake 0.5s ease-in-out 0.4s infinite;
+  }
+  .brand-mark.saga-rage .mark-letter { font-size: 96px; text-shadow: 0 0 25px rgba(255,255,255,0.7); }
+  @keyframes landImpact {
+    0%   { transform: translate(0,0) scale(1,1); }
+    22%  { transform: translate(0,13px) scale(1.16, 0.78); }
+    52%  { transform: translate(0,-5px) scale(0.93, 1.09); }
+    78%  { transform: translate(0,2px) scale(1.03, 0.97); }
+    100% { transform: translate(0,0) scale(1,1); }
+  }
+  @keyframes rageShake { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 25% { transform: translate(-3px, 2px) rotate(-1.5deg); } 50% { transform: translate(2px, -2px) rotate(1.5deg); } 75% { transform: translate(-2px, -1px) rotate(-1deg); } }
+
+  .brand-mark.saga-smash {
+    left: var(--saga-target-x, 50vw); top: var(--saga-target-y, 50vh);
+    width: 230px; height: 220px; border-radius: 36px;
+    background: linear-gradient(135deg, #FF5C5C, #C41818);
+    box-shadow: 0 60px 140px rgba(255,40,40,0.9), 0 0 100px rgba(255,50,50,0.5), inset 0 4px 10px rgba(255,255,255,0.35), inset 0 -12px 26px rgba(0,0,0,0.5);
+    animation: smashJolt 0.6s cubic-bezier(0.2,0.9,0.3,1) 2;
+  }
+  @keyframes smashJolt { 0% { transform: translateY(0) scale(1); } 25% { transform: translateY(18px) scale(1.04, 0.92); } 55% { transform: translateY(-5px) scale(0.97, 1.04); } 100% { transform: translateY(0) scale(1); } }
+
+  .brand-mark.saga-oops {
+    left: var(--saga-target-x, 50vw); top: var(--saga-target-y, 50vh);
+    width: 200px; height: 190px; border-radius: 38px;
+    background: linear-gradient(135deg, #A855F7, var(--purple));
+    box-shadow: 0 40px 90px var(--purple-glow), inset 0 4px 10px rgba(255,255,255,0.5), inset 0 -10px 22px rgba(0,0,0,0.35);
+    animation: oopsShake 0.6s ease-in-out infinite;
+    transition: background 1.2s var(--ease), box-shadow 1.2s var(--ease), left 1.8s var(--saga-epic), top 1.8s var(--saga-epic), width 1.8s var(--saga-epic), height 1.8s var(--saga-epic);
+  }
+  @keyframes oopsShake { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(-1.5px, 1.5px) rotate(-0.8deg); } }
+  .brand-mark.saga-oops .mark-letter { font-size: 84px; }
+
+  .brand-mark.saga-return {
+    left: var(--saga-home-x, 0px); top: var(--saga-home-y, 0px);
+    width: 44px; height: 44px; border-radius: 14px;
+    background: linear-gradient(135deg, #A855F7, var(--purple));
+    box-shadow: 0 10px 25px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -4px 10px rgba(0,0,0,0.3);
+    /* Раньше left/top наследовались от .saga-playing (1.8s) а returnMotion шёл 1.6s —
+       последние ~200мс тело просто скользило по прямой без деформации, читалось как
+       лаг/подтормаживание. Теперь оба явно на 1.3s — прилёт и деформация гасятся
+       синхронно, и сам перелёт короче/бодрее. Мягче, чем landImpact при взлёте
+       (тело уже маленькое, 44px, тяжёлый удар тут был бы неуместен). */
+    transition:
+      left 1.3s var(--saga-epic), top 1.3s var(--saga-epic),
+      width 1.3s var(--saga-epic), height 1.3s var(--saga-epic),
+      box-shadow 1.2s var(--ease), background 1.2s var(--ease), border-radius 1.2s var(--ease);
+    animation: returnMotion 1.3s cubic-bezier(0.3, 0.7, 0.2, 1) 1;
+  }
+  .brand-mark.saga-return .mark-letter { font-size: 20px; }
+  @keyframes returnMotion {
+    0%   { transform: scale(1,1); filter: blur(0px); }
+    32%  { transform: scale(1,1); filter: blur(5px); }
+    70%  { transform: scale(1,1); filter: blur(1.5px); }
+    86%  { transform: scale(1.12, 0.86); filter: blur(0px); }
+    96%  { transform: scale(0.97, 1.03); filter: blur(0px); }
+    100% { transform: scale(1,1); filter: blur(0px); }
+  }
+
+  /* Лицо и детали (Улучшенная мимика) */
+  .mark-face { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; transition: opacity 0.4s ease; }
+  .brand-mark.saga-rage .mark-face, .brand-mark.saga-smash .mark-face, .brand-mark.saga-oops .mark-face { opacity: 1; }
+  .brand-mark.saga-liftoff .mark-face { opacity: 0; }
+
+  .mark-eye { position: absolute; top: 46%; width: 15%; height: 15%; border-radius: 50%; background: #fff; box-shadow: 0 0 12px rgba(255,255,255,0.8); transition: all 0.4s var(--ease); }
+  .mark-eye.l { left: 30%; } .mark-eye.r { right: 30%; }
+  .mark-eye .pupil { position: absolute; inset: 22%; border-radius: 50%; background: #2a0845; transition: transform 0.4s ease; }
+
+  /* Микромимика: Красные глаза и тряска зрачков */
+  .brand-mark.saga-rage .mark-eye, .brand-mark.saga-smash .mark-eye { background: #FF3B30; box-shadow: 0 0 15px #FF3B30; }
+  .brand-mark.saga-rage .mark-eye .pupil, .brand-mark.saga-smash .mark-eye .pupil { background: #4A0000; animation: pupilShake 0.15s ease-in-out infinite; }
+  @keyframes pupilShake { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(-2px, 1px); } 50% { transform: translate(2px, -1px); } 75% { transform: translate(-1px, 2px); } }
+
+  .mark-brow { position: absolute; top: 34%; width: 15%; height: 4px; border-radius: 4px; background: rgba(30,0,20,0.85); opacity: 0; transition: all 0.4s var(--ease); }
+  .mark-brow.l { left: 29%; transform: rotate(18deg); }
+  .mark-brow.r { right: 29%; transform: rotate(-18deg); }
+
+  .mark-mouth { position: absolute; left: 50%; top: 62%; width: 22%; height: 10%; margin-left: -11%; border-radius: 4px; background: #2a0845; transition: all 0.4s var(--ease); }
+  .mark-blush { position: absolute; top: 56%; width: 12%; height: 8%; border-radius: 50%; background: rgba(255,120,150,0); transition: background 0.6s ease; }
+  .mark-blush.l { left: 16%; } .mark-blush.r { right: 16%; }
+
+  .mark-sweat { position: absolute; top: 20%; right: 14%; width: 8%; height: 12%; background: #8ED4FF; border-radius: 50% 50% 50% 0; transform: rotate(45deg) scale(0); opacity: 0; box-shadow: 0 0 8px rgba(142,212,255,0.9); transition: transform 0.4s var(--spring), opacity 0.4s ease; }
+
+  .brand-mark.saga-rage .mark-brow, .brand-mark.saga-smash .mark-brow { opacity: 1; top: 38%; }
+  .brand-mark.saga-rage .mark-brow.l, .brand-mark.saga-smash .mark-brow.l { transform: rotate(28deg); left: 32%; }
+  .brand-mark.saga-rage .mark-brow.r, .brand-mark.saga-smash .mark-brow.r { transform: rotate(-28deg); right: 32%; }
+  .brand-mark.saga-rage .mark-eye, .brand-mark.saga-smash .mark-eye { height: 6%; border-radius: 3px; }
+  .brand-mark.saga-rage .mark-mouth, .brand-mark.saga-smash .mark-mouth { height: 14%; border-radius: 3px; background: #2a0845; clip-path: polygon(0 0,12% 60%,24% 0,36% 60%,48% 0,60% 60%,72% 0,84% 60%,100% 0,100% 100%,0 100%); }
+
+  .mark-vein { position: absolute; top: 8%; width: 4px; height: 30%; border-radius: 3px; background: linear-gradient(180deg, transparent, #6A0000, transparent); opacity: 0; transform: scaleY(0.4); transition: all 0.5s var(--ease); }
+  .mark-vein.l { left: 12%; transform: rotate(-6deg) scaleY(0.4); }
+  .mark-vein.r { right: 12%; transform: rotate(6deg) scaleY(0.4); }
+  .brand-mark.saga-rage .mark-vein, .brand-mark.saga-smash .mark-vein { opacity: 0.9; transform: scaleY(1) rotate(0deg); }
+  .brand-mark.saga-rage .mark-vein.l, .brand-mark.saga-smash .mark-vein.l { transform: rotate(-4deg) scaleY(1); }
+  .brand-mark.saga-rage .mark-vein.r, .brand-mark.saga-smash .mark-vein.r { transform: rotate(4deg) scaleY(1); }
+  /* Пульс вен только в rage — поверх статичного rotate/scaleY, тот же угол сохранён внутри keyframes. */
+  .brand-mark.saga-rage .mark-vein.l { animation: veinPulseL 0.9s ease-in-out infinite; will-change: transform; }
+  .brand-mark.saga-rage .mark-vein.r { animation: veinPulseR 0.9s ease-in-out infinite; will-change: transform; }
+  @keyframes veinPulseL { 0%, 100% { transform: rotate(-4deg) scaleY(1) scale(1); } 50% { transform: rotate(-4deg) scaleY(1) scale(1.05); } }
+  @keyframes veinPulseR { 0%, 100% { transform: rotate(4deg) scaleY(1) scale(1); } 50% { transform: rotate(4deg) scaleY(1) scale(1.05); } }
+
+  .brand-mark.saga-oops .mark-brow { opacity: 1; top: 32%; }
+  .brand-mark.saga-oops .mark-brow.l { transform: rotate(-14deg); left: 30%; }
+  .brand-mark.saga-oops .mark-brow.r { transform: rotate(14deg); right: 30%; }
+  .brand-mark.saga-oops .mark-eye { height: 20%; width: 17%; top: 42%; background: #fff; box-shadow: 0 0 12px #fff; }
+  .brand-mark.saga-oops .mark-eye .pupil { inset: 30%; transform: translateY(2px); background: #2a0845; animation: none; }
+  .brand-mark.saga-oops .mark-mouth { width: 12%; height: 12%; margin-left: -6%; border-radius: 50%; top: 66%; background: #2a0845; clip-path: none; }
+  .brand-mark.saga-oops .mark-blush { background: rgba(255,140,170,0.65); }
+  .brand-mark.saga-oops .mark-sweat { opacity: 1; transform: rotate(45deg) scale(1); animation: sweatDrop 1.2s ease-in infinite; }
+  @keyframes sweatDrop { 0% { transform: rotate(45deg) scale(1) translateY(0); opacity: 1; } 100% { transform: rotate(45deg) scale(0.8) translateY(12px); opacity: 0; } }
+
+  /* Руки (Кулаки) */
+  .mark-arm { position: absolute; top: 50%; width: 15%; height: 36px; margin-top: -18px; background: linear-gradient(180deg, #FF7A7A, #B21212); border-radius: 10px; opacity: 0; pointer-events: none; box-shadow: 0 5px 16px rgba(180,20,20,0.6), inset 0 2px 4px rgba(255,255,255,0.4); transition: opacity 0.35s ease, transform 0.5s var(--spring); }
+  .mark-arm.l { left: -10%; transform: translateX(-40px) rotate(-10deg) scale(0.6); transform-origin: right center; }
+  .mark-arm.r { right: -10%; transform: translateX(40px) rotate(10deg) scale(0.6); transform-origin: left center; }
+  .mark-arm .fist { position: absolute; width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #FF7A7A, #B21212); box-shadow: inset 0 3px 6px rgba(255,255,255,0.5), inset 0 -4px 8px rgba(0,0,0,0.4), 0 5px 12px rgba(180,20,20,0.6); }
+  .mark-arm.l .fist { left: -19px; top: 50%; margin-top: -14px; }
+  .mark-arm.r .fist { right: -19px; top: 50%; margin-top: -14px; }
+
+  /* Лёгкая дрожь кулаков, пока руки статично подняты в rage (до замаха/удара) —
+     анимируется сам .fist (дочерний элемент), .mark-arm позиционирование не трогаем. */
+  .brand-mark.saga-rage .fist { animation: fistTremble 0.15s ease-in-out infinite; will-change: transform; }
+  @keyframes fistTremble { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(-1px, 1px); } 50% { transform: translate(1px, -1px); } 75% { transform: translate(-1px, -1px); } }
+
+  .brand-mark.saga-rage .mark-arm, .brand-mark.saga-smash .mark-arm { opacity: 1; }
+  .brand-mark.saga-rage .mark-arm.l, .brand-mark.saga-smash .mark-arm.l { transform: translateX(-6px) rotate(-16deg) scale(1); }
+  .brand-mark.saga-rage .mark-arm.r, .brand-mark.saga-smash .mark-arm.r { transform: translateX(6px) rotate(16deg) scale(1); }
+  .brand-mark.saga-smash .mark-arm.l { animation: punchLeft 0.6s cubic-bezier(0.2,0.9,0.3,1) 2; }
+  .brand-mark.saga-smash .mark-arm.r { animation: punchRight 0.6s cubic-bezier(0.2,0.9,0.3,1) 2; }
+  @keyframes punchLeft { 0% { transform: translateX(-6px) rotate(-16deg) scale(1); } 18% { transform: translateX(-15px) rotate(-22deg) scale(0.95); } 40% { transform: translateX(12px) translateY(50px) rotate(6deg) scale(1.16, 0.86); } 100% { transform: translateX(-6px) rotate(-16deg) scale(1); } }
+  @keyframes punchRight { 0% { transform: translateX(6px) rotate(16deg) scale(1); } 18% { transform: translateX(15px) rotate(22deg) scale(0.95); } 40% { transform: translateX(-12px) translateY(50px) rotate(-6deg) scale(1.16, 0.86); } 100% { transform: translateX(6px) rotate(16deg) scale(1); } }
+
+  .brand-mark.saga-oops .mark-arm { opacity: 0; transform: translateX(0) scale(0.6); transition: opacity 0.4s ease, transform 0.5s var(--ease); }
+
+  /* Воздушные вихри от прыжка на liftoff — дочерние элементы .brand-mark, поэтому
+     сами по себе следуют за позицией/ростом лого, ничего в саму позицию не добавляем.
+     Только transform/opacity/filter — GPU-friendly, никакого left/top/width/height. */
+  .mark-whoosh { position: absolute; left: 50%; bottom: 6%; width: 70%; height: 26%; margin-left: -35%; border-radius: 50%; pointer-events: none; opacity: 0; filter: blur(6px); background: radial-gradient(ellipse at center, rgba(255,255,255,0.55), rgba(157,77,255,0.25) 55%, transparent 78%); transform: translateY(0) scale(0.4); will-change: transform, opacity; }
+  .mark-whoosh.l { transform-origin: 70% 50%; }
+  .mark-whoosh.r { transform-origin: 30% 50%; }
+  .brand-mark.saga-liftoff .mark-whoosh.l { animation: whooshL 0.45s ease-out; }
+  .brand-mark.saga-liftoff .mark-whoosh.r { animation: whooshR 0.45s ease-out; }
+  @keyframes whooshL { 0% { opacity: 0; transform: translate(0, 0) scale(0.4); } 25% { opacity: 0.8; transform: translate(-6%, 10%) scale(1); } 100% { opacity: 0; transform: translate(-22%, 40%) scale(1.6); } }
+  @keyframes whooshR { 0% { opacity: 0; transform: translate(0, 0) scale(0.4); } 25% { opacity: 0.8; transform: translate(6%, 10%) scale(1); } 100% { opacity: 0; transform: translate(22%, 40%) scale(1.6); } }
+
+  /* Вспышка удара */
+  .brand-mark .impact-flash { position: absolute; left: 50%; bottom: -16px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: radial-gradient(circle, #fff, rgba(255,230,140,0.95) 40%, transparent 75%); opacity: 0; pointer-events: none; }
+  .brand-mark.saga-smash .impact-flash { animation: impactPulse 0.6s ease-out 2; }
+  @keyframes impactPulse { 0% { opacity: 0; transform: scale(0.3); } 30% { opacity: 1; transform: scale(7); } 100% { opacity: 0; transform: scale(10); } }
+
+  .brand-text.saga-rage { animation: textDaze 0.3s ease-in-out infinite; }
+  .brand-text.saga-oops { animation: textDaze 0.6s ease-in-out infinite; }
+  .brand-text.saga-return { animation: none; transform: translateX(0) scale(1); }
+  @keyframes textDaze { 0% { transform: translateX(0) rotate(0deg); } 25% { transform: translateX(3px) rotate(0.8deg); } 50% { transform: translateX(-3px) rotate(-0.8deg); } 75% { transform: translateX(2px) rotate(0.5deg); } 100% { transform: translateX(0) rotate(0deg); } }
 
   /* ================= Блики и переливы (Glints & Sheen) =================
      Два независимых слоя: .mark-sheen (объёмный многослойный блик, "гуляющий"
@@ -355,7 +608,7 @@
   /* Кинематографичный блик и Карточки */
   .cinematic-glare { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; padding: 1.5px; background: linear-gradient(110deg, transparent 20%, rgba(255,255,255,0.85) 40%, rgba(255,255,255,0.95) 50%, rgba(255,255,255,0.85) 60%, transparent 80%); background-size: 250% 100%; -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: cinematicSweep 8s cubic-bezier(0.3, 0, 0.7, 1) infinite; z-index: 10; opacity: 0.75; }
   @keyframes cinematicSweep { 0% { background-position: 250% 0; } 100% { background-position: -150% 0; } }
-  .card { position: relative; background: var(--glass-bg); backdrop-filter: blur(40px) saturate(200%); -webkit-backdrop-filter: blur(40px) saturate(200%); border: 1px solid var(--glass-border-dark); border-top: 1px solid var(--glass-border-light); border-left: 1px solid rgba(255,255,255,0.18); border-radius: var(--r-xl); padding: 20px; box-shadow: 0 24px 48px -12px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.35); overflow: hidden; transform: translateZ(0); animation: floatCard 8s infinite ease-in-out; will-change: transform; }
+  .card { position: relative; background: var(--glass-bg); backdrop-filter: blur(40px) saturate(200%); -webkit-backdrop-filter: blur(40px) saturate(200%); border: 1px solid var(--glass-border-dark); border-top: 1px solid var(--glass-border-light); border-left: 1px solid rgba(255,255,255,0.18); border-radius: var(--r-xl); padding: 20px; box-shadow: 0 24px 48px -12px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.35); overflow: hidden; transform: translateZ(0); animation: floatCard 8s infinite ease-in-out; will-change: transform; backface-visibility: hidden; }
   /* backdrop-filter пересчитывается для каждого пикселя ЗА карточкой на каждый кадр —
      на нескольких карточках одновременно это главный "жор" GPU в Telegram WebView на Android.
      Снижаем радиус blur на мобильных: карточки всё ещё стеклянные, просто чуть менее
@@ -365,15 +618,33 @@
     #paste-sheet { backdrop-filter: blur(20px) saturate(200%); -webkit-backdrop-filter: blur(20px) saturate(200%); }
     #sheet-overlay { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
     #toast { backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
-    /* Изолируем repaint каждой карточки (важно на replay при смене языка, когда riseIn
-       перезапускается одновременно с растущей волной lang-wash) от reflow остального
-       документа — тот же приём, что уже применён к логотипу в саге. */
-    .card { contain: layout paint style; }
+    .footer { backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%); }
+    /* Изолируем repaint каждой карточки/модалки (важно на replay при смене языка, когда riseIn
+       перезапускается одновременно с растущей волной lang-wash, и на открытии шторки) от
+       reflow остального документа — тот же приём, что уже применён к логотипу в саге.
+       contain:paint не обрезает СОБСТВЕННЫЙ box-shadow элемента (он не "потомок" для целей
+       contain, спецификация трогает только paint потомков) — внешние свечения карточек и
+       шторки остаются как есть, просто перерисовка изолируется. */
+    .card, #paste-sheet, #sheet-overlay, #toast, .footer { contain: layout paint style; }
   }
+  /* Тот же набор снижений — уже по User-Agent, для широких Android-экранов (планшеты,
+     раскладушки), которые не попадают под ширину 480px, но всё ещё имеют слабый GPU. */
+  html.is-android .card, html.is-android .icon-btn, html.is-android .lang-switch { backdrop-filter: blur(18px) saturate(180%); -webkit-backdrop-filter: blur(18px) saturate(180%); }
+  html.is-android #paste-sheet { backdrop-filter: blur(20px) saturate(200%); -webkit-backdrop-filter: blur(20px) saturate(200%); }
+  html.is-android #toast { backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+  html.is-android .footer { backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%); }
   .card:nth-child(2) { animation-delay: -2s; }
   .card:nth-child(3) { animation-delay: -4s; }
-  @keyframes floatCard { 0%, 100% { transform: translateY(0) translateZ(0); } 50% { transform: translateY(-4px) translateZ(0); } }
-  .card::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(800px circle at var(--mouse-x, 50%) var(--mouse-y, -20%), rgba(255,255,255,0.08), transparent 45%); transition: background 0.15s linear; z-index: 1; }
+  /* floatCard теперь читает --pfx/--pfy (см. JS parallax ниже) внутри своих собственных
+     keyframes — это единственный надёжный способ совместить постоянно бегущую
+     keyframe-анимацию с JS-параллаксом на ТОЙ ЖЕ transform: CSS-анимация всегда
+     выигрывает каскад против инлайнового style.transform, так что писать оффсет
+     параллакса напрямую в el.style.transform было бы бесполезно, пока floatCard активна. */
+  @keyframes floatCard { 0%, 100% { transform: translate3d(var(--pfx, 0px), var(--pfy, 0px), 0) translateY(0) translateZ(0); } 50% { transform: translate3d(var(--pfx, 0px), var(--pfy, 0px), 0) translateY(-4px) translateZ(0); } }
+  /* Лёгкий сквош при нажатии (makeElasticButton) — та же причина, что и выше: на время
+     активной эластичной деформации гасим floatCard, отдавая transform пружине. */
+  .card.elastic-live { animation-play-state: paused; }
+  .card::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(800px circle at var(--mouse-x, 50%) var(--mouse-y, -20%), rgba(255,255,255,0.08), transparent 45%); transition: background 0.25s ease; z-index: 1; }
   .card { isolation: isolate; }
   .card .grain { content: ''; position: absolute; inset: 0; pointer-events: none; background-image: var(--grain-url); background-size: 180px 180px; opacity: 0.08; mix-blend-mode: overlay; border-radius: inherit; z-index: 1; }
   .card > *:not(.grain):not(.cinematic-glare):not(.glass-sheen) { position: relative; z-index: 2; }
@@ -382,6 +653,18 @@
   .card:nth-child(3)::after { animation-delay: -6s; }
   @keyframes cardSheen { 0%, 55% { transform: translateX(-20%) rotate(8deg); } 100% { transform: translateX(480%) rotate(8deg); } }
   .card.replay { animation: riseIn 0.7s var(--epic) forwards, floatCard 8s infinite ease-in-out 0.7s; }
+
+  /* Наведение на карточку — только там, где есть настоящий hover (pointer:fine
+     отсекает тач, который иначе "залипал" бы в hover-состоянии после тапа).
+     Трогаем только box-shadow: transform уже занят floatCard/эластичной пружиной
+     (см. выше), а смещение самой тени само по себе прекрасно читается как
+     "карточка приподнялась к курсору", без конфликта каскада. */
+  @media (hover: hover) and (pointer: fine) {
+    .card { transition: box-shadow 0.45s var(--ease); }
+    .card:hover {
+      box-shadow: 0 30px 54px -10px rgba(0,0,0,0.85), 4px 8px 24px -6px rgba(112,0,255,0.4), inset 0 1px 2px rgba(255,255,255,0.4);
+    }
+  }
 
   /* Исправленные стили кнопок интерфейса (RU и ?) */
   .topbar-actions { display: flex; align-items: center; gap: 8px; }
@@ -417,36 +700,83 @@
      origin по центру, чтобы squash/stretch тянулся симметрично, и touch-action —
      без него мобильный браузер перехватывает pointermove как скролл/жест раньше,
      чем до JS доходит событие. */
-  .btn.finish { transform-origin: 50% 50%; touch-action: none; }
+  .btn.finish { transform-origin: 50% 50%; touch-action: none; backface-visibility: hidden; }
   /* pulseFinish анимирует transform:scale само по себе — во время эластичной
      деформации это перебивало бы наш inline transform каждый кадр (CSS animation
      всегда выигрывает каскад против невходящего в @keyframes инлайна). Ставим
      паузу на время взаимодействия — плавность самой резины важнее пульса. */
   .btn.finish.elastic-live { animation-play-state: paused; }
   .finish-slot .btn.finish { position: relative; z-index: 1; height: 100%; display: flex; align-items: center; justify-content: center; }
-  .btn.finish.smashed { animation: none; transform: translateY(140%) rotate(4deg) scale(0.92); opacity: 0; transition: transform 0.3s cubic-bezier(0.5,0,0.85,0.35), opacity 0.3s ease 0.1s; box-shadow: none; }
+  /* Премиальный коллапс кнопки — "втягивание" в щель вместо падения вниз.
+     Требует многофазного transform (bulge → schlop), поэтому animation, а не transition. */
+  .btn.finish.smashed { animation: btnCollapse 0.5s cubic-bezier(0.45,0,0.8,0.3) forwards; box-shadow: none; will-change: transform, opacity; backface-visibility: hidden; }
+  @keyframes btnCollapse {
+    0%   { transform: scaleX(1) scaleY(1); opacity: 1; }
+    18%  { transform: scaleX(1.1) scaleY(0.86); opacity: 1; }
+    38%  { transform: scaleX(0.94) scaleY(1.05); opacity: 1; }
+    100% { transform: scaleX(0.88) scaleY(0.06); opacity: 0; }
+  }
+
+  /* Энергетическая вспышка перед схлопыванием — "причина", осколки на неё реагируют */
+  .finish-collapse-flash { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 2; opacity: 0; background: radial-gradient(circle, rgba(255,255,255,0.95), rgba(157,77,255,0.55) 45%, transparent 75%); will-change: transform, opacity; }
+  .btn.finish.smashed .finish-collapse-flash { animation: collapseFlash 0.18s ease-out; }
+  @keyframes collapseFlash { 0% { opacity: 0; transform: scale(0.4); } 45% { opacity: 1; transform: scale(1.15); } 100% { opacity: 0; transform: scale(1.4); } }
+
+  /* Восстановление кнопки (4250ms) — материализация с той же вспышкой в обратном порядке
+     и лёгким overshoot по scale в конце. .restoring фиксирует финальный кадр коллапса,
+     чтобы .restore-in стартовал без скачка. */
+  .btn.finish.restoring { animation: none; transform: scaleX(0.88) scaleY(0.06); opacity: 0; box-shadow: none; }
+  .btn.finish.restore-in { animation: btnRestoreIn 0.85s var(--spring) forwards; will-change: transform, opacity; backface-visibility: hidden; }
+  .btn.finish.restore-in .finish-collapse-flash { animation: collapseFlash 0.2s ease-out; }
+  /* Обычный (не сюжетный) клик по кнопке — переиспользуем тот же узел
+     .finish-collapse-flash и ту же "радиальный блик" технику, что у лого/саги, но
+     меньшего масштаба (пик ~0.8 вместо 1.15) — премиальный акцент в момент реального
+     завершения инвентаризации, синхронизированный с началом burstConfetti(). */
+  .btn.finish.click-flash .finish-collapse-flash { animation: finishClickFlash 0.32s ease-out; }
+  @keyframes finishClickFlash { 0% { opacity: 0; transform: scale(0.35); } 40% { opacity: 0.85; transform: scale(0.8); } 100% { opacity: 0; transform: scale(0.95); } }
+  @keyframes btnRestoreIn {
+    0%   { transform: scaleX(0.88) scaleY(0.06); opacity: 0; }
+    40%  { transform: scaleX(1.02) scaleY(1.05); opacity: 1; }
+    65%  { transform: scaleX(0.99) scaleY(0.98); opacity: 1; }
+    85%  { transform: scaleX(1.04) scaleY(1.04); opacity: 1; }
+    100% { transform: scaleX(1) scaleY(1); opacity: 1; }
+  }
   
-  /* 16 осколков с разными размерами и траекториями для максимальной детализации */
-  .finish-slot .shard { position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; border-radius: 2px; opacity: 0; pointer-events: none; transform: translate3d(-50%, -50%, 0) scale(0.8) rotate(0deg); transition: transform 1.2s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.4s ease; box-shadow: 0 0 10px var(--green-glow); z-index: 0; will-change: transform, opacity; }
-  .finish-slot.smashed .shard { opacity: 1; }
-  
-  /* Пути разлёта осколков */
-  .finish-slot .shard-1 { background: #2EAB65; width: 12px; height: 20px; }.finish-slot.smashed .shard-1 { transform: translate3d(-130px, -80px, 0) scale(1.4) rotate(360deg); }
-  .finish-slot .shard-2 { background: #4ADE80; width: 18px; height: 10px; }.finish-slot.smashed .shard-2 { transform: translate3d(150px, 60px, 0) scale(0.9) rotate(420deg); }
-  .finish-slot .shard-3 { background: #38E888; width: 8px; height: 22px; }.finish-slot.smashed .shard-3 { transform: translate3d(-100px, 140px, 0) scale(1.2) rotate(500deg); }
-  .finish-slot .shard-4 { background: #1F874C; width: 20px; height: 14px; }.finish-slot.smashed .shard-4 { transform: translate3d(180px, -100px, 0) scale(0.8) rotate(240deg); }
-  .finish-slot .shard-5 { background: #5DF5A6; width: 14px; height: 18px; }.finish-slot.smashed .shard-5 { transform: translate3d(-20px, -110px, 0) scale(1.5) rotate(310deg); }
-  .finish-slot .shard-6 { background: #0F9D58; width: 8px; height: 16px; }.finish-slot.smashed .shard-6 { transform: translate3d(40px, 120px, 0) scale(1.1) rotate(600deg); }
-  .finish-slot .shard-7 { background: #6EE7B7; width: 16px; height: 10px; }.finish-slot.smashed .shard-7 { transform: translate3d(-200px, 40px, 0) scale(0.9) rotate(180deg); }
-  .finish-slot .shard-8 { background: #34D399; width: 12px; height: 12px; }.finish-slot.smashed .shard-8 { transform: translate3d(90px, -120px, 0) scale(1.3) rotate(450deg); }
-  .finish-slot .shard-9 { background: #10B981; width: 22px; height: 8px; }.finish-slot.smashed .shard-9 { transform: translate3d(-60px, 150px, 0) scale(0.7) rotate(340deg); }
-  .finish-slot .shard-10 { background: #059669; width: 10px; height: 24px; }.finish-slot.smashed .shard-10 { transform: translate3d(120px, 90px, 0) scale(1.6) rotate(200deg); }
-  .finish-slot .shard-11 { background: #8B5CF6; width: 16px; height: 10px; }.finish-slot.smashed .shard-11 { transform: translate3d(-140px, -60px, 0) scale(0.8) rotate(150deg); }
-  .finish-slot .shard-12 { background: #7C3AED; width: 12px; height: 18px; }.finish-slot.smashed .shard-12 { transform: translate3d(70px, -150px, 0) scale(1.2) rotate(280deg); }
-  .finish-slot .shard-13 { background: #6D28D9; width: 18px; height: 12px; }.finish-slot.smashed .shard-13 { transform: translate3d(-90px, 80px, 0) scale(1.1) rotate(520deg); }
-  .finish-slot .shard-14 { background: #4C1D95; width: 10px; height: 16px; }.finish-slot.smashed .shard-14 { transform: translate3d(180px, -20px, 0) scale(0.9) rotate(400deg); }
-  .finish-slot .shard-15 { background: #FFFFFF; width: 6px; height: 6px; }.finish-slot.smashed .shard-15 { transform: translate3d(-40px, -160px, 0) scale(2) rotate(700deg); }
-  .finish-slot .shard-16 { background: #9D4DFF; width: 14px; height: 14px; }.finish-slot.smashed .shard-16 { transform: translate3d(140px, 20px, 0) scale(1.5) rotate(90deg); }
+  /* 16 осколков. Раньше все 16 сидели на ОДНОМ transition — старт, длительность и
+     easing идентичны у всех, различались только конечные координаты. Визуально это
+     единый синхронный "прыжок" всей группы, а не взрыв. Теперь общий keyframe
+     shardFly читает координаты из переменных (--tx/--ty/--rot/--sc) каждого осколка,
+     а --sd (0-95мс) разносит СТАРТ по времени — осколки срываются не одним кадром.
+     Сама траектория тоже в два акта: 0-42% — бросок с разворотом (столько же, сколько
+     раньше уходило на весь разлёт), 42-100% — доброс по инерции + гравитационный
+     снос вниз + гашение, вместо жёсткой остановки в конечной точке. */
+  .finish-slot .shard { position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; border-radius: 2px; opacity: 0; pointer-events: none; transform: translate3d(-50%, -50%, 0) scale(0.8) rotate(0deg); box-shadow: 0 0 10px var(--green-glow); z-index: 0; will-change: transform, opacity; backface-visibility: hidden; }
+  .finish-slot.smashed .shard { animation: shardFly 0.85s cubic-bezier(0.16, 1, 0.3, 1) var(--sd, 0ms) 1 both; }
+  @keyframes shardFly {
+    0%   { transform: translate3d(-50%, -50%, 0) scale(0.8) rotate(0deg); opacity: 0; }
+    14%  { opacity: 1; }
+    42%  { transform: translate3d(calc(-50% + var(--tx)), calc(-50% + var(--ty)), 0) scale(var(--sc)) rotate(calc(var(--rot) * 0.7)); opacity: 1; }
+    100% { transform: translate3d(calc(-50% + var(--tx) * 1.22), calc(-50% + var(--ty) + 42px), 0) scale(calc(var(--sc) * 0.5)) rotate(var(--rot)); opacity: 0; }
+  }
+
+  /* Пути разлёта осколков (координаты те же, что были в transform, вынесены в
+     переменные) + индивидуальная задержка старта --sd для несинхронного взрыва */
+  .finish-slot .shard-1 { background: #2EAB65; width: 12px; height: 20px; --tx: -130px; --ty: -80px; --rot: 360deg; --sc: 1.4; --sd: 0ms; }
+  .finish-slot .shard-2 { background: #4ADE80; width: 18px; height: 10px; --tx: 150px; --ty: 60px; --rot: 420deg; --sc: 0.9; --sd: 52ms; }
+  .finish-slot .shard-3 { background: #38E888; width: 8px; height: 22px; --tx: -100px; --ty: 140px; --rot: 500deg; --sc: 1.2; --sd: 16ms; }
+  .finish-slot .shard-4 { background: #1F874C; width: 20px; height: 14px; --tx: 180px; --ty: -100px; --rot: 240deg; --sc: 0.8; --sd: 78ms; }
+  .finish-slot .shard-5 { background: #5DF5A6; width: 14px; height: 18px; --tx: -20px; --ty: -110px; --rot: 310deg; --sc: 1.5; --sd: 28ms; }
+  .finish-slot .shard-6 { background: #0F9D58; width: 8px; height: 16px; --tx: 40px; --ty: 120px; --rot: 600deg; --sc: 1.1; --sd: 60ms; }
+  .finish-slot .shard-7 { background: #6EE7B7; width: 16px; height: 10px; --tx: -200px; --ty: 40px; --rot: 180deg; --sc: 0.9; --sd: 8ms; }
+  .finish-slot .shard-8 { background: #34D399; width: 12px; height: 12px; --tx: 90px; --ty: -120px; --rot: 450deg; --sc: 1.3; --sd: 40ms; }
+  .finish-slot .shard-9 { background: #10B981; width: 22px; height: 8px; --tx: -60px; --ty: 150px; --rot: 340deg; --sc: 0.7; --sd: 90ms; }
+  .finish-slot .shard-10 { background: #059669; width: 10px; height: 24px; --tx: 120px; --ty: 90px; --rot: 200deg; --sc: 1.6; --sd: 12ms; }
+  .finish-slot .shard-11 { background: #8B5CF6; width: 16px; height: 10px; --tx: -140px; --ty: -60px; --rot: 150deg; --sc: 0.8; --sd: 66ms; }
+  .finish-slot .shard-12 { background: #7C3AED; width: 12px; height: 18px; --tx: 70px; --ty: -150px; --rot: 280deg; --sc: 1.2; --sd: 24ms; }
+  .finish-slot .shard-13 { background: #6D28D9; width: 18px; height: 12px; --tx: -90px; --ty: 80px; --rot: 520deg; --sc: 1.1; --sd: 48ms; }
+  .finish-slot .shard-14 { background: #4C1D95; width: 10px; height: 16px; --tx: 180px; --ty: -20px; --rot: 400deg; --sc: 0.9; --sd: 84ms; }
+  .finish-slot .shard-15 { background: #FFFFFF; width: 6px; height: 6px; --tx: -40px; --ty: -160px; --rot: 700deg; --sc: 2; --sd: 4ms; }
+  .finish-slot .shard-16 { background: #9D4DFF; width: 14px; height: 14px; --tx: 140px; --ty: 20px; --rot: 90deg; --sc: 1.5; --sd: 36ms; }
 
   .finish-hole { position: absolute; inset: 0; border-radius: var(--r-lg); display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; z-index: 0; background: radial-gradient(120% 140% at 50% 0%, rgba(0,0,0,0.9), rgba(10,2,20,0.95) 55%, rgba(3,0,8,0.98)), linear-gradient(180deg, rgba(112,0,255,0.15), transparent 40%); box-shadow: inset 0 18px 30px rgba(0,0,0,0.9), inset 0 2px 6px rgba(0,0,0,0.8), inset 0 0 0 1px rgba(157,77,255,0.15); transition: opacity 0.4s ease; }
   .finish-hole.hole-active { opacity: 1; }
@@ -476,8 +806,40 @@
   @keyframes pasteBreathe { 0%, 100% { box-shadow: 0 12px 24px var(--purple-glow), inset 0 2px 4px rgba(255,255,255,0.5), inset 0 -4px 12px rgba(0,0,0,0.3); } 50% { box-shadow: 0 16px 40px rgba(157,77,255,0.95), 0 0 30px rgba(157,77,255,0.5), inset 0 2px 4px rgba(255,255,255,0.7), inset 0 -4px 12px rgba(0,0,0,0.3); transform: scale(1.015); } }
   #btn-paste-wms::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(100deg, transparent 35%, rgba(255,255,255,0.45) 48%, rgba(255,255,255,0.65) 50%, rgba(255,255,255,0.45) 52%, transparent 65%); background-size: 300% 100%; background-position: 130% 0; animation: pasteShine 3.6s linear infinite; mix-blend-mode: overlay; pointer-events: none; }
   @keyframes pasteShine { 0% { background-position: 160% 0; } 100% { background-position: -60% 0; } }
+  /* Лёгкое смещение тени при наведении (десктоп). pasteBreathe уже анимирует
+     box-shadow сам по себе (см. keyframes выше) — трогать box-shadow ещё и через
+     :hover означало бы конфликт каскада (animation всегда выигрывает у обычного
+     правила). Идём через filter: drop-shadow — отдельное свойство, не участвует
+     в pasteBreathe, конфликтов нет. */
+  @media (hover: hover) and (pointer: fine) {
+    #btn-paste-wms { transition: filter 0.35s var(--ease); }
+    #btn-paste-wms:hover { filter: drop-shadow(3px 6px 10px rgba(157,77,255,0.55)); }
+  }
   .ripple { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.6); transform: scale(0); pointer-events: none; animation: rippleOut 0.7s var(--ease) forwards; }
   @keyframes rippleOut { to { transform: scale(1); opacity: 0; } }
+
+  /* Универсальный "стеклянный" блик при клике — короткий (0.3s) одноразовый прогон
+     диагонального градиента той же техники, что и постоянный shine на #btn-paste-wms/
+     .finish-shine (см. pasteShine), но проигрывается ОДИН раз по клику через реальный
+     child-span. Не ::before/::after — те на многих кнопках уже заняты рамкой
+     glass-bubble/glass-edge, добавлять поверх них нельзя. */
+  .btn-click-shine { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 3; opacity: 0;
+    background: linear-gradient(100deg, transparent 35%, rgba(255,255,255,0.5) 48%, rgba(255,255,255,0.75) 50%, rgba(255,255,255,0.5) 52%, transparent 65%);
+    background-size: 300% 100%; background-position: 165% 0; mix-blend-mode: overlay; }
+  .btn.shine-hit .btn-click-shine { animation: btnClickShine 0.3s ease-out 1; }
+  @keyframes btnClickShine { 0% { opacity: 0; background-position: 165% 0; } 18% { opacity: 1; } 80% { opacity: 0.9; } 100% { opacity: 0; background-position: -55% 0; } }
+
+  /* Взрывные частицы саги логотипа (до 80 штук) */
+  .impact-particle { position: fixed; pointer-events: none; z-index: 999998; border-radius: 2px; will-change: transform, opacity; backface-visibility: hidden; animation: particleFly 1.2s cubic-bezier(0.2, 1.2, 0.6, 1) forwards; }
+  @keyframes particleFly { 0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; } 100% { transform: translate(var(--px), var(--py)) scale(0.2) rotate(720deg); opacity: 0; } }
+
+  /* Фрагменты текста/элементов интерфейса для shatterAndReassemble() —
+     только transform/opacity анимируются инлайново из JS, тут лишь база рендера. */
+  .shatter-frag { display: inline-block; backface-visibility: hidden; }
+
+  /* Детальная тряска UI при ударе саги */
+  .ui-shake { animation: uiShake 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) forwards !important; }
+  @keyframes uiShake { 0% { transform: translate(0, 0) rotate(0deg); } 25% { transform: translate(var(--sx, -6px), var(--sy, -3px)) rotate(var(--sr, -2deg)); } 50% { transform: translate(var(--sx, 4px), var(--sy, -5px)) rotate(var(--sr, 3deg)); } 75% { transform: translate(var(--sx, -3px), var(--sy, 2px)) rotate(var(--sr, -1deg)); } 100% { transform: translate(0, 0) rotate(0deg); } }
 
   .footer {
     margin-top: 24px;
@@ -670,11 +1032,11 @@
   /* Smooth Blink — веко закрывается чуть медленнее, чем открывается (60/40) —
      читается как осмысленное, "живое" моргание, а не механический щелчок. */
   @keyframes eyeSmoothBlinkScene {
-    0%, 100% { transform: scaleY(1); }
-    45% { transform: scaleY(0.62); }
-    62% { transform: scaleY(0.06); }
-    80% { transform: scaleY(0.5); }
-    100% { transform: scaleY(1); }
+    0%, 100% { transform: scaleY(1) scaleX(var(--eye-squash, 1)); }
+    45% { transform: scaleY(0.62) scaleX(var(--eye-squash, 1)); }
+    62% { transform: scaleY(0.06) scaleX(var(--eye-squash, 1)); }
+    80% { transform: scaleY(0.5) scaleX(var(--eye-squash, 1)); }
+    100% { transform: scaleY(1) scaleX(var(--eye-squash, 1)); }
   }
   .bot-eye.eye-click .bot-pupil {
     background: radial-gradient(circle at 35% 30%, #FF6B6B 0%, #E22F2F 42%, #7A0000 78%, #4A0000 100%);
@@ -785,6 +1147,7 @@
     body.saga-active #mesh .b1,
     body.saga-active #mesh .b2,
     body.saga-active #mesh .b3,
+    body.saga-active #bg-tint,
     body.saga-active #watermark,
     body.saga-active .card::after,
     body.saga-active .cinematic-glare,
@@ -934,17 +1297,26 @@
 <div id="lang-wash"></div>
 
 <div class="wrap">
-  <div class="topbar stagger" style="animation-delay:0s">
+  <div class="topbar stagger parallax-el" data-depth="0.04" style="animation-delay:0s">
     <div class="brand">
       <div class="brand-logo-container" id="brand-logo-container">
         <div class="brand-mark glass-bubble glass-bubble--glow" id="brand-mark" role="button" tabindex="0" aria-label="Uzum">
           <span class="mark-letter">U</span>
           <span class="mark-sheen" aria-hidden="true"></span>
-          <span class="mark-rim-light" aria-hidden="true"></span>
+          <span class="mark-gleam" aria-hidden="true"></span>
           <span class="mark-face" id="mark-face">
+            <span class="mark-brow l"></span><span class="mark-brow r"></span>
             <span class="mark-eye l"><span class="pupil"></span></span>
             <span class="mark-eye r"><span class="pupil"></span></span>
+            <span class="mark-mouth"></span>
+            <span class="mark-blush l"></span><span class="mark-blush r"></span>
+            <span class="mark-sweat"></span>
           </span>
+          <span class="mark-vein l"></span><span class="mark-vein r"></span>
+          <span class="mark-arm l" id="arm-l"><span class="fist"></span></span>
+          <span class="mark-arm r" id="arm-r"><span class="fist"></span></span>
+          <span class="impact-flash"></span>
+          <span class="mark-whoosh l" aria-hidden="true"></span><span class="mark-whoosh r" aria-hidden="true"></span>
         </div>
       </div>
       <div class="brand-text" id="brand-text">
@@ -961,7 +1333,7 @@
   </div>
 
   <!-- Карточка загрузки списка -->
-  <div class="card glass-edge stagger" style="animation-delay:0.1s">
+  <div class="card glass-edge stagger parallax-el" data-depth="0.06" style="animation-delay:0.1s">
     <div class="grain"></div>
     <div class="cinematic-glare"></div>
     <div class="glass-sheen"></div>
@@ -970,6 +1342,7 @@
         ЗАГРУЗКА ИЗ WMS
       </div>
       <button class="btn primary glass-edge" id="btn-paste-wms" style="border-radius: 999px; padding: 10px 20px; font-size: 11px; line-height: 1.2; text-transform: uppercase; flex: 0 0 auto; width: auto;">
+        <span class="btn-click-shine" aria-hidden="true"></span>
         <span data-i18n="wms_btn">ВСТАВИТЬ СПИСОК</span>
       </button>
     </div>
@@ -979,7 +1352,7 @@
   </div>
 
   <!-- Карточка завершения (С 16 осколками) -->
-  <div class="card glass-edge stagger" style="animation-delay:0.2s">
+  <div class="card glass-edge stagger parallax-el" data-depth="0.06" style="animation-delay:0.2s">
     <div class="grain"></div>
     <div class="cinematic-glare"></div>
     <div class="glass-sheen"></div>
@@ -994,7 +1367,7 @@
       <span class="shard shard-9"></span><span class="shard shard-10"></span><span class="shard shard-11"></span><span class="shard shard-12"></span>
       <span class="shard shard-13"></span><span class="shard shard-14"></span><span class="shard shard-15"></span><span class="shard shard-16"></span>
 
-      <button class="btn finish glass-bubble glass-bubble--inset glass-bubble--glow" id="btn-finish"><span class="finish-toplight"></span><span class="finish-shine"></span><span data-i18n="finish_btn">Завершить инвентаризацию</span></button>
+      <button class="btn finish glass-bubble glass-bubble--inset glass-bubble--glow" id="btn-finish" data-stretch="1.2" data-damping="6"><span class="finish-toplight"></span><span class="finish-shine"></span><span class="finish-collapse-flash" aria-hidden="true"></span><span class="btn-click-shine" aria-hidden="true"></span><span data-i18n="finish_btn">Завершить инвентаризацию</span></button>
       <div class="finish-hole" id="finish-hole">
         <div class="hole-rim"></div>
         <div class="hole-debris"></div>
@@ -1003,7 +1376,7 @@
     </div>
   </div>
 
-  <div class="footer stagger" style="animation-delay:0.3s">
+  <div class="footer stagger parallax-el" data-depth="0.02" style="animation-delay:0.3s">
     <div class="footer-mark"><span class="fdot">U</span> Uzum Invent Bot</div>
     <div class="bot-eyes" id="bot-eyes">
       <button class="bot-eye" id="bot-eye-l" type="button" data-side="left" aria-label="Uzum bot eye">
@@ -1060,8 +1433,8 @@
     <span><span data-i18n="sheet_rows">Строк найдено:</span> <span id="parsed-count">0</span></span>
   </div>
   <div class="sheet-actions">
-    <button class="btn ghost glass-edge" id="sheet-cancel"><span data-i18n="sheet_cancel">Отмена</span></button>
-    <button class="btn confirm glass-bubble" id="sheet-confirm" disabled><span data-i18n="sheet_confirm">Загрузить</span></button>
+    <button class="btn ghost glass-edge" id="sheet-cancel" data-stiffness="300" data-damping="10" data-stretch="0.8"><span class="btn-click-shine" aria-hidden="true"></span><span data-i18n="sheet_cancel">Отмена</span></button>
+    <button class="btn confirm glass-bubble" id="sheet-confirm" data-stiffness="320" data-damping="9" data-stretch="1" disabled><span class="btn-click-shine" aria-hidden="true"></span><span data-i18n="sheet_confirm">Загрузить</span></button>
   </div>
 </div>
 
@@ -1098,13 +1471,22 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         if (!canvas) return;
         const app = LiquidBackground(canvas);
         app.loadImage('data:image/png;base64,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');
-        // Те же значения, что в референсе — металличность/шероховатость дают именно тот
-        // стеклянно-хромированный вид с резкими бликами преломления, что на скрине.
-        app.liquidPlane.material.metalness = 0.75;
-        app.liquidPlane.material.roughness = 0.25;
-        // Было 5 — многовато волн от курсора на глаз, приглушаем силу ряби примерно
-        // на треть, тот же стеклянный вид остаётся, но реакция мягче и реже "штормит".
-        app.liquidPlane.uniforms.displacementScale.value = 1.8;
+        // Мобильный флаг считаем локально: этот код — колбэк динамического import(),
+        // выполняется асинхронно в области видимости МОДУЛЯ, а isMobileUI объявлен
+        // в соседнем classic <script> — технически дотянуться можно (общая лексическая
+        // область документа), но это неявная, хрупкая связь. Дублируем ту же проверку
+        // явно, чтобы этот блок не зависел от порядка/тайминга исполнения других тегов.
+        const isMobileGL = window.matchMedia('(max-width: 767px)').matches || /Android/i.test(navigator.userAgent);
+        // На ПК — прежний стеклянно-хромированный вид с резкими бликами преломления.
+        // На мобильных — материал практически матовый (metalness/roughness "выключены"
+        // в сторону диффузного отклика): меньше острых пересчитываемых бликов, дешевле
+        // для слабого GPU, тот же силуэт ряби остаётся.
+        app.liquidPlane.material.metalness = isMobileGL ? 0 : 0.75;
+        app.liquidPlane.material.roughness = isMobileGL ? 1 : 0.25;
+        // Было 5 → 1.8 (треть силы). Теперь разводим по устройствам: 1.2 на ПК (чуть
+        // спокойнее прежнего 1.8, тот же стеклянный вид) и 1.0 на мобильных — меньше
+        // геометрии смещения пересчитывает GPU на слабых экранах.
+        app.liquidPlane.uniforms.displacementScale.value = isMobileGL ? 1.0 : 1.2;
         app.setRain(false);
         window.__liquidApp = app;
       })
@@ -1121,6 +1503,27 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     if (document.hidden) { window.__liquidApp.pause && window.__liquidApp.pause(); }
     else { window.__liquidApp.play && window.__liquidApp.play(); }
   });
+
+  // Пауза по бездействию: жидкий шейдер реагирует на курсор/палец, но его rAF-цикл крутится
+  // непрерывно даже когда пользователь просто читает экран и не двигает указателем. Через
+  // 2.8с без движения — останавливаем (app.pause), при следующем движении — снова запускаем.
+  // Экономит GPU/батарею в состоянии простоя, не трогая саму реакцию на активное движение.
+  let liquidIdleTimer = null;
+  let liquidIdlePaused = false;
+  function liquidIdleWake() {
+    if (!window.__liquidApp || document.hidden) return;
+    if (liquidIdlePaused) { window.__liquidApp.play && window.__liquidApp.play(); liquidIdlePaused = false; }
+    clearTimeout(liquidIdleTimer);
+    liquidIdleTimer = setTimeout(() => {
+      if (!window.__liquidApp || document.hidden) return;
+      window.__liquidApp.pause && window.__liquidApp.pause();
+      liquidIdlePaused = true;
+    }, 2800);
+  }
+  window.addEventListener('pointermove', liquidIdleWake, { passive: true });
+  window.addEventListener('touchmove', liquidIdleWake, { passive: true });
+  window.addEventListener('pointerdown', liquidIdleWake, { passive: true });
+  liquidIdleWake();
 }
 </script>
 
@@ -1136,6 +1539,24 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
   // чтобы на время тяжёлых сцен ставить на паузу фоновые decorative-анимации
   // (см. body.saga-active в CSS). На ПК не используется — там ничего не приостанавливается.
   const isMobileUI = window.matchMedia('(max-width: 767px)').matches;
+  // По ширине вьюпорта ловим большинство телефонов, но не широкоэкранные Android-планшеты
+  // и раскладушки — у них GPU часто не сильнее телефонного, а ширина уже не мобильная.
+  // html.is-android в CSS дублирует мобильные снижения (mesh-blur, backdrop-filter) для них.
+  if (/Android/i.test(navigator.userAgent)) document.documentElement.classList.add('is-android');
+
+  // Пауза фоновых decorative-анимаций (body.saga-active в CSS) — с счётчиком, а не простым
+  // add/remove: сага логотипа, смена языка и шторка вставки могут в редких случаях
+  // накладываться друг на друга (например открыли шторку прямо во время саги и тут же
+  // закрыли) — простой toggle снял бы паузу раньше времени, пока сага ещё идёт.
+  let bgPauseCount = 0;
+  function pauseBg() {
+    bgPauseCount++;
+    if (isMobileUI) document.body.classList.add('saga-active');
+  }
+  function resumeBg() {
+    bgPauseCount = Math.max(0, bgPauseCount - 1);
+    if (bgPauseCount === 0 && isMobileUI) document.body.classList.remove('saga-active');
+  }
 
   function haptic(type) {
     try {
@@ -1268,14 +1689,14 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     // На мобильных приглушаем фоновые decorative-анимации на время волны + replay карточек —
     // тот же приём, что и в саге логотипа (см. body.saga-active в CSS), тут была вторая
     // по значимости причина проседания FPS при смене языка.
-    if (isMobileUI) document.body.classList.add('saga-active');
+    pauseBg();
     playWash(cx, cy, washScaleFrom(cx, cy), () => {
       applyLang(nextLang);
       document.querySelectorAll('.card').forEach(card => {
         card.classList.remove('replay'); void card.offsetWidth; card.classList.add('replay');
       });
     });
-    if (isMobileUI) setTimeout(() => document.body.classList.remove('saga-active'), 1300);
+    setTimeout(resumeBg, 1300);
   }
 
   $('btn-lang').addEventListener('click', switchLang);
@@ -1312,7 +1733,65 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     btn.appendChild(ripple);
     setTimeout(() => ripple.remove(), 700);
   }
-  document.querySelectorAll('.btn').forEach(btn => btn.addEventListener('pointerdown', spawnRipple));
+
+  // ===== УНИВЕРСАЛЬНЫЙ "СТЕКЛЯННЫЙ" БЛИК ПО КЛИКУ =====
+  // Короткий (0.3s) прогон градиента через .btn-click-shine — child-span есть
+  // у всех .btn-кнопок (см. разметку), поэтому один делегированный обработчик
+  // покрывает их все разом, включая новые sheet-confirm/sheet-cancel.
+  function spawnClickShine(e) {
+    const btn = e.currentTarget;
+    if (!btn.querySelector('.btn-click-shine')) return; // на случай кнопки без спана — no-op
+    btn.classList.remove('shine-hit');
+    void btn.offsetWidth;
+    btn.classList.add('shine-hit');
+    clearTimeout(btn._shineTimer);
+    btn._shineTimer = setTimeout(() => btn.classList.remove('shine-hit'), 320);
+  }
+
+  // ===== МЯГКИЙ ЗВУКОВОЙ ОТКЛИК НА КЛИКИ (Web Audio API, синтез "на лету") =====
+  // Короткий "стеклянный" тон вместо base64-сэмпла: две короткие синусоиды с быстрой
+  // атакой и экспоненциальным затуханием — легче и не раздувает вес HTML-файла.
+  // AudioContext создаётся ЛЕНИВО при первом клике — браузеры запрещают стартовать
+  // звук без явного жеста пользователя.
+  let audioCtx = null;
+  function playGlassTick() {
+    try {
+      if (!audioCtx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        audioCtx = new AC();
+      }
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const now = audioCtx.currentTime;
+      const master = audioCtx.createGain();
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.exponentialRampToValueAtTime(0.16, now + 0.008);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+      master.connect(audioCtx.destination);
+      // Основной тон + тихая квинта сверху — лёгкий "стеклянный" призвук вместо
+      // плоского писка одной синусоиды.
+      [[1760, 1], [2637, 0.4]].forEach(([freq, vol]) => {
+        const osc = audioCtx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+        const g = audioCtx.createGain();
+        g.gain.value = vol;
+        osc.connect(g); g.connect(master);
+        osc.start(now); osc.stop(now + 0.17);
+      });
+    } catch (err) { /* Web Audio недоступен (ограничение WebView и т.п.) — тихо игнорируем */ }
+  }
+
+  document.querySelectorAll('.btn').forEach(btn => {
+    btn.addEventListener('pointerdown', spawnRipple);
+    btn.addEventListener('pointerdown', spawnClickShine);
+    btn.addEventListener('pointerdown', playGlassTick);
+  });
+  // Иконки/переключатель языка — тоже "любая кнопка" по смыслу ТЗ, но у них нет
+  // .btn-click-shine спана (свой idle-glow через ::before) — им только звук.
+  document.querySelectorAll('.icon-btn, .lang-switch').forEach(btn => {
+    btn.addEventListener('pointerdown', playGlassTick);
+  });
 
   // ===== ФОН СТАЛ ИНТЕРАКТИВНЫМ =====
   const meshTrack = $('mesh-track');
@@ -1321,22 +1800,48 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
   // своим data-depth сдвигается на свою долю от общего смещения курсора, тот же
   // источник tx/ty, что двигает орбы фона, так что всё ощущается одним полем.
   const parallaxEls = Array.from(document.querySelectorAll('.parallax-el'));
-  let mx = 0, my = 0, tx = 0, ty = 0, meshRaf = null;
-  function tickMesh() {
-    mx += (tx - mx) * 0.08;
-    my += (ty - my) * 0.08;
+  // .card входит в parallaxEls, но её transform уже занят бесконечной анимацией floatCard —
+  // прямая запись el.style.transform каждый кадр была бы бесполезна (CSS animation всегда
+  // выигрывает каскад против инлайна на том же свойстве). Карточки двигаем через CSS
+  // custom properties (--pfx/--pfy), которые floatCard сама читает внутри своих keyframes
+  // (см. CSS выше) — остальные элементы (header/footer/иконки/lang-switch) не участвуют
+  // в конкурирующей transform-анимации, для них прежний прямой путь работает как есть.
+  const parallaxCardEls = parallaxEls.filter(el => el.classList.contains('card'));
+  const parallaxPlainEls = parallaxEls.filter(el => !el.classList.contains('card'));
+  // На мобильных амплитуда параллакса вдвое ниже — тот же единый источник tx/ty, что
+  // двигает орбы фона, просто меньше "размах" реакции на палец.
+  const PARALLAX_AMP = isMobileUI ? 13 : 26;
+  let mx = 0, my = 0, tx = 0, ty = 0, meshRaf = null, meshLastT = 0;
+  function tickMesh(now) {
+    now = now || performance.now();
+    if (!meshLastT) meshLastT = now;
+    let dt = (now - meshLastT) / 1000;
+    dt = Math.min(dt, 1 / 30);
+    meshLastT = now;
+    // Экспоненциальное сглаживание, независимое от частоты кадров: фиксированный
+    // коэффициент "0.08 за тик" на 120Hz экране сходился бы вдвое чаще и потому вдвое
+    // быстрее по времени, чем на 60Hz — заметно другая, более резкая скорость реакции.
+    // 1-k^(dt*60) даёт одинаковую скорость схождения независимо от частоты обновления.
+    const lerp = 1 - Math.pow(1 - 0.08, dt * 60);
+    mx += (tx - mx) * lerp;
+    my += (ty - my) * lerp;
     meshTrack.style.transform = `translate3d(${mx.toFixed(2)}px, ${my.toFixed(2)}px, 0)`;
-    parallaxEls.forEach(el => {
+    parallaxPlainEls.forEach(el => {
       const depth = parseFloat(el.dataset.depth || '0.15');
       el.style.transform = `translate3d(${(mx * depth).toFixed(2)}px, ${(my * depth).toFixed(2)}px, 0)`;
     });
+    parallaxCardEls.forEach(el => {
+      const depth = parseFloat(el.dataset.depth || '0.15');
+      el.style.setProperty('--pfx', (mx * depth).toFixed(2) + 'px');
+      el.style.setProperty('--pfy', (my * depth).toFixed(2) + 'px');
+    });
     if (Math.abs(tx - mx) > 0.05 || Math.abs(ty - my) > 0.05) {
       meshRaf = requestAnimationFrame(tickMesh);
-    } else { meshRaf = null; }
+    } else { meshRaf = null; meshLastT = 0; }
   }
   window.addEventListener('pointermove', (e) => {
-    tx = ((e.clientX / window.innerWidth) - 0.5) * 26;
-    ty = ((e.clientY / window.innerHeight) - 0.5) * 26;
+    tx = ((e.clientX / window.innerWidth) - 0.5) * PARALLAX_AMP;
+    ty = ((e.clientY / window.innerHeight) - 0.5) * PARALLAX_AMP;
     if (!meshRaf) meshRaf = requestAnimationFrame(tickMesh);
   }, { passive: true });
 
@@ -1364,16 +1869,28 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     if (!btn) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-    const STIFFNESS = opts.stiffness ?? 320;   // жёсткость пружины — выше = быстрее туда-обратно
-    const DAMPING = opts.damping ?? 7.5;       // демпфирование — ниже = сильнее и дольше "прыгает"
+    // Кастомизация параметров пружины прямо из разметки — data-stiffness/-damping/
+    // -stretch/-max-pull/-flick-boost. Данные из data-атрибута ИМЕЮТ ПРИОРИТЕТ над
+    // JS-опциями: удобно подправить конкретный экземпляр кнопки в HTML, не трогая
+    // вызов makeElasticButton() в коде (и не задевая остальные кнопки на том же вызове).
+    const dataNum = (name, fallback) => {
+      const v = btn.dataset[name];
+      const n = v !== undefined && v !== '' ? parseFloat(v) : NaN;
+      return Number.isFinite(n) ? n : fallback;
+    };
+    const STIFFNESS = dataNum('stiffness', opts.stiffness ?? 320);   // жёсткость пружины — выше = быстрее туда-обратно
+    const DAMPING = dataNum('damping', opts.damping ?? 7.5);       // демпфирование — ниже = сильнее и дольше "прыгает"
     const MASS = 1;
-    const STRETCH = opts.stretch ?? 0.95;      // сила squash&stretch деформации
-    const FLICK_BOOST = opts.flickBoost ?? 1.35; // множитель доп. импульса при быстром отпускании (свайп)
+    const STRETCH = dataNum('stretch', opts.stretch ?? 0.95);      // сила squash&stretch деформации
+    const FLICK_BOOST = dataNum('flickBoost', opts.flickBoost ?? 1.35); // множитель доп. импульса при быстром отпускании (свайп)
     // maxPull может быть числом (px) или функцией (w,h)=>px — вторая нужна для
     // широких кнопок (finish/paste-wms), у которых фиксированный px-предел на
     // фоне их же ширины ощущается как "стена": та же амплитуда, что и для
     // маленькой кнопки языка, на широкой кнопке визуально почти не заметна.
-    const maxPullOpt = opts.maxPull ?? 34;
+    // data-max-pull переопределяет опцию, только если она задана числом (не функцией).
+    const maxPullOpt = (btn.dataset.maxPull !== undefined && btn.dataset.maxPull !== '')
+      ? parseFloat(btn.dataset.maxPull)
+      : (opts.maxPull ?? 34);
 
     let w = 0, h = 0;
     let ox = 0, oy = 0;     // текущее смещение (px)
@@ -1462,6 +1979,14 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       // анимацией (например .brand-mark во время mark-pulse уже управляет
       // transform сама — тянуть его поверх нельзя, будет дёргаться).
       if (opts.blockedClass && btn.classList.contains(opts.blockedClass)) return;
+      // Для контейнеров с собственными интерактивными детьми (карточки): если нажали
+      // на вложенную кнопку/ссылку/textarea, а не на "пустую" поверхность контейнера —
+      // отдаём жест ей. У неё своя пружина; если бы контейнер тоже забрал pointer
+      // capture, вложенная кнопка перестала бы получать свои pointermove/pointerup.
+      if (opts.ignoreNestedInteractive) {
+        const nested = e.target.closest('button, a, input, textarea, select, [role="button"]');
+        if (nested && nested !== btn) return;
+      }
       // Защита от «залипания»: если предыдущий драг не закрылся штатным
       // pointerup/cancel (например capture был перехвачен скроллом родителя),
       // dragging мог остаться true навсегда, и кнопка переставала реагировать.
@@ -1547,7 +2072,9 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
   // maxPull для широких кнопок задан функцией от их реальной ширины (~28-30%
   // от w), поэтому амплитуда ощущается так же живо, как у маленькой btn-lang,
   // а не упирается в невидимый потолок на 34px посреди широкой кнопки.
-  makeElasticButton($('btn-finish'), { stiffness: 260, damping: 9, stretch: 1.05, flickBoost: 1.6, maxPull: (w) => Math.max(30, w * 0.28) });
+  // btn-finish усилена по ТЗ: stretch 1.05→1.2, damping 9→6 (сильнее тянется и
+  // дольше/заметнее "прыгает-отскакивает" при отпускании).
+  makeElasticButton($('btn-finish'), { stiffness: 260, damping: 6, stretch: 1.2, flickBoost: 1.6, maxPull: (w) => Math.max(30, w * 0.28) });
   makeElasticButton($('btn-paste-wms'), { stiffness: 300, damping: 9, stretch: 1.0, flickBoost: 1.55, maxPull: (w) => Math.max(26, w * 0.32) });
   // Переключатель языка — маленькая кнопка, поэтому пружина жёстче и короче ход
   // (иначе на 44px-кнопке большая амплитуда выглядит нелепо), но damping ниже,
@@ -1556,7 +2083,55 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
   // Лого "U" — та же сочная эластика, что у btn-lang, но блокируется на время
   // mark-pulse (у лого своя click-микроанимация, ей нужен безраздельный
   // контроль над transform — пружина уступает через blockedClass).
-  makeElasticButton($('brand-mark'), { stiffness: 400, damping: 7, maxPull: 18, stretch: 1.1, flickBoost: 1.6, blockedClass: 'mark-pulse' });
+  makeElasticButton($('brand-mark'), { stiffness: 400, damping: 7, maxPull: 18, stretch: 1.1, flickBoost: 1.6, blockedClass: 'saga-playing' });
+
+  // Кнопки шторки — параметры заданы прямо в разметке через data-stiffness/-damping/
+  // -stretch (см. HTML) в качестве живой демонстрации кастомизации из ТЗ; тут в JS —
+  // только то, что не имеет смысла выносить в data-атрибут (maxPull/flickBoost).
+  makeElasticButton($('sheet-cancel'), { maxPull: 20, flickBoost: 1.4 });
+  makeElasticButton($('sheet-confirm'), { maxPull: 22, flickBoost: 1.45 });
+
+  // Карточки — лёгкий сквош при нажатии на "пустую" поверхность (не на кнопки/textarea
+  // внутри — ignoreNestedInteractive отдаёт им жест, см. makeElasticButton выше).
+  // maxPull маленький и damping высокий: едва заметная, премиальная деформация,
+  // а не полноценный драг большой панели.
+  document.querySelectorAll('.card').forEach((card) => {
+    makeElasticButton(card, { stiffness: 340, damping: 22, stretch: 0.22, maxPull: 10, flickBoost: 1.15, ignoreNestedInteractive: true });
+  });
+
+  // ============================================================
+  // SPRING IMPULSE — та же физика пружины (F=-kx-cv), что у makeElasticButton, но
+  // одноразовым импульсом в CSS custom property вместо перетаскивания transform.
+  // Нужна для коротких "живых" деформаций элементов, у которых transform уже занят
+  // ДРУГОЙ активной @keyframes-анимацией (например eyeSmoothBlinkScene у склеры
+  // глаза) — пишем в var(), которую эта анимация сама читает внутри своих keyframes,
+  // вместо прямого style.transform, который CSS-анимация всё равно перебила бы.
+  // ============================================================
+  function springImpulse(el, varName, opts = {}) {
+    if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const stiffness = opts.stiffness ?? 520;
+    const damping = opts.damping ?? 16;
+    const from = opts.from ?? 1.16;
+    const to = opts.to ?? 1;
+    let value = from, velocity = 0, lastT = 0;
+    function frame(now) {
+      if (!lastT) lastT = now;
+      let dt = (now - lastT) / 1000;
+      dt = Math.min(dt, 1 / 30);
+      lastT = now;
+      const a = (-stiffness * (value - to) - damping * velocity);
+      velocity += a * dt;
+      value += velocity * dt;
+      if (Math.abs(value - to) > 0.001 || Math.abs(velocity) > 0.02) {
+        el.style.setProperty(varName, value.toFixed(4));
+        requestAnimationFrame(frame);
+      } else {
+        el.style.setProperty(varName, to);
+      }
+    }
+    el.style.setProperty(varName, from);
+    requestAnimationFrame(frame);
+  }
 
   // ============================================================
   // BOT EYES — глазки под "Uzum Invent Bot" следят за курсором
@@ -1668,6 +2243,9 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         el.classList.remove('eye-click');
         void el.offsetWidth;
         el.classList.add('eye-click');
+        // Лёгкая эластичная деформация склеры (пружина, не keyframes) — стартует в
+        // тот же момент, что и eyeSmoothBlinkScene выше, и оседает сама по себе.
+        springImpulse(el.querySelector('.bot-eye-lid'), '--eye-squash', { from: 1.14, to: 1, stiffness: 480, damping: 15 });
 
         at(() => haptic('light'), 650); // лёгкий отклик на пике вспышки
 
@@ -1697,6 +2275,8 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
   const sheetOverlay = $('sheet-overlay'), sheet = $('paste-sheet'), textarea = $('paste-textarea');
   let sheetCloseTimer = null;
 
+  let sheetIsOpen = false;
+
   function openSheet() {
     clearTimeout(sheetCloseTimer);
     sheet.classList.remove('closing');
@@ -1705,6 +2285,12 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     sheetOverlay.classList.add('show');
     sheet.classList.remove('show'); void sheet.offsetWidth; sheet.classList.add('show');
     setTimeout(() => textarea.focus(), 400);
+    // Шторка сама по себе — backdrop-filter + glass-карточка поверх всего экрана, поэтому
+    // фоновые decorative-анимации всё равно не видны под ней — останавливаем их на время,
+    // пока открыта (тот же приём, что для саги логотипа и смены языка). Флаг вместо голого
+    // вызова на каждый клик — close можно случайно вызвать дважды подряд (cancel + клик по
+    // оверлею почти одновременно), а pauseBg/resumeBg должны сработать ровно по разу.
+    if (!sheetIsOpen) { sheetIsOpen = true; pauseBg(); }
   }
 
   function closeSheet() {
@@ -1715,6 +2301,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     sheet.style.pointerEvents = 'none';
     clearTimeout(sheetCloseTimer);
     sheetCloseTimer = setTimeout(() => { sheet.classList.remove('closing'); sheet.style.visibility = 'hidden'; }, 520);
+    if (sheetIsOpen) { sheetIsOpen = false; resumeBg(); }
   }
 
   function countParseableLines(text) {
@@ -1753,25 +2340,40 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     webApp.sendData(JSON.stringify({ action: 'bulk_load', payload: { text } }));
   });
 
-  // ===== КОНФЕТТИ =====
+  // ===== КОНФЕТТИ (пул из 16 фиксированных DOM-узлов) =====
+  // Тот же приём, что у 16 осколков #finish-slot: узлы создаются ОДИН раз при
+  // загрузке и переиспользуются на каждый burstConfetti — вместо create/remove
+  // 16 элементов на каждый клик (GC-мусор, reflow на append/remove). Между
+  // вызовами узлы просто стоят с animation:none и opacity:0 — нулевая стоимость.
+  const CONFETTI_COLORS = ['#9D4DFF', '#7000FF', '#38E888', '#FFD60A', '#ffffff'];
+  const confettiPool = [];
+  for (let i = 0; i < 16; i++) {
+    const p = document.createElement('span');
+    p.className = 'confetti-piece';
+    p.style.animation = 'none'; // не проигрываем анимацию, пока не вызван burstConfetti
+    p.style.opacity = '0';
+    document.body.appendChild(p);
+    confettiPool.push(p);
+  }
   function burstConfetti(originEl) {
     const rect = originEl.getBoundingClientRect();
     const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
-    const colors = ['#9D4DFF', '#7000FF', '#38E888', '#FFD60A', '#ffffff'];
-    for (let i = 0; i < 16; i++) {
+    confettiPool.forEach((p, i) => {
       const angle = (Math.PI * 2 * i / 16) + (Math.random() * 0.4 - 0.2);
       const dist = 55 + Math.random() * 85;
-      const p = document.createElement('span');
-      p.className = 'confetti-piece';
       p.style.setProperty('--dx', (Math.cos(angle) * dist).toFixed(1) + 'px');
       p.style.setProperty('--dy', (Math.sin(angle) * dist - 30).toFixed(1) + 'px');
       p.style.left = cx + 'px';
       p.style.top = cy + 'px';
-      p.style.background = colors[i % colors.length];
-      document.body.appendChild(p);
-      p.addEventListener('animationend', () => p.remove());
-      setTimeout(() => p.remove(), 1200);
-    }
+      p.style.background = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+      p.style.opacity = '';
+      // Перезапуск CSS-анимации на переиспользуемом узле: браузер не перезапустит
+      // уже "доигранную" (forwards-зафиксированную) анимацию с тем же именем без
+      // явного сброса + форс-reflow между снятием и возвратом.
+      p.style.animation = 'none';
+      void p.offsetWidth;
+      p.style.animation = '';
+    });
   }
 
   $('btn-finish').addEventListener('click', (e) => {
@@ -1780,6 +2382,11 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     e.currentTarget.style.transform = '';
     e.currentTarget.classList.remove('elastic-live');
     haptic('success');
+    // Радиальный блик — синхронно с началом разлёта confetti (тот же клик, тот же тик).
+    e.currentTarget.classList.remove('click-flash');
+    void e.currentTarget.offsetWidth;
+    e.currentTarget.classList.add('click-flash');
+    setTimeout(() => e.currentTarget.classList.remove('click-flash'), 340);
     burstConfetti(e.currentTarget);
     webApp.sendData(JSON.stringify({ action: 'finish_inventory' }));
     showToast(t('toast_finish'));
@@ -1791,90 +2398,345 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
   });
 
   // ============================================================
-  // КЛИК ПО ЛОГОТИПУ UZUM — переписано с нуля.
-  //
-  // СТАРАЯ РЕАЛИЗАЦИЯ (причина багов "телепортации"): клик запускал ~15.6s
-  // сюжет из 20+ фаз (liftoff → rage → crouch → jump1 → land1 → breathe →
-  // crouch2 → jump2 → land2 → взрыв → oops → return), где логотип на всё
-  // время сцены вырывался из .brand-logo-container через
-  // document.body.appendChild(mark), получал position:fixed и left/top,
-  // выставленные JS'ом, а десятки CSS-классов с РАЗНЫМИ transition-duration
-  // сменяли друг друга по setTimeout. При быстрой смене класса браузер иногда
-  // не успевал доиграть предыдущий transition и "откатывал" элемент —
-  // визуально это читалось как прыжки под кнопку/к тексту WMS и посадка со
-  // смещением. Плюс сама реаппендж-операция (перенос DOM-узла в <body> и
-  // обратно) на телефоне давала заметный скачок layout вокруг .brand-text
-  // и соседних карточек.
-  //
-  // НОВАЯ РЕАЛИЗАЦИЯ:
-  //   — .brand-mark НИКОГДА не покидает .brand-logo-container. Ни
-  //     document.body.appendChild, ни position:fixed, ни left/top — только
-  //     transform (translate3d/scale/rotate), которые не запускают reflow
-  //     и не двигают соседние элементы (кнопку "Завершить инвент",
-  //     текст "Загрузка из WMS" и т.д.).
-  //   — Вся сцена — ОДИН класс .mark-pulse, включающий ОДНУ CSS-анимацию
-  //     (см. @keyframes markPulse) заданной длительности. Никакой цепочки
-  //     setTimeout с разными transition — значит, нечему обрываться на
-  //     середине и "телепортировать" элемент.
-  //   — Возврат в состояние покоя — это просто снятие класса: браузер сам
-  //     плавно интерполирует transform к исходному translate(0,0) scale(1)
-  //     через transition: transform 0.55s cubic-bezier(0.25, 1, 0.5, 1),
-  //     заданный на самом .brand-mark (см. CSS) — ровно та функция
-  //     сглаживания, которая требовалась для возврата.
+  // САГА ЛОГОТИПА (полная версия, перенесена из предыдущей сборки)
   // ============================================================
-  (function initLogoClick() {
+  (function initLogoSaga() {
     const mark = $('brand-mark');
-    if (!mark) return;
+    const container = $('brand-logo-container');
+    const textBlock = $('brand-text');
+    const finishBtn = $('btn-finish');
+    const hole = $('finish-hole');
+    const slot = $('finish-slot');
+    const meshBg = $('mesh');
+
+    if (!mark || !container || !textBlock || !finishBtn || !hole || !slot || !meshBg) return;
 
     let playing = false;
-    let resetTimer = null;
+    let shatterTimers = [];
+    const SHATTER_SELECTOR = '.section-label, .hint-text, .brand-text, #btn-paste-wms, .lang-switch, .icon-btn';
 
-    // Длительность CSS-анимации markPulse (см. CSS: 0.68s) + небольшой запас,
-    // чтобы снятие класса гарантированно происходило уже после того, как
-    // анимация естественным образом остановилась на своём последнем кадре
-    // (100% = translate(0,0) scale(1)) — снятие класса в этот момент visually
-    // не производит никакого скачка, потому что transform уже совпадает
-    // с базовым состоянием .brand-mark.
-    const SCENE_MS = 720;
+    function setVar(el, name, val) { el.style.setProperty(name, val); }
 
-    function playClick() {
+    // --- РАЗЛЁТ И СБОРКА ТЕКСТА/ЭЛЕМЕНТОВ ИНТЕРФЕЙСА ПРИ УДАРЕ ---
+    // Оборачивает текстовые фрагменты (по словам) внутри rootEl в <span class="shatter-frag">.
+    // Уже стилизованные "листовые" элементы (например .key с градиентным текстом) не
+    // разбираются на текстовые узлы — они целиком помечаются как один фрагмент, чтобы не
+    // сломать -webkit-background-clip и подобные эффекты, завязанные на сам элемент.
+    function wrapTextFragments(rootEl) {
+      const walk = (node) => {
+        Array.from(node.childNodes).forEach((child) => {
+          if (child.nodeType === 3) {
+            const text = child.textContent;
+            if (!text || !text.trim()) return;
+            const frag = document.createDocumentFragment();
+            text.split(/(\s+)/).forEach((part) => {
+              if (!part) return;
+              if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(part)); return; }
+              const span = document.createElement('span');
+              span.className = 'shatter-frag';
+              span.textContent = part;
+              frag.appendChild(span);
+            });
+            node.replaceChild(frag, child);
+          } else if (child.nodeType === 1) {
+            if (child.classList.contains('shatter-frag')) return;
+            if (child.children.length === 0) {
+              child.classList.add('shatter-frag');
+            } else {
+              walk(child);
+            }
+          }
+        });
+      };
+      walk(rootEl);
+      rootEl.dataset.shatterReady = '1';
+    }
+
+    function shatterAndReassemble(rootEl, epicenterX, epicenterY) {
+      if (!rootEl.dataset.shatterReady) wrapTextFragments(rootEl);
+      const frags = rootEl.querySelectorAll('.shatter-frag');
+      if (!frags.length) return;
+
+      const data = [];
+      let maxDist = 0;
+      frags.forEach((f) => {
+        const r = f.getBoundingClientRect();
+        const dist = Math.hypot((r.left + r.width / 2) - epicenterX, (r.top + r.height / 2) - epicenterY);
+        maxDist = Math.max(maxDist, dist);
+        data.push({ el: f, dist });
+      });
+
+      // Буквы теперь СВОЯ, отдельная от маскота "жизнь" на ~5 секунд, в три фазы:
+      //
+      // ФАЗА 1 — УДАРНАЯ ВОЛНА: резкий, почти мгновенный "бах" (буквы разлетаются
+      // НЕМНОГО — лёгкий бросок, не через весь экран), с жёстким гашением скорости
+      // под конец (BURST_EASE без овершута) — читается как импульс от удара, а не
+      // рессорный отскок.
+      //
+      // ФАЗА 2 — МЕДЛЕННЫЙ ВЕСОМЫЙ СНОС: буквы продолжают лететь в ТУ ЖЕ сторону,
+      // что и в ударе, но гораздо дальше и гораздо медленнее — тяжёлое затухающее
+      // движение (как будто сопротивление воздуха), плюс лёгкий гравитационный снос
+      // вниз и медленное довращение. Именно эта фаза даёт "плывут потихоньку" —
+      // opacity НЕ гасим ни на одном этапе, буквы обязаны быть видны всё время
+      // полёта, иначе "медленно плыть" просто не будет видно глазу.
+      //
+      // ФАЗА 3 — СБОРКА: встречная волна (дальние стартуют первыми, чтобы долететь
+      // одновременно с ближними), пружинный overshoot на "приземлении".
+      //
+      // Суммарно burst+drift+reassemble ≈ 5с от удара — НЕ привязано к возврату
+      // маскота домой (см. playSaga: там возврат стартует намного раньше и не ждёт
+      // эту сборку). Буквы могут продолжать "доплывать", когда маскот уже давно дома.
+      const BURST_EASE = 'cubic-bezier(0.09, 0.87, 0.19, 1)';
+      const BURST_STAGGER = 90;    // ms — волна расходится от эпицентра почти мгновенно
+      const BURST_DUR = 230;       // ms — резкий "бах"
+      const DRIFT_EASE = 'cubic-bezier(0.22, 0.61, 0.36, 1)';
+      const DRIFT_DUR = 3550;      // ms — медленный весомый снос
+      const REASSEMBLE_STAGGER = 320; // ms
+      const REASSEMBLE_DUR = 720;     // ms — пружинное "приземление"
+
+      const impulses = data.map(() => {
+        const angle = Math.random() * Math.PI * 2;
+        const burstPower = 16 + Math.random() * 30;
+        const driftPower = burstPower + 60 + Math.random() * 90;
+        return {
+          burstTx: Math.cos(angle) * burstPower,
+          burstTy: Math.sin(angle) * burstPower - 8,
+          driftTx: Math.cos(angle) * driftPower + (Math.random() - 0.5) * 34,
+          driftTy: Math.sin(angle) * driftPower + 38 + Math.random() * 32, // + гравитация: буквы "тонут" пока плывут
+          burstRot: (Math.random() - 0.5) * 46,
+          driftRot: (Math.random() - 0.5) * 130,
+        };
+      });
+
+      // ФАЗА 1: резкий бросок наружу.
+      data.forEach((d, i) => {
+        const delay = maxDist ? (d.dist / maxDist) * BURST_STAGGER : 0;
+        const p = impulses[i];
+        d.el.style.willChange = 'transform';
+        d.el.style.backfaceVisibility = 'hidden';
+        d.el.style.transition = `transform ${BURST_DUR}ms ${BURST_EASE} ${delay.toFixed(0)}ms`;
+        d.el.style.transform = `translate3d(${p.burstTx.toFixed(1)}px, ${p.burstTy.toFixed(1)}px, 0) rotate(${p.burstRot.toFixed(1)}deg)`;
+      });
+
+      // ФАЗА 2: следом — медленный, тяжёлый снос дальше в ту же сторону + гравитация.
+      const tDrift = setTimeout(() => {
+        data.forEach((d, i) => {
+          const p = impulses[i];
+          d.el.style.transition = `transform ${DRIFT_DUR}ms ${DRIFT_EASE}`;
+          d.el.style.transform = `translate3d(${p.driftTx.toFixed(1)}px, ${p.driftTy.toFixed(1)}px, 0) rotate(${(p.burstRot + p.driftRot).toFixed(1)}deg)`;
+        });
+      }, BURST_STAGGER + BURST_DUR + 20);
+      shatterTimers.push(tDrift);
+
+      // ФАЗА 3: сборка обратно — стартует ПОСЛЕ того, как снос долетел (~4с от удара).
+      const tReassemble = setTimeout(() => {
+        data.forEach((d) => {
+          const backDelay = maxDist ? ((maxDist - d.dist) / maxDist) * REASSEMBLE_STAGGER : 0;
+          d.el.style.transition = `transform ${REASSEMBLE_DUR}ms var(--spring) ${backDelay.toFixed(0)}ms`;
+          d.el.style.transform = 'translate3d(0, 0, 0) rotate(0deg)';
+        });
+        const tCleanup = setTimeout(() => {
+          data.forEach((d) => {
+            d.el.style.willChange = 'auto';
+            d.el.style.backfaceVisibility = '';
+            d.el.style.transition = '';
+            d.el.style.transform = '';
+          });
+        }, REASSEMBLE_DUR + REASSEMBLE_STAGGER + 120);
+        shatterTimers.push(tCleanup);
+      }, BURST_STAGGER + BURST_DUR + 20 + DRIFT_DUR);
+      shatterTimers.push(tReassemble);
+    }
+
+    // --- ЭПИЧЕСКИЙ УДАР С 10 ВОЛНАМИ И 80 ЧАСТИЦАМИ ---
+    function triggerImpact(cx, cy) {
+      meshBg.classList.add('ripple');
+      setTimeout(() => meshBg.classList.remove('ripple'), 600);
+
+      const colors = ['#9D4DFF', '#7000FF', '#38E888', '#FFD60A', '#ffffff', '#FF5C5C', '#C41818'];
+      // На мобильных — меньше частиц удара: 80 честных DOM-узлов одновременно
+      // на слабом Android GPU заметно тяжелее, чем разница видна на маленьком
+      // экране. На ПК оставляем как было — там есть запас производительности.
+      const IMPACT_PARTICLE_COUNT = isMobileUI ? 30 : 80;
+      for (let i = 0; i < IMPACT_PARTICLE_COUNT; i++) {
+        const p = document.createElement('div');
+        p.className = 'impact-particle';
+        const angle = Math.random() * 2 * Math.PI;
+        const dist = 120 + Math.random() * 280;
+        p.style.setProperty('--px', (Math.cos(angle) * dist) + 'px');
+        p.style.setProperty('--py', (Math.sin(angle) * dist) + 'px');
+        p.style.width = (4 + Math.random() * 14) + 'px';
+        p.style.height = p.style.width;
+        p.style.background = colors[Math.floor(Math.random() * colors.length)];
+        p.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+        p.style.left = cx + 'px'; p.style.top = cy + 'px';
+        p.style.animationDuration = (1.1 + Math.random() * 0.8) + 's';
+        document.body.appendChild(p);
+        setTimeout(() => p.remove(), 2400);
+      }
+
+      document.querySelectorAll(SHATTER_SELECTOR).forEach((el) => shatterAndReassemble(el, cx, cy));
+
+      document.querySelectorAll('.card').forEach(card => {
+        const sx = (Math.random() - 0.5) * 16;
+        const sy = (Math.random() - 0.5) * 16;
+        const sr = (Math.random() - 0.5) * 6;
+        card.style.setProperty('--sx', sx + 'px');
+        card.style.setProperty('--sy', sy + 'px');
+        card.style.setProperty('--sr', sr + 'deg');
+        card.classList.remove('ui-shake');
+        void card.offsetWidth;
+        card.classList.add('ui-shake');
+      });
+    }
+
+    function playSaga() {
       if (playing) return;
       playing = true;
       haptic('medium');
 
-      // Перезапуск анимации при повторном/частом клике: снять класс,
-      // форсировать reflow, вернуть класс — иначе браузер не перезапустит
-      // уже идущую (или только что завершившуюся) animation с тем же именем.
-      mark.classList.remove('mark-pulse');
-      void mark.offsetWidth;
-      mark.classList.add('mark-pulse');
+      document.body.appendChild(mark);
+      // Приглушаем фоновые decorative-анимации на всё время саги (мешала пропущенная
+      // раньше здесь строка — body.saga-active уже был описан в CSS и использовался
+      // в switchLang(), но не в самой саге логотипа, для которой и был задуман).
+      pauseBg();
 
-      clearTimeout(resetTimer);
-      resetTimer = setTimeout(() => {
-        mark.classList.remove('mark-pulse');
+      const startRect = container.getBoundingClientRect();
+      const targetRect = slot.getBoundingClientRect();
+
+      const targetCx = targetRect.left + targetRect.width / 2;
+      const targetTopY = targetRect.top - 178;
+
+      setVar(mark, '--saga-home-x', startRect.left + 'px');
+      setVar(mark, '--saga-home-y', startRect.top + 'px');
+      setVar(mark, '--saga-x', startRect.left + 'px');
+      setVar(mark, '--saga-y', startRect.top + 'px');
+      setVar(mark, '--saga-target-x', (targetCx - 100) + 'px');
+      setVar(mark, '--saga-target-y', targetTopY + 'px');
+
+      const CLASSES = ['saga-liftoff', 'saga-rage', 'saga-smash', 'saga-oops', 'saga-return'];
+      const TEXT_CLASSES = ['saga-rage', 'saga-oops', 'saga-return'];
+      const timers = [];
+      const at = (fn, ms) => timers.push(setTimeout(fn, ms));
+
+      mark.classList.add('saga-playing');
+
+      at(() => { mark.classList.remove(...CLASSES); mark.classList.add('saga-liftoff'); }, 0);
+
+      at(() => {
+        mark.classList.remove(...CLASSES);
+        mark.classList.add('saga-rage');
+        textBlock.classList.remove(...TEXT_CLASSES);
+        textBlock.classList.add('saga-rage');
+        haptic('warning');
+      }, 950);
+
+      at(() => {
+        mark.classList.remove(...CLASSES);
+        mark.classList.add('saga-smash');
+        haptic('heavy');
+        const smashRect = mark.getBoundingClientRect();
+        const cx = smashRect.left + smashRect.width / 2;
+        const cy = smashRect.top + smashRect.height / 2 - 40;
+        triggerImpact(cx, cy);
+      }, 1750);
+
+      // Осколки летят чуть раньше (~85ms) кнопки/дыры — выглядит как причина коллапса,
+      // а не следствие. 2000ms (кнопка/дыра/haptic) не трогаю.
+      at(() => {
+        slot.classList.add('smashed');
+      }, 1915);
+
+      at(() => {
+        finishBtn.classList.add('smashed');
+        hole.classList.add('hole-active');
+        haptic('heavy');
+      }, 2000);
+
+      at(() => {
+        mark.classList.remove(...CLASSES);
+        mark.classList.add('saga-oops');
+        textBlock.classList.remove(...TEXT_CLASSES);
+        textBlock.classList.add('saga-oops');
+        haptic('light');
+      }, 2450);
+
+      // Возврат маскота домой НЕ ждёт буквы — по новому ТЗ буквы/фрагменты интерфейса
+      // теперь живут своей отдельной жизнью (резкий удар → медленный весомый снос
+      // ~3.5с → сборка, см. shatterAndReassemble, суммарно ≈5с) и могут продолжать
+      // "доплывать" уже после того, как маскот давно дома — это осознанная развязка
+      // таймлайнов, а не рассинхрон. 3600 — просто время, чтобы доиграть фазу oops
+      // (смущение) от удара (1750): столько же, сколько было отведено раньше.
+      at(() => {
+        mark.classList.remove(...CLASSES);
+        mark.classList.add('saga-return');
+        textBlock.classList.remove(...TEXT_CLASSES);
+        textBlock.classList.add('saga-return');
+      }, 3600);
+
+      // Клинап ждёт, пока маскот долетит домой (возврат стартует на 3600, летит 1.3s →
+      // ~4900) плюс небольшой запас. Он снимает saga-playing и возвращает интерактивность
+      // маскоту — это НЕЗАВИСИМО от букв: они в этот момент как раз в фазе медленного
+      // сноса (до ~5640) или сборки (до ~6800) и продолжают долетать сами по себе, пока
+      // остальной интерфейс уже полностью отзывчив.
+      at(() => {
+        mark.classList.remove(...CLASSES, 'saga-playing');
+        mark.style.removeProperty('--saga-x');
+        mark.style.removeProperty('--saga-y');
+        textBlock.classList.remove(...TEXT_CLASSES);
+
+        slot.classList.remove('smashed');
+        hole.classList.remove('hole-active');
+        finishBtn.classList.remove('smashed');
+        finishBtn.classList.add('restoring');
+        void finishBtn.offsetWidth;
+        finishBtn.classList.add('restore-in');
+        setTimeout(() => { finishBtn.classList.remove('restoring', 'restore-in'); }, 600);
+
+        container.appendChild(mark);
+        resumeBg();
         playing = false;
-      }, SCENE_MS);
+      }, 5100);
+
+      // Защита: если вкладка/Mini App сворачивается посреди сцены — не оставляем
+      // логотип "подвешенным" в body с position:fixed навсегда.
+      const cleanupOnHide = () => {
+        if (!playing) return;
+        timers.forEach(clearTimeout);
+        shatterTimers.forEach(clearTimeout);
+        shatterTimers = [];
+        document.querySelectorAll(SHATTER_SELECTOR + ' .shatter-frag').forEach((f) => {
+          f.style.transition = '';
+          f.style.transform = '';
+          f.style.opacity = '';
+          f.style.willChange = 'auto';
+        });
+        mark.classList.remove(...CLASSES, 'saga-playing');
+        mark.style.removeProperty('--saga-x');
+        mark.style.removeProperty('--saga-y');
+        textBlock.classList.remove(...TEXT_CLASSES);
+        slot.classList.remove('smashed');
+        hole.classList.remove('hole-active');
+        finishBtn.classList.remove('smashed', 'restoring', 'restore-in');
+        resumeBg();
+        if (mark.parentElement !== container) container.appendChild(mark);
+        playing = false;
+      };
+      document.addEventListener('visibilitychange', () => { if (document.hidden) cleanupOnHide(); });
+      window.addEventListener('pagehide', cleanupOnHide, { once: true });
     }
 
-    // Защита от утечки: если пользователь сворачивает Mini App или уходит со
-    // страницы посреди анимации, снимаем класс сразу, не дожидаясь таймера.
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        clearTimeout(resetTimer);
-        mark.classList.remove('mark-pulse');
-        playing = false;
-      }
+    window.addEventListener('resize', () => {
+      if (!playing) return;
+      const targetRect = slot.getBoundingClientRect();
+      const targetCx = targetRect.left + targetRect.width / 2;
+      const targetTopY = targetRect.top - 178;
+      setVar(mark, '--saga-target-x', (targetCx - 100) + 'px');
+      setVar(mark, '--saga-target-y', targetTopY + 'px');
     });
-    window.addEventListener('pagehide', () => {
-      clearTimeout(resetTimer);
-      mark.classList.remove('mark-pulse');
-      playing = false;
-    }, { once: true });
 
-    mark.addEventListener('click', playClick);
-    mark.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); playClick(); }
-    });
+    mark.addEventListener('click', playSaga);
+    mark.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); playSaga(); } });
   })();
 </script>
 </body>
