@@ -1104,6 +1104,29 @@
   .hint-text .key { color: var(--accent-key); font-weight: 800; background: linear-gradient(90deg, var(--accent-key), #fff 120%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; text-shadow: none; position: relative; padding-bottom: 1px; border-bottom: 1.5px solid rgba(255, 168, 214, 0.35); animation: keyGlow 3.6s ease-in-out infinite; }
   @keyframes keyGlow { 0%, 100% { filter: drop-shadow(0 0 0px var(--accent-key-glow)); } 50% { filter: drop-shadow(0 0 6px var(--accent-key-glow)); } }
 
+  /* ===== БУКВЫ "ИГРАЮТ" С КУРСОРОМ (.hint-text / .format-arrow) =====
+     Каждая буква — свой span (см. splitLetters в JS). JS считает дистанцию от курсора до
+     центра буквы и сам пишет transform/filter с плавным smoothstep-затуханием по радиусу —
+     инлайновые значения меняются на каждый rAF, пока курсор рядом, а .letter-fx.transition
+     сглаживает ВОЗВРАТ на место, когда курсор уходит. Глубина эффекта нарочно мягкая:
+     лёгкий подъём + едва заметное лиловое drop-shadow-свечение — без "прыжков" в тему.
+     drop-shadow вместо смены color/-webkit-text-fill-color: внутри .key текст залит
+     градиентом через background-clip:text, а -webkit-text-fill-color наследуется дочерними
+     span'ами — задать им свой color означало бы конфликтовать с унаследованным transparent
+     fill и получить нечитаемые буквы, поэтому .key вообще не разбирается на буквы (см. JS).
+     is-settling — однократный лёгкий блюр-отскок фокуса при отпускании (letterSettle),
+     тот самый "эффект лёгкого блюра" в тему стекла, а не постоянное замыливание текста. */
+  .letter-fx { display: inline-block; will-change: transform; }
+  /* Транзишен НЕ висит на базовом классе: пока курсор рядом, JS пишет transform каждый rAF
+     (см. updateLetterFX) — живой transition на этом же свойстве всё время перенацеливался бы
+     на новое значение, не успевая доехать, и буквы бы "плыли" с ощутимой задержкой за курсором
+     вместо чёткого прямого слежения. .is-releasing навешивается ТОЛЬКО в момент ухода курсора
+     из радиуса буквы (см. JS) — так слежение остаётся мгновенным, а плавность есть только там,
+     где она реально нужна: на возврате в состояние покоя. */
+  .letter-fx.is-releasing { transition: transform 0.45s var(--epic), filter 0.4s var(--ease); }
+  .letter-fx.is-settling { animation: letterSettle 0.4s var(--ease); }
+  @keyframes letterSettle { 0% { filter: blur(2.2px); } 55% { filter: blur(0.5px); } 100% { filter: blur(0); } }
+
   #lang-wash { position: fixed; top: 0; left: 0; width: 40px; height: 40px; margin-left: -20px; margin-top: -20px; border-radius: 50%; z-index: 600; pointer-events: none; opacity: 0; background: radial-gradient(circle, rgba(200,150,255,0.95), rgba(112,0,255,0.6) 40%, rgba(3,0,8,0.97) 78%); transform: translate(var(--wx, 50vw), var(--wy, 50vh)) scale(0); will-change: transform, opacity; }
   #lang-wash.active { animation: langWash 1.15s cubic-bezier(0.7,0,0.2,1) forwards; }
   @keyframes langWash { 0% { opacity: 0; transform: translate(var(--wx),var(--wy)) scale(0); } 10% { opacity: 1; } 52% { opacity: 0.97; transform: translate(var(--wx),var(--wy)) scale(var(--ws, 50)); } 78% { opacity: 0.55; transform: translate(var(--wx),var(--wy)) scale(calc(var(--ws, 50) * 1.25)); } 100% { opacity: 0; transform: translate(var(--wx),var(--wy)) scale(calc(var(--ws, 50) * 1.4)); } }
@@ -1644,6 +1667,107 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     }
   };
 
+  // ===== БУКВЫ, ИГРАЮЩИЕ С КУРСОРОМ (описательный текст .hint-text / .format-arrow) =====
+  // Определено ДО applyLang (использует letterFxState) и ДО первого вызова applyLang(currentLang)
+  // ниже — let-переменная должна быть проинициализирована к моменту первого обращения.
+  let letterFxState = new Map(); // container -> { letters, rects }
+
+  // Рекурсивно оборачивает каждую букву текстовых узлов внутри root в <span class="letter-fx">.
+  // .key НЕ разбираем: там градиентный текст через background-clip:text + унаследованный
+  // -webkit-text-fill-color:transparent — дочерний span без своего background-clip
+  // отрисовался бы невидимым текстом поверх видимого. Пробел не оборачиваем — не участвует
+  // в анимации, а как голый текстовый узел не рискует ничего сломать в переносе строк.
+  function splitLetters(root) {
+    const walk = (node) => {
+      Array.from(node.childNodes).forEach((child) => {
+        if (child.nodeType === 3) {
+          const text = child.textContent;
+          if (!text) return;
+          const frag = document.createDocumentFragment();
+          Array.from(text).forEach((ch) => {
+            if (ch === ' ' || ch === '\u00A0') { frag.appendChild(document.createTextNode(ch)); return; }
+            const span = document.createElement('span');
+            span.className = 'letter-fx';
+            span.textContent = ch;
+            frag.appendChild(span);
+          });
+          node.replaceChild(frag, child);
+        } else if (child.nodeType === 1) {
+          if (child.classList.contains('key')) return;
+          walk(child);
+        }
+      });
+    };
+    walk(root);
+  }
+
+  // Считает дистанцию курсора до центра каждой буквы и сам пишет transform/filter с
+  // smoothstep-затуханием по радиусу — мягкий "магнитный" отклик без резкой границы.
+  // rects кешируются в state и пересчитываются лениво (после сброса кеша при ресайзе
+  // или после re-split на смене языка), чтобы не дёргать getBoundingClientRect на каждый кадр.
+  const LETTER_FX_RADIUS = 62;
+  function updateLetterFX(container, px, py) {
+    const state = letterFxState.get(container);
+    if (!state) return;
+    if (!state.rects) {
+      state.letters = Array.from(container.querySelectorAll('.letter-fx'));
+      state.rects = state.letters.map(el => el.getBoundingClientRect());
+    }
+    state.letters.forEach((el, i) => {
+      const r = state.rects[i];
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      const dist = Math.hypot(px - cx, py - cy);
+      if (dist < LETTER_FX_RADIUS) {
+        const k = 1 - dist / LETTER_FX_RADIUS;
+        const eased = k * k * (3 - 2 * k); // smoothstep — мягче на краях радиуса, без "прыжка"
+        el.classList.remove('is-releasing'); // чёткое прямое слежение, без фонового transition
+        el.style.transform = `translateY(${(-2.4 * eased).toFixed(2)}px) scale(${(1 + 0.09 * eased).toFixed(3)})`;
+        el.style.filter = `drop-shadow(0 0 ${(6 * eased).toFixed(1)}px rgba(157,77,255,${(0.6 * eased).toFixed(2)}))`;
+        el.classList.remove('is-settling');
+        el._letterFxNear = true;
+      } else if (el._letterFxNear) {
+        el._letterFxNear = false;
+        el.classList.add('is-releasing'); // теперь можно плавно доехать до состояния покоя
+        el.style.transform = '';
+        el.style.filter = '';
+        // Однократный лёгкий блюр-отскок фокуса на возврате — letterSettle из CSS.
+        el.classList.remove('is-settling'); void el.offsetWidth; el.classList.add('is-settling');
+      }
+    });
+  }
+
+  // Только под мышь (как и остальные курсорные эффекты в этом файле — на тачах у наведения
+  // нет смысла), rAF коалесцирует частые pointermove в один пересчёт за кадр.
+  function initLetterFX(container) {
+    // Само разбиение на буквы уже сделано в applyLang (она проходит по всем [data-i18n],
+    // а .hint-text/.format-arrow — как раз такие элементы) — сюда попадаем ПОСЛЕ первого
+    // applyLang(currentLang) (см. вызов ниже), значит splitLetters здесь уже не нужен и
+    // вреден: повторный вызов обернул бы уже готовые .letter-fx-споты ещё в один слой спанов.
+    letterFxState.set(container, { letters: null, rects: null });
+    let raf = null, px = 0, py = 0;
+    container.addEventListener('pointermove', (e) => {
+      if (e.pointerType && e.pointerType !== 'mouse') return;
+      px = e.clientX; py = e.clientY;
+      if (raf) return;
+      raf = requestAnimationFrame(() => { raf = null; updateLetterFX(container, px, py); });
+    }, { passive: true });
+    container.addEventListener('pointerleave', () => {
+      const state = letterFxState.get(container);
+      if (!state || !state.letters) return;
+      state.letters.forEach(el => {
+        if (el._letterFxNear) {
+          el._letterFxNear = false;
+          el.classList.add('is-releasing');
+          el.style.transform = ''; el.style.filter = '';
+          el.classList.remove('is-settling'); void el.offsetWidth; el.classList.add('is-settling');
+        }
+      });
+    });
+  }
+  window.addEventListener('resize', () => {
+    letterFxState.forEach(state => { state.rects = null; });
+  }, { passive: true });
+
   let currentLang = localStorage.getItem('invent_lang') || (webApp.initDataUnsafe?.user?.language_code === 'uz' ? 'uz' : 'ru');
 
   function applyLang(lang) {
@@ -1655,6 +1779,15 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       const val = I18N[lang][key];
       if (val === undefined) return;
       el.innerHTML = val;
+      // .hint-text/.format-arrow — описательный текст, буквы которого реагируют на курсор
+      // (см. splitLetters/initLetterFX ниже). innerHTML только что пересоздал детей элемента
+      // "с нуля" из чистой строки — буквы нужно нарезать заново и сбросить кеш их rect'ов,
+      // иначе после смены языка эффект продолжит держаться за удалённые узлы.
+      if (el.classList.contains('hint-text') || el.classList.contains('format-arrow')) {
+        splitLetters(el);
+        const state = letterFxState.get(el);
+        if (state) state.rects = null;
+      }
     });
     localStorage.setItem('invent_lang', lang);
   }
@@ -1702,6 +1835,9 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
 
   $('btn-lang').addEventListener('click', switchLang);
   applyLang(currentLang);
+  // Только теперь (после того как applyLang уже разбила текст на .letter-fx-буквы —
+  // см. её ветку для .hint-text/.format-arrow выше) регистрируем слушатели курсора.
+  document.querySelectorAll('.hint-text, .format-arrow').forEach(el => initLetterFX(el));
 
   window.addEventListener('load', () => {
     setTimeout(() => {
@@ -1755,6 +1891,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
   // AudioContext создаётся ЛЕНИВО при первом клике — браузеры запрещают стартовать
   // звук без явного жеста пользователя.
   let audioCtx = null;
+  let masterBus = null;
   function getAC() {
     try {
       if (!audioCtx) {
@@ -1762,21 +1899,49 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         if (!AC) return null;
         audioCtx = new AC();
       }
-      if (audioCtx.state === 'suspended') audioCtx.resume();
+      if (!masterBus) {
+        // ОБЩАЯ ШИНА СО СЖАТИЕМ: раньше каждый звук шёл напрямую в ac.destination —
+        // при наложении нескольких звуков (тик по ховеру + клик + фоновый гул) сумма
+        // амплитуд превышала 0dB и Web Audio "жёстко" клиппировало сигнал — тот самый
+        // треск/"пердит" при быстром взаимодействии. Компрессор мягко подбирает пик перед
+        // destination, звуки остаются такими же по характеру, просто больше не искажаются
+        // при наложении. Ratio/knee щадящие — это страховка от клиппинга, а не "сдавленный"
+        // саунд-дизайн.
+        masterBus = audioCtx.createDynamicsCompressor();
+        masterBus.threshold.value = -18;
+        masterBus.knee.value = 24;
+        masterBus.ratio.value = 4;
+        masterBus.attack.value = 0.003;
+        masterBus.release.value = 0.15;
+        masterBus.connect(audioCtx.destination);
+      }
       return audioCtx;
     } catch (err) { return null; }
   }
 
+  // ГОНКА С resume(): AudioContext.resume() асинхронный, а старый код звал его и тут же,
+  // не дожидаясь, планировал osc.start(now) — на слабых мобильных WebView (в т.ч. внутри
+  // Telegram) и после авто-suspend в фоне это давало ту самую "через раз работает" тишину:
+  // ноды планировались, пока контекст ещё формально suspended, и звук просто пропадал.
+  // withAudio() — единая точка входа для ВСЕХ звуков: если контекст уже 'running' (обычный
+  // горячий путь, 99% вызовов) — синтез идёт немедленно, без задержки. Если нет — сперва
+  // дожидаемся реального завершения resume() и только потом создаём ноды, так что звук
+  // гарантированно случится, а не тихо потеряется.
+  function withAudio(fn) {
+    const ac = getAC();
+    if (!ac) return;
+    if (ac.state === 'running') { fn(ac); return; }
+    ac.resume().then(() => { if (ac.state === 'running') fn(ac); }).catch(() => {});
+  }
+
   function playGlassTick() {
-    try {
-      const ac = getAC();
-      if (!ac) return;
+    withAudio((ac) => {
       const now = ac.currentTime;
       const master = ac.createGain();
       master.gain.setValueAtTime(0.0001, now);
       master.gain.exponentialRampToValueAtTime(0.16, now + 0.008);
       master.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
-      master.connect(ac.destination);
+      master.connect(masterBus);
       // Основной тон + тихая квинта сверху — лёгкий "стеклянный" призвук вместо
       // плоского писка одной синусоиды.
       [[1760, 1], [2637, 0.4]].forEach(([freq, vol]) => {
@@ -1788,7 +1953,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         osc.connect(g); g.connect(master);
         osc.start(now); osc.stop(now + 0.17);
       });
-    } catch (err) { /* Web Audio недоступен (ограничение WebView и т.п.) — тихо игнорируем */ }
+    });
   }
 
   // ===== РАСШИРЕННАЯ ЗВУКОВАЯ ПАЛИТРА =====
@@ -1810,35 +1975,31 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
   // (.key, .format-val) и буквы лого. Троттлится снаружи по времени, чтобы частый
   // pointerenter/mousemove не заваливал звуками.
   function playHoverTick() {
-    try {
-      const ac = getAC();
-      if (!ac) return;
+    withAudio((ac) => {
       const now = ac.currentTime;
       const master = ac.createGain();
       master.gain.setValueAtTime(0.0001, now);
       master.gain.exponentialRampToValueAtTime(0.045, now + 0.006);
       master.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
-      master.connect(ac.destination);
+      master.connect(masterBus);
       const osc = ac.createOscillator();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(3200 + Math.random() * 400, now);
       osc.connect(master);
       osc.start(now); osc.stop(now + 0.08);
-    } catch (err) {}
+    });
   }
 
   // Раздражённый "рык" — короткая низкая пила с тремоло-дрожью громкости, под
   // фазу saga-rage (лого злится перед ударом).
   function playAngryGrowl() {
-    try {
-      const ac = getAC();
-      if (!ac) return;
+    withAudio((ac) => {
       const now = ac.currentTime;
       const master = ac.createGain();
       master.gain.setValueAtTime(0.0001, now);
       master.gain.exponentialRampToValueAtTime(0.14, now + 0.03);
       master.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
-      master.connect(ac.destination);
+      master.connect(masterBus);
 
       const osc = ac.createOscillator();
       osc.type = 'sawtooth';
@@ -1863,21 +2024,19 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
 
       osc.start(now); osc.stop(now + 0.55);
       trem.start(now); trem.stop(now + 0.55);
-    } catch (err) {}
+    });
   }
 
   // Удар — глухой низкочастотный "бум" (просевшая синусоида) + короткий шумовой
   // треск сверху, под фазу saga-smash и коллапс кнопки завершения инвента.
   function playImpactBoom() {
-    try {
-      const ac = getAC();
-      if (!ac) return;
+    withAudio((ac) => {
       const now = ac.currentTime;
 
       const master = ac.createGain();
       master.gain.setValueAtTime(0.22, now);
       master.gain.exponentialRampToValueAtTime(0.0001, now + 0.42);
-      master.connect(ac.destination);
+      master.connect(masterBus);
 
       const osc = ac.createOscillator();
       osc.type = 'sine';
@@ -1895,63 +2054,57 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       const noiseGain = ac.createGain();
       noiseGain.gain.setValueAtTime(0.18, now);
       noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
-      noise.connect(noiseFilt); noiseFilt.connect(noiseGain); noiseGain.connect(ac.destination);
+      noise.connect(noiseFilt); noiseFilt.connect(noiseGain); noiseGain.connect(masterBus);
       noise.start(now); noise.stop(now + 0.12);
-    } catch (err) {}
+    });
   }
 
   // Смущённый "ой" — мягкий писк со скользящим вверх тоном, под фазу saga-oops.
   function playOopsBlip() {
-    try {
-      const ac = getAC();
-      if (!ac) return;
+    withAudio((ac) => {
       const now = ac.currentTime;
       const master = ac.createGain();
       master.gain.setValueAtTime(0.0001, now);
       master.gain.exponentialRampToValueAtTime(0.11, now + 0.02);
       master.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
-      master.connect(ac.destination);
+      master.connect(masterBus);
       const osc = ac.createOscillator();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(520, now);
       osc.frequency.exponentialRampToValueAtTime(880, now + 0.18);
       osc.connect(master);
       osc.start(now); osc.stop(now + 0.22);
-    } catch (err) {}
+    });
   }
 
   // Мягкое "приземление" — под фазу saga-return, когда лого возвращается домой.
   function playSoftLand() {
-    try {
-      const ac = getAC();
-      if (!ac) return;
+    withAudio((ac) => {
       const now = ac.currentTime;
       const master = ac.createGain();
       master.gain.setValueAtTime(0.0001, now);
       master.gain.exponentialRampToValueAtTime(0.1, now + 0.01);
       master.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
-      master.connect(ac.destination);
+      master.connect(masterBus);
       const osc = ac.createOscillator();
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(300, now);
       osc.frequency.exponentialRampToValueAtTime(180, now + 0.18);
       osc.connect(master);
       osc.start(now); osc.stop(now + 0.2);
-    } catch (err) {}
+    });
   }
 
   // Клик по глазу бота — короткий "органический" щелчок-моргание: две близкие
   // высокие ноты внахлёст, мягче обычного glassTick.
   function playEyeBlink() {
-    try {
-      const ac = getAC();
-      if (!ac) return;
+    withAudio((ac) => {
       const now = ac.currentTime;
       const master = ac.createGain();
       master.gain.setValueAtTime(0.0001, now);
       master.gain.exponentialRampToValueAtTime(0.13, now + 0.006);
       master.gain.exponentialRampToValueAtTime(0.0001, now + 0.13);
-      master.connect(ac.destination);
+      master.connect(masterBus);
       [[2100, 1], [3150, 0.35]].forEach(([freq, vol], idx) => {
         const osc = ac.createOscillator();
         osc.type = 'sine';
@@ -1961,20 +2114,18 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         osc.connect(g); g.connect(master);
         osc.start(now + idx * 0.01); osc.stop(now + 0.14);
       });
-    } catch (err) {}
+    });
   }
 
   // Взлёт лого (saga-liftoff) — короткий восходящий шумовой свист.
   function playLiftoffWhoosh() {
-    try {
-      const ac = getAC();
-      if (!ac) return;
+    withAudio((ac) => {
       const now = ac.currentTime;
       const master = ac.createGain();
       master.gain.setValueAtTime(0.0001, now);
       master.gain.exponentialRampToValueAtTime(0.1, now + 0.05);
       master.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
-      master.connect(ac.destination);
+      master.connect(masterBus);
       const noise = ac.createBufferSource();
       noise.buffer = getNoiseBuffer(ac);
       const filt = ac.createBiquadFilter();
@@ -1984,8 +2135,54 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       filt.frequency.exponentialRampToValueAtTime(2600, now + 0.38);
       noise.connect(filt); filt.connect(master);
       noise.start(now); noise.stop(now + 0.4);
-    } catch (err) {}
+    });
   }
+
+  // ===== ВСТУПИТЕЛЬНЫЙ "ЗВОН" ПРИ ОТКРЫТИИ САЙТА =====
+  // Браузеры (и Telegram WebView не исключение) не дают стартовать звук без явного жеста
+  // пользователя — реально сыграть что-то ДО первого тапа технически невозможно ни на одной
+  // площадке. Ближайшее honest-решение: играем этот звук РОВНО на первом взаимодействии
+  // с сайтом (см. слушатель ниже, once:true) — то есть буквально в момент, когда человек
+  // только что увидел завершающийся stagger-въезд карточек и первый раз коснулся интерфейса.
+  // Мягкий кристальный трезвон: три ноты подряд (арпеджио вверх) + едва слышный шумовой
+  // "отблеск стекла" сверху — длиннее и тише обычных тиков, под тему "стекло проснулось".
+  function playBootChime() {
+    withAudio((ac) => {
+      const now = ac.currentTime;
+      const master = ac.createGain();
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.exponentialRampToValueAtTime(0.13, now + 0.05);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.95);
+      master.connect(masterBus);
+
+      [[880, 0], [1318.5, 0.09], [1760, 0.19]].forEach(([freq, delay]) => {
+        const osc = ac.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + delay);
+        const g = ac.createGain();
+        g.gain.setValueAtTime(0.0001, now + delay);
+        g.gain.exponentialRampToValueAtTime(1, now + delay + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.75);
+        osc.connect(g); g.connect(master);
+        osc.start(now + delay); osc.stop(now + delay + 0.8);
+      });
+
+      // Тихий шумовой "отблеск" сверху — придаёт трезвону стеклянную, а не чисто
+      // синтетическую окраску.
+      const shimmer = ac.createBufferSource();
+      shimmer.buffer = getNoiseBuffer(ac);
+      const shimmerFilt = ac.createBiquadFilter();
+      shimmerFilt.type = 'highpass';
+      shimmerFilt.frequency.value = 5500;
+      const shimmerGain = ac.createGain();
+      shimmerGain.gain.setValueAtTime(0.0001, now);
+      shimmerGain.gain.exponentialRampToValueAtTime(0.045, now + 0.08);
+      shimmerGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
+      shimmer.connect(shimmerFilt); shimmerFilt.connect(shimmerGain); shimmerGain.connect(masterBus);
+      shimmer.start(now); shimmer.stop(now + 0.6);
+    });
+  }
+  document.addEventListener('pointerdown', playBootChime, { once: true, passive: true });
 
   // ===== НИЗКИЙ "БАСОВЫЙ" ГУЛ ЖИДКОГО ФОНА ПРИ ДВИЖЕНИИ КУРСОРА =====
   // Не одноразовый щелчок, а непрерывный тон-подложка: плотный низкий бас с лёгким
@@ -1999,11 +2196,17 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     if (bgHumNodes) return bgHumNodes;
     const ac = getAC();
     if (!ac) return null;
+    // getAC() больше не резюмит контекст сама (см. withAudio выше) — единственный путь,
+    // который идёт мимо withAudio, поэтому если контекст успел заснуть (авто-suspend после
+    // сворачивания вкладки и т.п.), эта КОНКРЕТНАЯ попытка гула может не прозвучить, но
+    // resume() всё равно запущен — а следующий bgHumPulse (буквально через один mousemove,
+    // гул триггерится на каждое движение) отыграет уже нормально.
+    if (ac.state !== 'running') ac.resume().catch(() => {});
     const now = ac.currentTime;
 
     const master = ac.createGain();
     master.gain.setValueAtTime(0.0001, now);
-    master.connect(ac.destination);
+    master.connect(masterBus);
 
     // Плотный низкочастотный бас: два осциллятора чуть расстроены друг относительно
     // друга — даёт "плотненькое" биение вместо сухого чистого тона.
