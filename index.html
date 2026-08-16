@@ -195,6 +195,14 @@
      ловит движение курсора/пальца поверх всего интерфейса (pointer-events: none — сам
      канвас не блокирует клики) и рисует букву U, деформированную картой высот. */
   #liquid-ripple { position: fixed; inset: 0; z-index: -2; width: 100%; height: 100%; display: block; touch-action: none; }
+  /* Второй слой ряби — гарантированный. WebGL-пакет (threejs-components/liquid1) сам
+     решает, как реагировать на курсор внутри себя, и настройки metalness/roughness/
+     displacementScale лишь просят его сильнее РЕАГИРОВАТЬ, но не гарантируют, что след
+     будет читаться при быстром перемещении (движение мимо — не клик — давало почти
+     нулевой видимый эффект). Этот canvas рисует СВОЙ явный fade-trail строго по треку
+     курсора поверх WebGL-слоя, но под всем контентом — гарантированно виден при любом
+     перемещении мыши/пальца, независимо от внутренней логики стороннего пакета. */
+  #cursor-trail { position: fixed; inset: 0; z-index: -1; width: 100%; height: 100%; display: block; pointer-events: none; mix-blend-mode: screen; }
 
   .wrap { max-width: 480px; margin: 0 auto; position: relative; z-index: 1; display: flex; flex-direction: column; gap: 16px; }
   .stagger { opacity: 1 !important; transform: none !important; animation: riseIn 0.8s var(--spring) forwards; }
@@ -602,24 +610,29 @@
 
   /* Текст рядом с логотипом — раньше сплошной белый font-weight:900 без единой связи
      с фирменной палитрой (#7000FF/#4B00AD) и без анимации, читался как дефолтный
-     системный шрифт. Теперь: фиолетовый Uzum-градиент "вплавлен" в текст той же
-     техникой, что и #watermark (background-clip:text), плюс медленный бегущий блик
-     поверх букв (та же природа, что cinematicSweep у карточек) и лёгкое дыхание. */
+     системный шрифт. Теперь: сплошной фирменный цвет (не градиент-по-тексту — тот
+     конфликтовал с letter-fx-разбивкой на отдельные <span>, каждая буква резала бы
+     градиент по-своему) + анимированный fake-HDR блеск через drop-shadow, который
+     одинаково корректно работает что на цельном блоке, что на россыпи span-букв.
+     brand-name теперь явно заведён в ту же letter-fx-систему, что hint-text/format-arrow
+     (см. initLetterFX ниже) — раньше курсор с ним вообще не взаимодействовал, потому что
+     splitLetters вызывался только для [data-i18n]-элементов, а "Uzum Inventory" — не
+     переводимый текст и туда не попадал. */
   .brand-text { display: flex; flex-direction: column; gap: 2px; transition: transform 0.6s var(--spring), opacity 0.5s ease; }
   .brand-name {
     position: relative;
     font-weight: 900; font-size: 20px; letter-spacing: -0.035em;
-    background: linear-gradient(100deg, #fff 0%, #E7D6FF 18%, #C79BFF 38%, #9D4DFF 55%, #C79BFF 72%, #fff 100%);
-    background-size: 240% 100%;
-    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 2px 12px rgba(157,77,255,0.35));
-    animation: brandNameSheen 6s ease-in-out infinite;
+    color: #F3EAFF;
+    text-shadow: 0 0 1px rgba(255,255,255,0.4);
+    filter: drop-shadow(0 2px 10px rgba(157,77,255,0.4)) drop-shadow(0 0 0px rgba(157,77,255,0));
+    animation: brandNameGlow 3.4s ease-in-out infinite;
     transition: transform 0.4s ease;
   }
-  @keyframes brandNameSheen {
-    0%, 100% { background-position: 0% 0; }
-    50% { background-position: 100% 0; }
+  @keyframes brandNameGlow {
+    0%, 100% { filter: drop-shadow(0 2px 10px rgba(157,77,255,0.4)) drop-shadow(0 0 0px rgba(157,77,255,0)); }
+    50%      { filter: drop-shadow(0 2px 14px rgba(157,77,255,0.65)) drop-shadow(0 0 16px rgba(200,140,255,0.55)); }
   }
+  .brand-name .letter-fx { color: inherit; }
   .brand-sub { font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.17em; font-weight: 800; background: linear-gradient(90deg, var(--text-muted), #fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; transition: color 0.5s ease, transform 0.4s ease; }
 
   /* Кинематографичный блик и Карточки */
@@ -1373,9 +1386,38 @@
       radial-gradient(65% 55% at 88% 92%, rgba(120,60,255,0.12), transparent 60%);
     mix-blend-mode: screen; opacity: 0.9;
   }
+
+  /* ===== ГЛОБАЛЬНЫЙ HDR-БЛИК ===== Раньше единственный "бегущий блик" (.cinematic-glare)
+     жил только на ободке двух карточек — весь остальной интерфейс был статичен по свету.
+     Этот слой — широкая мягкая диагональная полоса яркого света, медленно идущая ТУДА-
+     СЮДА (не по кругу, а маятником) через весь экран поверх контента, имитируя студийный
+     HDR-рефлекс, скользящий по поверхности стекла. mix-blend-mode:overlay даёт эффект
+     реального света, а не плоской белой полупрозрачной полосы поверх текста — тон и
+     контраст того, что под лучом, сохраняются, просто ярче/контрастнее в момент прохода. */
+  #hdr-sweep {
+    position: fixed; inset: 0; z-index: 40; pointer-events: none;
+    background: linear-gradient(115deg,
+      transparent 42%,
+      rgba(255,255,255,0.05) 47%,
+      rgba(220,195,255,0.16) 50%,
+      rgba(255,255,255,0.05) 53%,
+      transparent 58%);
+    background-size: 260% 260%;
+    mix-blend-mode: overlay;
+    animation: hdrSweepPendulum 11s ease-in-out infinite;
+    will-change: background-position;
+  }
+  @keyframes hdrSweepPendulum {
+    0%   { background-position: 120% 0%; }
+    50%  { background-position: -20% 100%; }
+    100% { background-position: 120% 0%; }
+  }
+  body.saga-active #hdr-sweep { opacity: 0; transition: opacity 0.3s ease; }
+  @media (prefers-reduced-motion: reduce) { #hdr-sweep { display: none; } }
 </style>
 </head>
 <body>
+<div id="hdr-sweep" aria-hidden="true"></div>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <filter id="liquidWarp" x="-20%" y="-20%" width="140%" height="140%">
     <feTurbulence type="fractalNoise" baseFrequency="0.008 0.012" numOctaves="2" seed="7" result="noise">
@@ -1390,6 +1432,7 @@
 <div id="bg-tint"></div>
 <div id="watermark">U</div>
 <canvas id="liquid-ripple" aria-hidden="true"></canvas>
+<canvas id="cursor-trail" aria-hidden="true"></canvas>
 <div id="noise"></div>
 <div id="lang-wash"></div>
 
@@ -1631,6 +1674,105 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
   window.addEventListener('pointerdown', liquidIdleWake, { passive: true });
   liquidIdleWake();
 }
+
+// ===== CURSOR TRAIL (2D canvas, работает всегда, независимо от WebGL-пакета) =====
+// Мягкие фиолетовые "капли" появляются вдоль пути курсора и затухают за ~0.6s.
+// Рисуется даже если WebGL недоступен (liquid-webgl-unavailable) — на слабых
+// устройствах это становится ЕДИНСТВЕННЫМ ripple-эффектом, а не бонусом поверх шейдера.
+(function cursorTrailEngine() {
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduceMotion) return;
+  const canvas = document.getElementById('cursor-trail');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let w = 0, h = 0;
+
+  function resize() {
+    w = window.innerWidth; h = window.innerHeight;
+    canvas.width = w * dpr; canvas.height = h * dpr;
+    canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize, { passive: true });
+
+  // Пул точек трейла: каждая — {x, y, born, r, hue}. Новые добавляются на pointermove
+  // (с троттлингом по минимальному расстоянию, чтобы при быстром drag не заваливать
+  // пул сотнями точек за один кадр), старые сами выпадают по возрасту в rAF-луве.
+  const trail = [];
+  const MAX_POINTS = 90;
+  const LIFETIME_MS = 620;
+  let lastX = null, lastY = null;
+  const MIN_DIST = 8; // px между соседними точками трейла
+
+  function addPoint(x, y, speed) {
+    if (lastX !== null) {
+      const d = Math.hypot(x - lastX, y - lastY);
+      if (d < MIN_DIST) return;
+    }
+    lastX = x; lastY = y;
+    trail.push({
+      x, y, born: performance.now(),
+      // Радиус и яркость чуть растут со скоростью движения — быстрый drag даёт
+      // заметно более сочный след, чем медленное перемещение, без отдельной логики.
+      r: 14 + Math.min(speed * 0.4, 22),
+      alpha: 0.5 + Math.min(speed * 0.01, 0.35),
+    });
+    if (trail.length > MAX_POINTS) trail.shift();
+  }
+
+  let px = null, py = null, pt = null;
+  function onMove(x, y) {
+    const now = performance.now();
+    let speed = 0;
+    if (px !== null) {
+      const dt = Math.max(1, now - pt);
+      speed = Math.hypot(x - px, y - py) / dt * 16.6; // нормируем на "px за кадр при 60fps"
+    }
+    px = x; py = y; pt = now;
+    addPoint(x, y, speed);
+  }
+  window.addEventListener('pointermove', (e) => {
+    if (e.pointerType && e.pointerType !== 'mouse' && e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+    onMove(e.clientX, e.clientY);
+  }, { passive: true });
+  window.addEventListener('touchmove', (e) => {
+    const t = e.touches && e.touches[0];
+    if (t) onMove(t.clientX, t.clientY);
+  }, { passive: true });
+
+  let rafId = null;
+  function tick() {
+    rafId = requestAnimationFrame(tick);
+    if (document.hidden) return;
+    ctx.clearRect(0, 0, w, h);
+    if (!trail.length) return;
+    const now = performance.now();
+    for (let i = trail.length - 1; i >= 0; i--) {
+      const p = trail[i];
+      const age = now - p.born;
+      if (age > LIFETIME_MS) { trail.splice(i, 1); continue; }
+      const k = 1 - age / LIFETIME_MS; // 1 → 0 по мере старения
+      const eased = k * k; // квадратичное затухание — резче гаснет к концу жизни, не "висит"
+      const r = p.r * (0.6 + 0.4 * (1 - eased)); // слегка расширяется по мере угасания
+      const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+      grad.addColorStop(0, `rgba(200,140,255,${(p.alpha * eased * 0.9).toFixed(3)})`);
+      grad.addColorStop(0.5, `rgba(157,77,255,${(p.alpha * eased * 0.5).toFixed(3)})`);
+      grad.addColorStop(1, 'rgba(112,0,255,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  tick();
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { trail.length = 0; ctx.clearRect(0, 0, w, h); }
+  });
+})();
+
 </script>
 
 <script>
@@ -1821,6 +1963,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         el.style.transform = `translateY(${(-2.4 * eased).toFixed(2)}px) scale(${(1 + 0.09 * eased).toFixed(3)})`;
         el.style.filter = `drop-shadow(0 0 ${(6 * eased).toFixed(1)}px rgba(157,77,255,${(0.6 * eased).toFixed(2)}))`;
         el.classList.remove('is-settling');
+        if (!el._letterFxNear) playLetterNote(i); // играем ноту только на ВХОДЕ в радиус, не на каждый кадр внутри него
         el._letterFxNear = true;
       } else if (el._letterFxNear) {
         el._letterFxNear = false;
@@ -1939,6 +2082,12 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
   // Только теперь (после того как applyLang уже разбила текст на .letter-fx-буквы —
   // см. её ветку для .hint-text/.format-arrow выше) регистрируем слушатели курсора.
   document.querySelectorAll('.hint-text, .format-arrow').forEach(el => initLetterFX(el));
+  // brand-name не проходит через applyLang/[data-i18n] (текст не переводится),
+  // поэтому splitLetters + initLetterFX навешиваются на него отдельно и один раз здесь.
+  (() => {
+    const brandNameEl = $('brand-text') && $('brand-text').querySelector('.brand-name');
+    if (brandNameEl) { splitLetters(brandNameEl); initLetterFX(brandNameEl); }
+  })();
 
   window.addEventListener('load', () => {
     setTimeout(() => {
@@ -2057,6 +2206,55 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       audioCtx.resume().catch(() => {});
     }
   });
+
+  // Звук был однообразным (одни и те же 2-3 фиксированных тона на все взаимодействия) —
+  // добавляем универсальный "нотный" синтезатор: чистая синусоида + слабая пятая
+  // гармоника (для "стеклянного" тембра, в духе остальных звуков файла), с очень
+  // короткой атакой и экспоненциальным затуханием, чтобы плотная последовательность нот
+  // (быстрый пробег курсором по буквам) не превращалась в кашу наложенных хвостов.
+  function playNote(freq, opts = {}) {
+    const vol = opts.vol ?? 0.05;
+    const dur = opts.dur ?? 0.16;
+    withAudio((ac) => {
+      const now = ac.currentTime;
+      const master = ac.createGain();
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.exponentialRampToValueAtTime(vol, now + 0.004);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+      master.connect(masterBus);
+      const osc = ac.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+      osc.connect(master);
+      osc.start(now); osc.stop(now + dur + 0.02);
+      // Тихая пятая гармоника — чуть добавляет "стеклянного" блеска тону, не превращая
+      // чистую ноту в аккорд, который на быстрой гамме звучал бы грязно.
+      const harm = ac.createOscillator();
+      harm.type = 'sine';
+      harm.frequency.setValueAtTime(freq * 2.005, now);
+      const hg = ac.createGain();
+      hg.gain.value = 0.22;
+      harm.connect(hg); hg.connect(master);
+      harm.start(now); harm.stop(now + dur + 0.02);
+    });
+  }
+
+  // Гамма для letter-fx: до-ре-ми-фа-соль-ля-си-до, но НЕ в самой низкой октаве —
+  // средние и высокие ступени плюс чуть-чуть низа (юзер просил именно так: "высокие и
+  // средние и слегка низкие"). C5 (523Hz) как база, полная диатоника вверх до C6, и
+  // одна нижняя нота (C4) в начале, чтобы гамма не звучала однородно-писклявой.
+  const LETTER_SCALE = [261.63, 392.00, 440.00, 493.88, 523.25, 587.33, 659.25, 698.46, 783.99, 880.00, 987.77, 1046.50];
+  let lastLetterNoteAt = 0;
+  function playLetterNote(index) {
+    // Троттлинг: при очень плотном letterFX-потоке (курсор быстро проходит несколько
+    // букв за один rAF-кадр) не даём нотам идти чаще ~28ms — иначе они начинают
+    // накладываться друг на друга и "волнистая мелодия" превращается в шум.
+    const now = performance.now();
+    if (now - lastLetterNoteAt < 28) return;
+    lastLetterNoteAt = now;
+    const freq = LETTER_SCALE[index % LETTER_SCALE.length];
+    playNote(freq, { vol: 0.045, dur: 0.13 });
+  }
 
   function playGlassTick() {
     withAudio((ac) => {
@@ -3300,6 +3498,9 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       if (playing) return;
       playing = true;
       haptic('medium');
+      playGlassTick(); // мгновенный отклик на сам тап — раньше единственным звуком саги
+                        // был playLiftoffWhoosh() через setTimeout(0), что ощущалось
+                        // как микро-задержка между тапом и первым звуком.
 
       document.body.appendChild(mark);
       // Приглушаем фоновые decorative-анимации на всё время саги (мешала пропущенная
@@ -3448,6 +3649,33 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
 
     mark.addEventListener('click', playSaga);
     mark.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); playSaga(); } });
+
+    // Отдельная "искра" при наведении на лого — раньше при наведении не было НИКАКОГО
+    // звука (только клик/полная сага), а фоновый bgHum-гул специально гасится над
+    // .brand-mark (см. BG_HUM_SELECTOR), так что hover был полностью немым. Короткий
+    // восходящий блик — лёгкий намёк на потенциал саги, не дублирующий playGlassTick.
+    let markHoverCooldown = 0;
+    mark.addEventListener('pointerenter', (e) => {
+      if (e.pointerType && e.pointerType !== 'mouse') return;
+      if (playing) return;
+      const now = performance.now();
+      if (now - markHoverCooldown < 900) return; // не спамить при быстром влёт-вылет
+      markHoverCooldown = now;
+      withAudio((ac) => {
+        const t = ac.currentTime;
+        const master = ac.createGain();
+        master.gain.setValueAtTime(0.0001, t);
+        master.gain.exponentialRampToValueAtTime(0.045, t + 0.05);
+        master.gain.exponentialRampToValueAtTime(0.0001, t + 0.32);
+        master.connect(masterBus);
+        const osc = ac.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(760, t);
+        osc.frequency.exponentialRampToValueAtTime(1400, t + 0.28);
+        osc.connect(master);
+        osc.start(t); osc.stop(t + 0.34);
+      });
+    });
   })();
 </script>
 </body>
