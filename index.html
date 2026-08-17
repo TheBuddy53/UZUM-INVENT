@@ -195,13 +195,18 @@
      ловит движение курсора/пальца поверх всего интерфейса (pointer-events: none — сам
      канвас не блокирует клики) и рисует букву U, деформированную картой высот. */
   #liquid-ripple { position: fixed; inset: 0; z-index: -2; width: 100%; height: 100%; display: block; touch-action: none; }
-  /* Раньше здесь был второй 2D-canvas ("cursor-trail"), рисующий поверх WebGL-слоя свои
-     фиолетовые "кляксы" от простого движения курсора. Он глушил и загрязнял настоящую
-     физическую рябь снизу (#liquid-ripple), поэтому убран целиком — рябь теперь идёт
-     только от честного WebGL liquid-шейдера, как и было изначально. См. cursorMoveWave()
-     в JS ниже: она лишь слегка "подталкивает" тот же WebGL-пакет чаще реагировать на
-     движение (не только клик), не рисуя ничего своего поверх. */
-  #cursor-trail { display: none; }
+  /* ВАЖНО: WebGL-рябь (#liquid-ripple выше) целиком зависит от import() внешнего CDN-
+     скрипта (threejs-components с jsdelivr) — если сеть недоступна/зарезана (типичная
+     ситуация внутри WebView Telegram Desktop Mini App, в отличие от обычной вкладки
+     браузера с прямым доступом к интернету), WebGL-рябь молча не запускается вообще.
+     Именно поэтому в Mini App "рябь от курсора" пропадала целиком, хотя в обычной
+     вкладке всё работало — там это была единственная физическая рябь. Этот canvas —
+     гарантированный fallback, который не зависит от сети (чистый Canvas 2D), поэтому
+     работает одинаково что во вкладке, что в Mini App. Раньше он был слишком ярким и
+     насыщенно-фиолетовым (bled поверх WebGL как грязное пятно) — теперь заметно тише
+     и холоднее по тону, не спорит с WebGL-слоем, когда тот всё-таки грузится, но
+     остаётся полноценно видимым, когда WebGL недоступен. */
+  #cursor-trail { position: fixed; inset: 0; z-index: -1; width: 100%; height: 100%; display: block; pointer-events: none; mix-blend-mode: screen; }
 
   /* ===== НЕОНОВЫЙ СЛЕД КУРСОРА (в теме Uzum) =====
      Тонкая светящаяся "трубка" вдоль пути курсора, поверх всего интерфейса
@@ -1801,6 +1806,108 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     const t = e.touches && e.touches[0];
     if (t) onMove(t.clientX, t.clientY);
   }, { passive: true });
+})();
+
+// ===== CURSOR TRAIL — ГАРАНТИРОВАННЫЙ FALLBACK, НЕ ЗАВИСЯЩИЙ ОТ СЕТИ =====
+// Рисует только тогда, когда WebGL-рябь (window.__liquidApp) реально не поднялась —
+// то есть когда CDN-импорт threejs-components не загрузился/не успел за разумное время
+// (частая ситуация именно внутри WebView Telegram Mini App, в отличие от обычной
+// вкладки браузера). Если WebGL всё-таки поднялся — этот слой молчит полностью, чтобы
+// не дублировать эффект и не "пачкать" физическую рябь дополнительным цветным слоем,
+// как было раньше. Цвета сделаны заметно тише и холоднее прежней версии — не яркое
+// фиолетовое пятно, а едва заметный след, чтобы не выглядеть грязно само по себе.
+(function cursorTrailFallbackEngine() {
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduceMotion) return;
+  const canvas = document.getElementById('cursor-trail');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let w = 0, h = 0;
+
+  function resize() {
+    w = window.innerWidth; h = window.innerHeight;
+    canvas.width = w * dpr; canvas.height = h * dpr;
+    canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize, { passive: true });
+
+  const trail = [];
+  const MAX_POINTS = 70;
+  const LIFETIME_MS = 550;
+  let lastX = null, lastY = null;
+  const MIN_DIST = 9;
+
+  function addPoint(x, y, speed) {
+    if (lastX !== null) {
+      const d = Math.hypot(x - lastX, y - lastY);
+      if (d < MIN_DIST) return;
+    }
+    lastX = x; lastY = y;
+    trail.push({
+      x, y, born: performance.now(),
+      r: 12 + Math.min(speed * 0.3, 16),
+      alpha: 0.28 + Math.min(speed * 0.006, 0.18), // заметно тише прежней версии (была 0.5+)
+    });
+    if (trail.length > MAX_POINTS) trail.shift();
+  }
+
+  let px = null, py = null, pt = null;
+  function onMove(x, y) {
+    const now = performance.now();
+    let speed = 0;
+    if (px !== null) {
+      const dt = Math.max(1, now - pt);
+      speed = Math.hypot(x - px, y - py) / dt * 16.6;
+    }
+    px = x; py = y; pt = now;
+    addPoint(x, y, speed);
+  }
+  window.addEventListener('pointermove', (e) => {
+    if (e.pointerType && e.pointerType !== 'mouse' && e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+    onMove(e.clientX, e.clientY);
+  }, { passive: true });
+  window.addEventListener('touchmove', (e) => {
+    const t = e.touches && e.touches[0];
+    if (t) onMove(t.clientX, t.clientY);
+  }, { passive: true });
+
+  let rafId = null;
+  function tick() {
+    rafId = requestAnimationFrame(tick);
+    if (document.hidden) return;
+    // Ключевая проверка: если WebGL-рябь поднялась — этот canvas просто очищается
+    // и ничего не рисует, чтобы не спорить визуально с настоящей физической рябью.
+    if (window.__liquidApp) { if (trail.length) { trail.length = 0; ctx.clearRect(0, 0, w, h); } return; }
+    ctx.clearRect(0, 0, w, h);
+    if (!trail.length) return;
+    const now = performance.now();
+    for (let i = trail.length - 1; i >= 0; i--) {
+      const p = trail[i];
+      const age = now - p.born;
+      if (age > LIFETIME_MS) { trail.splice(i, 1); continue; }
+      const k = 1 - age / LIFETIME_MS;
+      const eased = k * k;
+      const r = p.r * (0.6 + 0.4 * (1 - eased));
+      const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+      // Приглушённые, более холодные фиолетово-лавандовые тона вместо прежнего
+      // насыщенного #9D4DFF/#7000FF — тише, спокойнее, не выглядит "пятном".
+      grad.addColorStop(0, `rgba(180,150,230,${(p.alpha * eased * 0.6).toFixed(3)})`);
+      grad.addColorStop(0.5, `rgba(140,100,210,${(p.alpha * eased * 0.32).toFixed(3)})`);
+      grad.addColorStop(1, 'rgba(112,0,255,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  tick();
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { trail.length = 0; ctx.clearRect(0, 0, w, h); }
+  });
 })();
 
 // ===== НЕОНОВЫЙ СЛЕД КУРСОРА =====
