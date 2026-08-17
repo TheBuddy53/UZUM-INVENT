@@ -1726,12 +1726,28 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         app.liquidPlane.uniforms.displacementScale.value = isMobileGL ? 1.9 : 2.1;
         app.setRain(false);
         window.__liquidApp = app;
+        clearTimeout(window.__liquidLoadWatchdog);
       })
       .catch(() => {
         // Сеть недоступна / CDN заблокирован / модуль не поддерживается — тихо остаёмся
         // на статичном CSS-watermark, ничего не ломаем.
         document.body.classList.remove('ripple-active');
+        document.body.classList.add('liquid-webgl-unavailable');
       });
+    // ВАЖНО: жёсткий таймаут-watchdog. import() иногда не резолвится ни в .then(),
+    // ни в .catch() за разумное время — например, если запрос к CDN просто "висит"
+    // (медленная/нестабильная сеть внутри WebView Telegram Mini App вместо чёткой
+    // сетевой ошибки). Без этого watchdog window.__liquidApp никогда не появляется,
+    // .catch() не срабатывает, и body остаётся в состоянии "ripple-active" вечно,
+    // хотя реальной WebGL-ряби нет и не будет — а наш 2D cursor-trail fallback
+    // молчит, потому что видит ripple-active и думает, что WebGL вот-вот подключится.
+    // Через 4с без успешной инициализации — принудительно считаем WebGL недоступным.
+    window.__liquidLoadWatchdog = setTimeout(() => {
+      if (!window.__liquidApp) {
+        document.body.classList.remove('ripple-active');
+        document.body.classList.add('liquid-webgl-unavailable');
+      }
+    }, 4000);
   }
   document.addEventListener('visibilitychange', () => {
     if (!window.__liquidApp) return;
