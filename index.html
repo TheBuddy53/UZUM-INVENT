@@ -33,7 +33,17 @@
     --r-md: 12px;
 
     --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-    --ease: cubic-bezier(0.25, 1, 0.15, 1);
+    /* [PREMIUM POLISH] Было cubic-bezier(0.25,1,0.15,1) — уже неплохой expo-out
+       характер, но старт был не такой резкий, как у топовых iOS-переходов.
+       Новая кривая: y-прогресс к 10% времени вырос с ~41% до ~52% (проверено
+       численно, не на глаз) — заметно более уверенный, "тяжёлый" первый рывок,
+       при этом хвост остаётся таким же плавным и долгим (к 50% времени обе
+       кривые почти сходятся, ~97-98% пройдено) — разница именно в характере
+       старта, не в общей длительности ощущения. Единственный, самый массовый
+       (37 мест) токен — специализированные --spring/--epic/--saga-epic/--epic-out
+       для конкретных overshoot-моментов саги оставлены как есть.
+       */
+    --ease: cubic-bezier(0.16, 0.84, 0.1, 1);
     --saga-epic: cubic-bezier(0.22, 1.1, 0.36, 1);
     --epic: cubic-bezier(0.16, 1.36, 0.4, 1);
     --epic-out: cubic-bezier(0.6, 0, 0.85, 0.35);
@@ -65,6 +75,16 @@
     color: var(--text-main);
     min-height: 100vh;
     letter-spacing: -0.02em;
+    /* Premium type crispness: без этого текст на нестандартных DPI (особенно
+       Android с fractional scaling) слегка "мылит" — это одна из первых вещей,
+       которую подсознательно считывает глаз как непрофессиональный интерфейс.
+       optimizeLegibility также включает лигатуры/кернинг у шрифтов, которые
+       их поддерживают (Inter — поддерживает). subpixel-antialiased не используем:
+       на тёмном фоне (--bg-base: #030008) он даёт лёгкую цветную кайму по краям
+       букв на некоторых панелях — antialiased чище именно на тёмных темах. */
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     padding: 12px 12px 24px;
     padding-top: calc(12px + env(safe-area-inset-top, 0px));
     padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
@@ -259,9 +279,9 @@
       left 1.8s var(--saga-epic), top 1.8s var(--saga-epic),
       width 1.8s var(--saga-epic), height 1.8s var(--saga-epic),
       box-shadow 1.2s var(--ease), background 1.2s var(--ease),
-      border-radius 1.2s var(--ease), filter 0.5s ease;
+      border-radius 1.2s var(--ease), filter 0.5s var(--ease);
   }
-  .brand-mark .mark-letter { position: relative; z-index: 2; transition: opacity 0.4s ease; }
+  .brand-mark .mark-letter { position: relative; z-index: 2; transition: opacity 0.4s var(--ease); }
 
   /* Моушен-блюр при быстром перелёте (лифтофф) — направленное смазывание.
      Раньше было статичным blur(1.5px) на весь лифтофф — читалось плоско, "пушком".
@@ -374,7 +394,15 @@
     width: 230px; height: 220px; border-radius: 36px;
     background: linear-gradient(135deg, #FF5C5C, #C41818);
     box-shadow: 0 60px 140px rgba(255,40,40,0.9), 0 0 100px rgba(255,50,50,0.5), inset 0 4px 10px rgba(255,255,255,0.35), inset 0 -12px 26px rgba(0,0,0,0.5);
+    /* [PREMIUM POLISH — SYNC FIX] Отрицательный animation-delay "перематывает" анимацию
+       так, что ПЕРВЫЙ отрисованный кадр — уже 25%-й keyframe (пик сжатия = визуальный
+       "контакт"), который теперь синхронен с haptic('heavy')/playImpactBoom() день в
+       день (см. JS). Раньше звук/вибрация играли в t=0 самого класса, а визуальный пик
+       удара — только на 150ms позже (0.6s * 25%), заметный рассинхрон. Кривая keyframes
+       сама НЕ тронута (та же гладкая петля rest->impact->recoil->rest), сдвинута только
+       фаза воспроизведения — поэтому никакого нового артефакта на стыке двух повторов. */
     animation: smashJolt 0.6s cubic-bezier(0.2,0.9,0.3,1) 2;
+    animation-delay: -0.15s;
   }
   @keyframes smashJolt { 0% { transform: translateY(0) scale(1); } 25% { transform: translateY(18px) scale(1.04, 0.92); } 55% { transform: translateY(-5px) scale(0.97, 1.04); } 100% { transform: translateY(0) scale(1); } }
 
@@ -416,13 +444,13 @@
   }
 
   /* Лицо и детали (Улучшенная мимика) */
-  .mark-face { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; transition: opacity 0.4s ease; }
+  .mark-face { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; transition: opacity 0.4s var(--ease); }
   .brand-mark.saga-rage .mark-face, .brand-mark.saga-smash .mark-face, .brand-mark.saga-oops .mark-face { opacity: 1; }
   .brand-mark.saga-liftoff .mark-face { opacity: 0; }
 
   .mark-eye { position: absolute; top: 46%; width: 15%; height: 15%; border-radius: 50%; background: #fff; box-shadow: 0 0 12px rgba(255,255,255,0.8); transition: all 0.4s var(--ease); }
   .mark-eye.l { left: 30%; } .mark-eye.r { right: 30%; }
-  .mark-eye .pupil { position: absolute; inset: 22%; border-radius: 50%; background: #2a0845; transition: transform 0.4s ease; }
+  .mark-eye .pupil { position: absolute; inset: 22%; border-radius: 50%; background: #2a0845; transition: transform 0.4s var(--ease); }
 
   /* Микромимика: Красные глаза и тряска зрачков */
   .brand-mark.saga-rage .mark-eye, .brand-mark.saga-smash .mark-eye { background: #FF3B30; box-shadow: 0 0 15px #FF3B30; }
@@ -434,10 +462,10 @@
   .mark-brow.r { right: 29%; transform: rotate(-18deg); }
 
   .mark-mouth { position: absolute; left: 50%; top: 62%; width: 22%; height: 10%; margin-left: -11%; border-radius: 4px; background: #2a0845; transition: all 0.4s var(--ease); }
-  .mark-blush { position: absolute; top: 56%; width: 12%; height: 8%; border-radius: 50%; background: rgba(255,120,150,0); transition: background 0.6s ease; }
+  .mark-blush { position: absolute; top: 56%; width: 12%; height: 8%; border-radius: 50%; background: rgba(255,120,150,0); transition: background 0.6s var(--ease); }
   .mark-blush.l { left: 16%; } .mark-blush.r { right: 16%; }
 
-  .mark-sweat { position: absolute; top: 20%; right: 14%; width: 8%; height: 12%; background: #8ED4FF; border-radius: 50% 50% 50% 0; transform: rotate(45deg) scale(0); opacity: 0; box-shadow: 0 0 8px rgba(142,212,255,0.9); transition: transform 0.4s var(--spring), opacity 0.4s ease; }
+  .mark-sweat { position: absolute; top: 20%; right: 14%; width: 8%; height: 12%; background: #8ED4FF; border-radius: 50% 50% 50% 0; transform: rotate(45deg) scale(0); opacity: 0; box-shadow: 0 0 8px rgba(142,212,255,0.9); transition: transform 0.4s var(--spring), opacity 0.4s var(--ease); }
 
   .brand-mark.saga-rage .mark-brow, .brand-mark.saga-smash .mark-brow { opacity: 1; top: 38%; }
   .brand-mark.saga-rage .mark-brow.l, .brand-mark.saga-smash .mark-brow.l { transform: rotate(28deg); left: 32%; }
@@ -468,7 +496,7 @@
   @keyframes sweatDrop { 0% { transform: rotate(45deg) scale(1) translateY(0); opacity: 1; } 100% { transform: rotate(45deg) scale(0.8) translateY(12px); opacity: 0; } }
 
   /* Руки (Кулаки) */
-  .mark-arm { position: absolute; top: 50%; width: 15%; height: 36px; margin-top: -18px; background: linear-gradient(180deg, #FF7A7A, #B21212); border-radius: 10px; opacity: 0; pointer-events: none; box-shadow: 0 5px 16px rgba(180,20,20,0.6), inset 0 2px 4px rgba(255,255,255,0.4); transition: opacity 0.35s ease, transform 0.5s var(--spring); }
+  .mark-arm { position: absolute; top: 50%; width: 15%; height: 36px; margin-top: -18px; background: linear-gradient(180deg, #FF7A7A, #B21212); border-radius: 10px; opacity: 0; pointer-events: none; box-shadow: 0 5px 16px rgba(180,20,20,0.6), inset 0 2px 4px rgba(255,255,255,0.4); transition: opacity 0.35s var(--ease), transform 0.5s var(--spring); }
   .mark-arm.l { left: -10%; transform: translateX(-40px) rotate(-10deg) scale(0.6); transform-origin: right center; }
   .mark-arm.r { right: -10%; transform: translateX(40px) rotate(10deg) scale(0.6); transform-origin: left center; }
   .mark-arm .fist { position: absolute; width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #FF7A7A, #B21212); box-shadow: inset 0 3px 6px rgba(255,255,255,0.5), inset 0 -4px 8px rgba(0,0,0,0.4), 0 5px 12px rgba(180,20,20,0.6); }
@@ -488,7 +516,7 @@
   @keyframes punchLeft { 0% { transform: translateX(-6px) rotate(-16deg) scale(1); } 18% { transform: translateX(-15px) rotate(-22deg) scale(0.95); } 40% { transform: translateX(12px) translateY(50px) rotate(6deg) scale(1.16, 0.86); } 100% { transform: translateX(-6px) rotate(-16deg) scale(1); } }
   @keyframes punchRight { 0% { transform: translateX(6px) rotate(16deg) scale(1); } 18% { transform: translateX(15px) rotate(22deg) scale(0.95); } 40% { transform: translateX(-12px) translateY(50px) rotate(-6deg) scale(1.16, 0.86); } 100% { transform: translateX(6px) rotate(16deg) scale(1); } }
 
-  .brand-mark.saga-oops .mark-arm { opacity: 0; transform: translateX(0) scale(0.6); transition: opacity 0.4s ease, transform 0.5s var(--ease); }
+  .brand-mark.saga-oops .mark-arm { opacity: 0; transform: translateX(0) scale(0.6); transition: opacity 0.4s var(--ease), transform 0.5s var(--ease); }
 
   /* Воздушные вихри от прыжка на liftoff — дочерние элементы .brand-mark, поэтому
      сами по себе следуют за позицией/ростом лого, ничего в саму позицию не добавляем.
@@ -583,7 +611,7 @@
     position: absolute; inset: 0; z-index: 4; border-radius: inherit; pointer-events: none;
     box-shadow: inset 0 1.5px 2px rgba(255,255,255,0.55), inset 0 -1.5px 3px rgba(0,0,0,0.25);
     opacity: 0.7;
-    transition: opacity 0.4s ease, box-shadow 0.4s ease;
+    transition: opacity 0.4s var(--ease), box-shadow 0.4s var(--ease);
   }
   .brand-mark.mark-pulse .mark-rim-light {
     opacity: 1;
@@ -594,12 +622,12 @@
      Микромимика на клике: глаза насыщенно краснеют, мягко моргают
      (Smooth Blink) — без полётов/телепортаций, лицо всегда в тех же
      процентных координатах внутри .brand-mark. */
-  .mark-face { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; transition: opacity 0.5s ease; }
-  .brand-mark.mark-pulse .mark-face { opacity: 1; transition: opacity 0.2s ease; }
+  .mark-face { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; transition: opacity 0.5s var(--ease); }
+  .brand-mark.mark-pulse .mark-face { opacity: 1; transition: opacity 0.2s var(--ease); }
 
   .mark-eye { position: absolute; top: 46%; width: 15%; height: 15%; border-radius: 50%; background: #fff; box-shadow: 0 0 12px rgba(255,255,255,0.8); transform-origin: center 40%; transition: background 0.35s var(--ease), box-shadow 0.35s var(--ease); }
   .mark-eye.l { left: 30%; } .mark-eye.r { right: 30%; }
-  .mark-eye .pupil { position: absolute; inset: 22%; border-radius: 50%; background: #2a0845; transition: transform 0.3s ease; }
+  .mark-eye .pupil { position: absolute; inset: 22%; border-radius: 50%; background: #2a0845; transition: transform 0.3s var(--ease); }
 
   /* Глаза наливаются насыщенно-красным плавно, поверх идёт кинематографичное
      моргание (асимметричное: чуть медленнее закрывается, чем открывается). */
@@ -630,7 +658,7 @@
      (см. initLetterFX ниже) — раньше курсор с ним вообще не взаимодействовал, потому что
      splitLetters вызывался только для [data-i18n]-элементов, а "Uzum Inventory" — не
      переводимый текст и туда не попадал. */
-  .brand-text { display: flex; flex-direction: column; gap: 2px; transition: transform 0.6s var(--spring), opacity 0.5s ease; }
+  .brand-text { display: flex; flex-direction: column; gap: 2px; transition: transform 0.6s var(--spring), opacity 0.5s var(--ease); }
   .brand-name {
     position: relative;
     font-weight: 900; font-size: 20px; letter-spacing: -0.035em;
@@ -638,7 +666,7 @@
     text-shadow: 0 0 1px rgba(255,255,255,0.4);
     filter: drop-shadow(0 2px 10px rgba(157,77,255,0.4)) drop-shadow(0 0 0px rgba(157,77,255,0));
     animation: brandNameGlow 3.4s ease-in-out infinite;
-    transition: transform 0.4s ease;
+    transition: transform 0.4s var(--ease);
     /* Буквы раньше "разлетались" на перенос строки: каждая буква — свой inline-block
        span (letter-fx), а без nowrap на родителе браузер переносил их как обычные слова
        по границам, разрубая "Uzum" и "Inventory" посреди слова на узких экранах. */
@@ -676,12 +704,40 @@
     100% { transform: translateX(-50%) translateY(16px); opacity: 0; }
   }
   @media (prefers-reduced-motion: reduce) { .brand-drip, .brand-drip::after { animation: none; display: none; } }
-  .brand-sub { font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.17em; font-weight: 800; background: linear-gradient(90deg, var(--text-muted), #fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; transition: color 0.5s ease, transform 0.4s ease; }
+  .brand-sub { font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.17em; font-weight: 800; background: linear-gradient(90deg, var(--text-muted), #fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; transition: color 0.5s var(--ease), transform 0.4s var(--ease); }
 
   /* Кинематографичный блик и Карточки */
   .cinematic-glare { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; padding: 1.5px; background: linear-gradient(110deg, transparent 20%, rgba(255,255,255,0.85) 40%, rgba(255,255,255,0.95) 50%, rgba(255,255,255,0.85) 60%, transparent 80%); background-size: 250% 100%; -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: cinematicSweep 8s cubic-bezier(0.3, 0, 0.7, 1) infinite; z-index: 10; opacity: 0.75; }
   @keyframes cinematicSweep { 0% { background-position: 250% 0; } 100% { background-position: -150% 0; } }
-  .card { position: relative; background: var(--glass-bg); backdrop-filter: blur(40px) saturate(200%); -webkit-backdrop-filter: blur(40px) saturate(200%); border: 1px solid var(--glass-border-dark); border-top: 1px solid var(--glass-border-light); border-left: 1px solid rgba(255,255,255,0.18); border-radius: var(--r-xl); padding: 20px; box-shadow: 0 24px 48px -12px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.35), 0 0 calc(var(--neon-near, 0) * 34px) rgba(157,77,255, calc(var(--neon-near, 0) * 0.45)); overflow: hidden; transform: translateZ(0); animation: floatCard 8s infinite ease-in-out; will-change: transform; backface-visibility: hidden; transition: box-shadow 0.25s ease; }
+  .card {
+    position: relative; background: var(--glass-bg);
+    backdrop-filter: blur(40px) saturate(200%); -webkit-backdrop-filter: blur(40px) saturate(200%);
+    border: 1px solid var(--glass-border-dark); border-top: 1px solid var(--glass-border-light);
+    border-left: 1px solid rgba(255,255,255,0.18); border-radius: var(--r-xl); padding: 20px;
+    /* [PREMIUM POLISH] Было 2 смысловых слоя (одна дальняя тень + один inset-блик) —
+       карточка читалась плоско, "приклеенной" к фону, а не парящей над ним. Настоящий
+       эффект левитирующего объекта строится из НЕСКОЛЬКИХ теней с разным offset/blur,
+       имитирующих реальную физику света: близкий контактный слой (короткий blur, чуть
+       темнее — глаз читает "вот тут точка опоры под карточкой"), средний ambient-слой
+       (среднее рассеяние) и дальний diffuse-слой (огромный blur 90px, очень низкая
+       alpha 0.12 — сам "ореол левитации", без которого объект просто отбрасывает тень,
+       а не парит). Два inset-блика вместо одного: яркий тонкий rim сверху (край
+       стекла, освещённый "сверху") и едва заметное затемнение снизу (стекло
+       естественно темнее у нижней кромки, куда меньше падает света) — вместе дают
+       объём, а не плоскую подсветку по всему периметру сразу.
+       Слой курсорного neon-свечения (calc(var(--neon-near...))) не тронут — та же
+       логика, что и раньше, просто теперь встроена в более богатый общий стек. */
+    box-shadow:
+      0 2px 4px -1px rgba(0,0,0,0.55),
+      0 10px 20px -6px rgba(0,0,0,0.55),
+      0 28px 52px -14px rgba(0,0,0,0.72),
+      0 60px 90px -24px rgba(6,0,16,0.55),
+      inset 0 1.5px 1px rgba(255,255,255,0.4),
+      inset 0 -10px 18px -8px rgba(0,0,0,0.28),
+      0 0 calc(var(--neon-near, 0) * 34px) rgba(157,77,255, calc(var(--neon-near, 0) * 0.45));
+    overflow: hidden; transform: translateZ(0); animation: floatCard 8s infinite ease-in-out;
+    will-change: transform; backface-visibility: hidden; transition: box-shadow 0.25s var(--ease);
+  }
   /* backdrop-filter пересчитывается для каждого пикселя ЗА карточкой на каждый кадр —
      на нескольких карточках одновременно это главный "жор" GPU в Telegram WebView на Android.
      Снижаем радиус blur на мобильных: карточки всё ещё стеклянные, просто чуть менее
@@ -692,6 +748,20 @@
     #sheet-overlay { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
     #toast { backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
     .footer { backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%); }
+    /* [PREMIUM POLISH] Урезанный box-shadow-стек: 5-слойная "парящая" тень десктопа
+       перекомпоновывается на GPU каждый кадр floatCard (8s infinite transform-анимация) —
+       на слабом Android это реальная, хоть и небольшая, стоимость сверх уже дорогого
+       backdrop-filter рядом. Оставляем только 2 слоя, которые реально формируют
+       ощущение левитации (near-contact + far-diffuse), убираем 2 средних ambient-слоя —
+       на маленьком экране разница между 3 и 5 слоями теней визуально почти неразличима,
+       а свою часть GPU-бюджета эти слои всё равно отъедали бы каждый кадр. */
+    .card { box-shadow:
+      0 2px 4px -1px rgba(0,0,0,0.55),
+      0 40px 70px -18px rgba(6,0,16,0.6),
+      inset 0 1.5px 1px rgba(255,255,255,0.4),
+      inset 0 -8px 14px -6px rgba(0,0,0,0.26),
+      0 0 calc(var(--neon-near, 0) * 34px) rgba(157,77,255, calc(var(--neon-near, 0) * 0.45));
+    }
     /* Изолируем repaint каждой карточки/модалки (важно на replay при смене языка, когда riseIn
        перезапускается одновременно с растущей волной lang-wash, и на открытии шторки) от
        reflow остального документа — тот же приём, что уже применён к логотипу в саге.
@@ -703,6 +773,15 @@
   /* Тот же набор снижений — уже по User-Agent, для широких Android-экранов (планшеты,
      раскладушки), которые не попадают под ширину 480px, но всё ещё имеют слабый GPU. */
   html.is-android .card, html.is-android .icon-btn, html.is-android .lang-switch { backdrop-filter: blur(18px) saturate(180%); -webkit-backdrop-filter: blur(18px) saturate(180%); }
+  /* [PREMIUM POLISH] Тот же урезанный box-shadow, что и в @media(max-width:480px) выше,
+     но по User-Agent — широкий Android-планшет со слабым GPU не попадает под ширину. */
+  html.is-android .card { box-shadow:
+    0 2px 4px -1px rgba(0,0,0,0.55),
+    0 40px 70px -18px rgba(6,0,16,0.6),
+    inset 0 1.5px 1px rgba(255,255,255,0.4),
+    inset 0 -8px 14px -6px rgba(0,0,0,0.26),
+    0 0 calc(var(--neon-near, 0) * 34px) rgba(157,77,255, calc(var(--neon-near, 0) * 0.45));
+  }
   html.is-android #paste-sheet { backdrop-filter: blur(20px) saturate(200%); -webkit-backdrop-filter: blur(20px) saturate(200%); }
   html.is-android #toast { backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
   html.is-android .footer { backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%); }
@@ -717,7 +796,7 @@
   /* Лёгкий сквош при нажатии (makeElasticButton) — та же причина, что и выше: на время
      активной эластичной деформации гасим floatCard, отдавая transform пружине. */
   .card.elastic-live { animation-play-state: paused; }
-  .card::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(800px circle at var(--mouse-x, 50%) var(--mouse-y, -20%), rgba(255,255,255,0.08), transparent 45%); transition: background 0.25s ease; z-index: 1; }
+  .card::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(800px circle at var(--mouse-x, 50%) var(--mouse-y, -20%), rgba(255,255,255,0.08), transparent 45%); transition: background 0.25s var(--ease); z-index: 1; }
   .card { isolation: isolate; }
   .card .grain { content: ''; position: absolute; inset: 0; pointer-events: none; background-image: var(--grain-url); background-size: 180px 180px; opacity: 0.08; mix-blend-mode: overlay; border-radius: inherit; z-index: 1; }
   .card > *:not(.grain):not(.cinematic-glare):not(.glass-sheen) { position: relative; z-index: 2; }
@@ -865,7 +944,7 @@
   .finish-slot .shard-15 { background: #FFFFFF; width: 6px; height: 6px; --tx: -40px; --ty: -160px; --rot: 700deg; --sc: 2; --sd: 4ms; }
   .finish-slot .shard-16 { background: #9D4DFF; width: 14px; height: 14px; --tx: 140px; --ty: 20px; --rot: 90deg; --sc: 1.5; --sd: 36ms; }
 
-  .finish-hole { position: absolute; inset: 0; border-radius: var(--r-lg); display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; z-index: 0; background: radial-gradient(120% 140% at 50% 0%, rgba(0,0,0,0.9), rgba(10,2,20,0.95) 55%, rgba(3,0,8,0.98)), linear-gradient(180deg, rgba(112,0,255,0.15), transparent 40%); box-shadow: inset 0 18px 30px rgba(0,0,0,0.9), inset 0 2px 6px rgba(0,0,0,0.8), inset 0 0 0 1px rgba(157,77,255,0.15); transition: opacity 0.4s ease; }
+  .finish-hole { position: absolute; inset: 0; border-radius: var(--r-lg); display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; z-index: 0; background: radial-gradient(120% 140% at 50% 0%, rgba(0,0,0,0.9), rgba(10,2,20,0.95) 55%, rgba(3,0,8,0.98)), linear-gradient(180deg, rgba(112,0,255,0.15), transparent 40%); box-shadow: inset 0 18px 30px rgba(0,0,0,0.9), inset 0 2px 6px rgba(0,0,0,0.8), inset 0 0 0 1px rgba(157,77,255,0.15); transition: opacity 0.4s var(--ease); }
   .finish-hole.hole-active { opacity: 1; }
   .hole-rim { position: absolute; inset: 0; border-radius: var(--r-lg); box-shadow: inset 0 0 0 1.5px rgba(157,77,255,0.35), inset 0 10px 22px rgba(0,0,0,0.85); background: radial-gradient(ellipse at 50% -10%, rgba(157,77,255,0.18), transparent 60%); }
   .hole-debris { position: absolute; left: 50%; top: 30%; width: 60%; height: 40%; margin-left: -30%; background-image: radial-gradient(circle, rgba(157,77,255,0.5) 0 2px, transparent 3px), radial-gradient(circle, rgba(255,255,255,0.3) 0 1.5px, transparent 2.5px); background-size: 22px 18px, 14px 12px; background-position: 0 0, 8px 6px; opacity: 0.5; filter: blur(0.2px); }
@@ -973,11 +1052,17 @@
       0 0 26px rgba(112,0,255,0.35),
       inset 0 -6px 10px rgba(112,0,255,0.12);
     display: flex; align-items: center; justify-content: center;
-    animation: eyeBlink 6.5s ease-in-out infinite;
-    transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+    transition: border-color 0.25s var(--ease), box-shadow 0.25s var(--ease), background 0.25s var(--ease);
   }
-  .bot-eye:nth-child(2) .bot-eye-lid { animation-delay: -0.12s; }
-  @keyframes eyeBlink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.08); } 98% { transform: scaleY(1); } }
+  /* Раньше: animation: eyeBlink 6.5s infinite — механически ровный ритм, через
+     15-20с подсознательно считывается как "тикающий таймер", а не живое существо.
+     Теперь: JS (initOrganicBlink) сам навешивает .auto-blink-now на случайный,
+     взвешенный интервал 1.5-5s (см. ниже) — один прогон однократной анимации на
+     каждое моргание, а не бесконечный CSS-цикл. animation-fill-mode:none важен:
+     после окончания прогона veко обязано вернуться к обычному transform:scaleY(1)
+     из состояния покоя, а не остаться "запертым" в последнем кадре keyframes. */
+  .bot-eye-lid.auto-blink-now { animation: eyeBlinkOnce 0.34s cubic-bezier(0.4, 0, 0.2, 1) 1; }
+  @keyframes eyeBlinkOnce { 0%, 100% { transform: scaleY(1); } 46% { transform: scaleY(0.08); } 100% { transform: scaleY(1); } }
   .bot-eye.eye-click .bot-eye-lid { animation: none; }
 
   /* ===== КЛИК-МИКРОАНИМАЦИЯ ГЛАЗ — переписана с нуля =====
@@ -1010,7 +1095,7 @@
     box-shadow: 0 0 14px rgba(112,0,255,0.6), inset 0 -3px 6px rgba(0,0,0,0.35);
     transform: translate(0, 0);
     transition: transform 0.12s cubic-bezier(0.34, 1.4, 0.64, 1), width 0.4s var(--spring), height 0.4s var(--spring),
-      background 0.32s ease, box-shadow 0.32s ease;
+      background 0.32s var(--ease), box-shadow 0.32s var(--ease);
     z-index: 2;
   }
   .bot-eye .bot-pupil::before {
@@ -1028,20 +1113,20 @@
       transparent 248deg, transparent 260deg, rgba(0,0,0,0.22) 268deg, transparent 278deg,
       transparent 290deg, rgba(0,0,0,0.16) 298deg, transparent 308deg, transparent 320deg,
       rgba(0,0,0,0.2) 328deg, transparent 338deg, transparent 350deg, rgba(0,0,0,0.18) 358deg);
-    opacity: 0; mix-blend-mode: multiply; transition: opacity 0.32s ease;
+    opacity: 0; mix-blend-mode: multiply; transition: opacity 0.32s var(--ease);
   }
   .bot-eye .bot-pupil::after {
     /* блик — маленький живой блик на зрачке, как настоящий глаз, не плоский круг */
     content: ''; position: absolute; top: 18%; left: 22%; width: 30%; height: 30%;
     border-radius: 50%; background: rgba(255,255,255,0.9); filter: blur(0.3px);
-    transition: top 0.4s ease, left 0.4s ease, width 0.4s ease, height 0.4s ease, opacity 0.3s ease;
+    transition: top 0.4s var(--ease), left 0.4s var(--ease), width 0.4s var(--ease), height 0.4s var(--ease), opacity 0.3s var(--ease);
   }
   /* Второй, более мягкий и крупный рефлекс — "мокрый" вид стекла глаза. */
   .bot-eye-lid::before {
     content: ''; position: absolute; top: 8%; left: 58%; width: 22%; height: 16%;
     border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,0.55), transparent 70%);
     filter: blur(1.5px); pointer-events: none; z-index: 3; opacity: 0.7;
-    transition: opacity 0.4s ease, transform 0.4s ease;
+    transition: opacity 0.4s var(--ease), transform 0.4s var(--ease);
   }
 
   /* ===== ГЛУБИНА И ПАРАЛЛАКС (Pixar-quality) =====
@@ -1181,7 +1266,7 @@
   .bot-eye .bot-pupil,
   .bot-eye-vein,
   .bot-eye-micro {
-    transition: border-color 0.7s ease, background 0.7s ease, box-shadow 0.7s ease, opacity 0.7s ease, width 0.4s var(--spring), height 0.4s var(--spring);
+    transition: border-color 0.7s var(--ease), background 0.7s var(--ease), box-shadow 0.7s var(--ease), opacity 0.7s var(--ease), width 0.4s var(--spring), height 0.4s var(--spring);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -1269,7 +1354,7 @@
      перехода, снятый сразу после, чтобы не держать дорогой blur дольше нужного. */
   #lang-shader { position: fixed; inset: 0; z-index: 601; width: 100%; height: 100%; pointer-events: none; display: none; }
   #lang-shader.active { display: block; }
-  #lang-glass-cloud { position: fixed; inset: 0; z-index: 599; pointer-events: none; opacity: 0; backdrop-filter: blur(0px) saturate(140%); -webkit-backdrop-filter: blur(0px) saturate(140%); transition: opacity 0.25s ease; }
+  #lang-glass-cloud { position: fixed; inset: 0; z-index: 599; pointer-events: none; opacity: 0; backdrop-filter: blur(0px) saturate(140%); -webkit-backdrop-filter: blur(0px) saturate(140%); transition: opacity 0.25s var(--ease); }
   #lang-glass-cloud.active { opacity: 1; animation: langGlassPulse 1.15s cubic-bezier(0.7,0,0.2,1) forwards; }
   @keyframes langGlassPulse {
     0% { backdrop-filter: blur(0px) saturate(140%); -webkit-backdrop-filter: blur(0px) saturate(140%); opacity: 0; }
@@ -1357,7 +1442,10 @@
      Референс: у настоящего Liquid Glass "текучесть" не от вращения одного градиента —
      она от НЕРАВНОМЕРНОЙ, асинхронной пульсации нескольких световых пятен по контуру,
      которые текут каждое в своём темпе. Поэтому кромка теперь — три независимых слоя:
-     1) bubbleHue: медленное вращение базового радужного тона (было и раньше)
+     1) bubbleHueBubble/bubbleHueEdge: медленное вращение базового радужного тона (было и
+        раньше как один общий bubbleHue; разделено на два имени — см. [PREMIUM POLISH]
+        коммент ниже — т.к. добавленная хроматическая аберрация несёт полный filter, и
+        общий keyframes начал бы путать base-filter двух разных элементов)
      2) bubbleDrift: смещение самого градиента (background-position) другим периодом —
         от этого пятна света "гуляют" по контуру неравномерно, а не крутятся синхронно
      3) bubbleBreathe на ::after — толщина/яркость блика дышит отдельным, более коротким
@@ -1373,8 +1461,20 @@
     background-size: 220% 220%;
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor; mask-composite: exclude;
-    opacity: 0.7; filter: blur(0.3px) saturate(160%);
-    animation: bubbleHue 10s linear infinite, bubbleDrift 6.5s ease-in-out infinite;
+    opacity: 0.7;
+    /* [PREMIUM POLISH] Хроматическая аберрация: два тонких drop-shadow-прохода в
+       ТОМ ЖЕ filter, который этот псевдоэлемент уже монопольно использует (безопасно —
+       никакого риска затереть чужой box-shadow/filter, как было бы при попытке добавить
+       это через родительский .glass-bubble, см. отменённую правку выше). Красный канал
+       смещён на 0.4px в одну сторону, синий — на 0.4px в другую: та же оптика, что даёт
+       цветную кайму по краю в объективе настоящей линзы. Смещение микроскопическое
+       (0.4px) специально — цель тонкое ощущение "дорогого преломления", а не заметная
+       цветная рамка. Тот же transition (bubbleHue) уже двигает hue-rotate этого filter,
+       поэтому кайма "дышит" вместе с остальной кромкой, не требуя отдельной анимации.
+       Дороже, чем один blur, но проход GPU дешёвый — только 2 доп. смещённых copy-blit
+       уже существующего маленького слоя (кромка 1.5px), не полноэкранный эффект. */
+    filter: blur(0.3px) saturate(160%) drop-shadow(0.4px 0 0 rgba(255,70,80,0.35)) drop-shadow(-0.4px 0 0 rgba(70,140,255,0.35));
+    animation: bubbleHueBubble 10s linear infinite, bubbleDrift 6.5s ease-in-out infinite;
     will-change: filter, background-position;
   }
   .glass-bubble::after {
@@ -1387,7 +1487,20 @@
     animation: bubbleBreathe 4.2s ease-in-out infinite;
     will-change: opacity, transform;
   }
-  @keyframes bubbleHue { 0% { filter: blur(0.3px) hue-rotate(0deg); } 100% { filter: blur(0.3px) hue-rotate(360deg); } }
+  @keyframes bubbleHueBubble {
+    0%   { filter: blur(0.3px) saturate(160%) hue-rotate(0deg) drop-shadow(0.4px 0 0 rgba(255,70,80,0.35)) drop-shadow(-0.4px 0 0 rgba(70,140,255,0.35)); }
+    100% { filter: blur(0.3px) saturate(160%) hue-rotate(360deg) drop-shadow(0.4px 0 0 rgba(255,70,80,0.35)) drop-shadow(-0.4px 0 0 rgba(70,140,255,0.35)); }
+  }
+  /* [PREMIUM POLISH] Раньше .glass-bubble::before И .glass-edge::before делили один
+     @keyframes bubbleHue — было безопасно, пока в кадрах был только hue-rotate. Как
+     только кадры стали нести полный filter (добавил blur+saturate+drop-shadow для
+     хроматической аберрации), общий keyframes начал бы молча добавлять чужой blur
+     элементу, у которого его в базовом правиле никогда не было (.glass-edge::before
+     — только saturate, без blur). Отдельный keyframes под свой реальный базовый filter. */
+  @keyframes bubbleHueEdge {
+    0%   { filter: saturate(160%) hue-rotate(0deg) drop-shadow(0.4px 0 0 rgba(255,70,80,0.3)) drop-shadow(-0.4px 0 0 rgba(70,140,255,0.3)); }
+    100% { filter: saturate(160%) hue-rotate(360deg) drop-shadow(0.4px 0 0 rgba(255,70,80,0.3)) drop-shadow(-0.4px 0 0 rgba(70,140,255,0.3)); }
+  }
   /* Смещение самого градиента внутри своей увеличенной площади (220%) — это и даёт
      ощущение, что световые пятна "текут" по кромке неравномерно, независимо от hue-rotate. */
   @keyframes bubbleDrift {
@@ -1416,7 +1529,7 @@
      органичный + этот, курсорный, добавляющий ощущение реального преломления сквозь
      стекло. На touch-устройствах без реальной наведённой мыши JS просто не обновляет
      --px/--py, и слой остаётся в центре — не мешает, но и не активен. */
-  .glass-cursor-glow { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 7; opacity: 0; transition: opacity 0.35s ease; background: radial-gradient(180px 180px at var(--px, 50%) var(--py, 50%), rgba(255,255,255,0.5), rgba(200,150,255,0.18) 45%, transparent 72%); mix-blend-mode: screen; }
+  .glass-cursor-glow { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 7; opacity: 0; transition: opacity 0.35s var(--ease); background: radial-gradient(180px 180px at var(--px, 50%) var(--py, 50%), rgba(255,255,255,0.5), rgba(200,150,255,0.18) 45%, transparent 72%); mix-blend-mode: screen; }
   .glass-cursor-glow.is-near { opacity: 1; }
   @media (max-width: 480px), (prefers-reduced-motion: reduce) {
     .glass-cursor-glow { display: none; }
@@ -1437,8 +1550,8 @@
      (shine на кнопке WMS, glow на icon-btn) — не трогаем их существующий эффект, добавляем
      только радужный контур стекла через ::before. Тоже "живой" — drift + hue, без hover-
      триггеров, дышит постоянно как настоящий Liquid Glass. */
-  .glass-edge { position: relative; box-shadow: 0 0 calc(var(--neon-near, 0) * 26px) rgba(157,77,255, calc(var(--neon-near, 0) * 0.4)); transition: box-shadow 0.25s ease; }
-  .btn { box-shadow: 0 0 calc(var(--neon-near, 0) * 26px) rgba(157,77,255, calc(var(--neon-near, 0) * 0.4)); transition: box-shadow 0.25s ease, transform 0.1s; }
+  .glass-edge { position: relative; box-shadow: 0 0 calc(var(--neon-near, 0) * 26px) rgba(157,77,255, calc(var(--neon-near, 0) * 0.4)); transition: box-shadow 0.25s var(--ease); }
+  .btn { box-shadow: 0 0 calc(var(--neon-near, 0) * 26px) rgba(157,77,255, calc(var(--neon-near, 0) * 0.4)); transition: box-shadow 0.25s var(--ease), transform 0.1s; }
   .glass-edge::before {
     content: ''; position: absolute; inset: -1.5px; border-radius: inherit;
     padding: 1.5px; pointer-events: none; z-index: 5;
@@ -1448,8 +1561,11 @@
     background-size: 220% 220%;
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor; mask-composite: exclude;
-    opacity: 0.65; filter: saturate(160%);
-    animation: bubbleHue 10s linear infinite, bubbleDrift 7.2s ease-in-out infinite;
+    opacity: 0.65;
+    /* [PREMIUM POLISH] Тот же принцип хроматической аберрации, что у .glass-bubble::before
+       (см. комментарий там) — но без blur в базе, эта кромка тоньше и резче по дизайну. */
+    filter: saturate(160%) drop-shadow(0.4px 0 0 rgba(255,70,80,0.3)) drop-shadow(-0.4px 0 0 rgba(70,140,255,0.3));
+    animation: bubbleHueEdge 10s linear infinite, bubbleDrift 7.2s ease-in-out infinite;
   }
   @media (prefers-reduced-motion: reduce) {
     .glass-edge::before { animation: none; }
@@ -1492,7 +1608,7 @@
     50%  { background-position: -20% 100%; }
     100% { background-position: 120% 0%; }
   }
-  body.saga-active #hdr-sweep { opacity: 0; transition: opacity 0.3s ease; }
+  body.saga-active #hdr-sweep { opacity: 0; transition: opacity 0.3s var(--ease); }
   @media (prefers-reduced-motion: reduce) { #hdr-sweep { display: none; } }
 </style>
 </head>
@@ -1595,7 +1711,7 @@
       <span class="shard shard-9"></span><span class="shard shard-10"></span><span class="shard shard-11"></span><span class="shard shard-12"></span>
       <span class="shard shard-13"></span><span class="shard shard-14"></span><span class="shard shard-15"></span><span class="shard shard-16"></span>
 
-      <button class="btn finish glass-bubble glass-bubble--inset glass-bubble--glow" id="btn-finish" data-stretch="1.2" data-damping="6"><span class="finish-toplight"></span><span class="finish-shine"></span><span class="finish-collapse-flash" aria-hidden="true"></span><span class="btn-click-shine" aria-hidden="true"></span><span data-i18n="finish_btn">Завершить инвентаризацию</span></button>
+      <button class="btn finish glass-bubble glass-bubble--inset glass-bubble--glow" id="btn-finish" data-stretch="1.2" data-damping="15"><span class="finish-toplight"></span><span class="finish-shine"></span><span class="finish-collapse-flash" aria-hidden="true"></span><span class="btn-click-shine" aria-hidden="true"></span><span data-i18n="finish_btn">Завершить инвентаризацию</span></button>
       <div class="finish-hole" id="finish-hole">
         <div class="hole-rim"></div>
         <div class="hole-debris"></div>
@@ -1663,8 +1779,8 @@
   </div>
   </div>
   <div class="sheet-actions">
-    <button class="btn ghost glass-edge" id="sheet-cancel" data-stiffness="300" data-damping="10" data-stretch="0.8"><span class="btn-click-shine" aria-hidden="true"></span><span data-i18n="sheet_cancel">Отмена</span></button>
-    <button class="btn confirm glass-bubble" id="sheet-confirm" data-stiffness="320" data-damping="9" data-stretch="1" disabled><span class="btn-click-shine" aria-hidden="true"></span><span data-i18n="sheet_confirm">Загрузить</span></button>
+    <button class="btn ghost glass-edge" id="sheet-cancel" data-stiffness="340" data-damping="15" data-stretch="0.8"><span class="btn-click-shine" aria-hidden="true"></span><span data-i18n="sheet_cancel">Отмена</span></button>
+    <button class="btn confirm glass-bubble" id="sheet-confirm" data-stiffness="350" data-damping="16" data-stretch="1" disabled><span class="btn-click-shine" aria-hidden="true"></span><span data-i18n="sheet_confirm">Загрузить</span></button>
   </div>
 </div>
 
@@ -1994,12 +2110,74 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     }
   }
 
+  // ===== NEON SPRING CURSOR: Dot + Aura (mouse only) =====
+  // Раньше единственным курсорным откликом был затухающий ХВОСТ позади движения —
+  // без якорной точки на самом кончике курсора взгляд не мог зацепиться за "живой"
+  // элемент, привязанный к устройству ввода прямо сейчас (хвост это прошлое, не
+  // настоящее). Dot решает это: рисуется на КАЖДЫЙ кадр ровно в последней сырой
+  // координате указателя (без сглаживания/задержки) — курсор ощущается "приклеенным"
+  // к пальцу/мыши. Aura — второй, более крупный и мягкий контур, который следует за
+  // Dot через ту же критически-недодемпфированную spring-модель (F=-kx-cv,
+  // semi-implicit Euler), что уже используется в файле для кнопок (см.
+  // makeElasticButton/springImpulse) — единый физический язык по всему интерфейсу,
+  // а не набор разных "плавностей" в разных местах. globalCompositeOperation='screen'
+  // на Aura (а не отдельные полупрозрачные окружности с разной alpha) — так кольца
+  // на пересечении складываются в мягкое свечение, а не мерцают заметными стыками
+  // по краям, что было бы при обычной DOM/CSS-реализации через прозрачность.
+  // Только мышь: на touch under-finger курсор — визуальный шум, не сигнал (палец
+  // и так закрывает то место, где рисовалась бы точка).
+  const isCoarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  const cursor = {
+    active: false,
+    // Сырые координаты устройства ввода — источник истины для Dot, без фильтрации.
+    rawX: 0, rawY: 0,
+    // Aura — позиция и скорость, интегрируются пружиной каждый кадр.
+    ax: 0, ay: 0, avx: 0, avy: 0,
+    // Импульс клика: 0..1, быстро вспыхивает и экспоненциально гаснет — даёт Dot
+    // короткую пульсацию на pointerdown без отдельной анимационной системы.
+    pulse: 0,
+  };
+  if (!isCoarsePointer) {
+    window.addEventListener('pointermove', (e) => {
+      if (e.pointerType && e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;
+      if (!cursor.active) { cursor.ax = e.clientX; cursor.ay = e.clientY; } // без прыжка на первом кадре
+      cursor.active = true;
+      cursor.rawX = e.clientX; cursor.rawY = e.clientY;
+    }, { passive: true });
+    window.addEventListener('pointerdown', (e) => {
+      if (e.pointerType && e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;
+      cursor.pulse = 1;
+    }, { passive: true });
+    // Курсор физически покидает окно (не просто зависает) — прячем слой, иначе
+    // Dot/Aura останутся "приклеены" к последней известной точке у края экрана.
+    window.addEventListener('pointerout', (e) => { if (!e.relatedTarget) cursor.active = false; }, { passive: true });
+    document.addEventListener('mouseleave', () => { cursor.active = false; });
+  }
+  // Та же spring-модель, что makeElasticButton (см. основной скрипт): stiffness/
+  // damping заданы под конкретное ощущение "Aura" — достаточно мягкая, чтобы заметно
+  // отставать и обгонять на резких движениях (живая, не приклеенная копия Dot), но
+  // достаточно демпфированная, чтобы не колебаться до бесконечности вокруг точки покоя.
+  const AURA_STIFFNESS = 210, AURA_DAMPING = 16;
+  function stepAuraSpring(dtSec) {
+    const dx = cursor.rawX - cursor.ax, dy = cursor.rawY - cursor.ay;
+    const ax = dx * AURA_STIFFNESS - cursor.avx * AURA_DAMPING;
+    const ay = dy * AURA_STIFFNESS - cursor.avy * AURA_DAMPING;
+    cursor.avx += ax * dtSec; cursor.avy += ay * dtSec;
+    cursor.ax += cursor.avx * dtSec; cursor.ay += cursor.avy * dtSec;
+  }
+
   let rafId = null;
-  function tick() {
+  let lastFrameT = 0;
+  function tick(now) {
     rafId = requestAnimationFrame(tick);
     if (document.hidden) return;
+    // ProMotion-независимость: dt в секундах, клампится против первого кадра
+    // (lastFrameT===0) и против длинных пауз (вкладка была в фоне) — без клампа
+    // пружина получила бы огромный dt и "выстрелила" через весь экран одним кадром.
+    const dtSec = lastFrameT ? Math.min(0.05, (now - lastFrameT) / 1000) : 1 / 60;
+    lastFrameT = now;
+
     ctx.clearRect(0, 0, w, h);
-    const now = performance.now();
     while (points.length && now - points[0].born > LIFETIME_MS) points.shift();
     if (points.length > 1) {
       updateGlow(points[points.length - 1].x, points[points.length - 1].y, now);
@@ -2032,11 +2210,47 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       }
       ctx.shadowBlur = 0;
     }
+
+    if (!isCoarsePointer && cursor.active) {
+      stepAuraSpring(dtSec);
+      cursor.pulse *= Math.pow(0.001, dtSec); // экспоненциальный спад, dt-независимый (не Math.pow(k, 1) за кадр)
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+
+      // Aura — мягкое разлитое кольцо вокруг spring-позиции, радиус слегка дышит
+      // от накопленной скорости пружины (быстрее летит — крупнее и ярче ореол).
+      const auraSpeed = Math.hypot(cursor.avx, cursor.avy);
+      const auraR = 15 + Math.min(10, auraSpeed * 0.015);
+      const auraAlpha = 0.16 + Math.min(0.14, auraSpeed * 0.0003);
+      const auraGrad = ctx.createRadialGradient(cursor.ax, cursor.ay, 0, cursor.ax, cursor.ay, auraR);
+      auraGrad.addColorStop(0, `rgba(200,150,255,${auraAlpha.toFixed(3)})`);
+      auraGrad.addColorStop(0.6, `rgba(157,77,255,${(auraAlpha * 0.5).toFixed(3)})`);
+      auraGrad.addColorStop(1, 'rgba(157,77,255,0)');
+      ctx.fillStyle = auraGrad;
+      ctx.beginPath();
+      ctx.arc(cursor.ax, cursor.ay, auraR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Dot — точная, без задержки позиция устройства ввода (translate3d-эквивалент
+      // на canvas: сырые координаты каждый кадр, никакого сглаживания). Клик даёт
+      // короткую вспышку радиуса/яркости поверх базового небольшого ядра.
+      const dotR = 3 + cursor.pulse * 4;
+      ctx.shadowColor = 'rgba(220,190,255,0.9)';
+      ctx.shadowBlur = 8 + cursor.pulse * 10;
+      ctx.fillStyle = `rgba(243,234,255,${(0.85 + cursor.pulse * 0.15).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.arc(cursor.rawX, cursor.rawY, dotR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.restore();
+    }
   }
-  tick();
+  rafId = requestAnimationFrame(tick);
 
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { points.length = 0; ctx.clearRect(0, 0, w, h); }
+    if (document.hidden) { points.length = 0; ctx.clearRect(0, 0, w, h); lastFrameT = 0; }
   });
   // Пересканируем список элементов для подсветки после смены языка/открытия шторки
   // (DOM мог перестроиться) — дёшево, происходит редко.
@@ -2697,6 +2911,24 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         osc.connect(g); g.connect(master);
         osc.start(now); osc.stop(now + 0.17);
       });
+      // [PREMIUM POLISH] "Воздух" — едва слышный highpass-шум поверх тона. Именно
+      // этот тонкий слой отличает "дорогой" UI-клик (как в iOS/macOS системных
+      // звуках) от голого синус-писка: чистая синусоида читается синтетически,
+      // а шёпот отфильтрованного шума сверху добавляет ощущение материала (стекла),
+      // а не электронного сигнала. Громкость намеренно очень низкая (0.05) и
+      // огибающая короче основного тона — должно быть на грани восприятия, не
+      // заметный "шшш" отдельно от клика.
+      const air = ac.createBufferSource();
+      air.buffer = getNoiseBuffer(ac);
+      const airFilt = ac.createBiquadFilter();
+      airFilt.type = 'highpass';
+      airFilt.frequency.value = 6500;
+      const airGain = ac.createGain();
+      airGain.gain.setValueAtTime(0.0001, now);
+      airGain.gain.exponentialRampToValueAtTime(0.05, now + 0.004);
+      airGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+      air.connect(airFilt); airFilt.connect(airGain); airGain.connect(masterBus);
+      air.start(now); air.stop(now + 0.06);
     });
   }
 
@@ -2736,6 +2968,19 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
       noiseSrc.connect(noiseFilter); noiseFilter.connect(noiseGain); noiseGain.connect(master);
       noiseSrc.start(now); noiseSrc.stop(now + 0.1);
+      // [PREMIUM POLISH] Тонкий высокий "спарк" сверху — ощущение мелких брызг,
+      // разлетающихся выше основного всплеска, а не резкий обрыв на bandpass-слое.
+      const sparkle = ac.createBufferSource();
+      sparkle.buffer = getNoiseBuffer(ac);
+      const sparkleFilt = ac.createBiquadFilter();
+      sparkleFilt.type = 'highpass';
+      sparkleFilt.frequency.value = 7000;
+      const sparkleGain = ac.createGain();
+      sparkleGain.gain.setValueAtTime(0.0001, now + 0.01);
+      sparkleGain.gain.exponentialRampToValueAtTime(0.06, now + 0.02);
+      sparkleGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+      sparkle.connect(sparkleFilt); sparkleFilt.connect(sparkleGain); sparkleGain.connect(masterBus);
+      sparkle.start(now + 0.01); sparkle.stop(now + 0.16);
     });
   }
 
@@ -2770,6 +3015,21 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       osc.frequency.setValueAtTime(3200 + Math.random() * 400, now);
       osc.connect(master);
       osc.start(now); osc.stop(now + 0.08);
+      // [PREMIUM POLISH] "Воздух" без BufferSource — это самый частый звук в файле
+      // (троттлится, но всё равно может срабатывать десятками раз при быстром
+      // движении по тексту), поэтому вместо шумового буфера используем второй
+      // ДЁШЕВЫЙ осциллятор на негармоничной верхней частоте (не кратной основной) —
+      // негармоничность сама по себе читается как "блеск/воздух", не требуя
+      // декодирования отдельного шумового источника на каждый вызов.
+      const air = ac.createOscillator();
+      air.type = 'sine';
+      air.frequency.setValueAtTime(7400 + Math.random() * 600, now);
+      const airGain = ac.createGain();
+      airGain.gain.setValueAtTime(0.0001, now);
+      airGain.gain.exponentialRampToValueAtTime(0.014, now + 0.004);
+      airGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
+      air.connect(airGain); airGain.connect(masterBus);
+      air.start(now); air.stop(now + 0.05);
     });
   }
 
@@ -2780,17 +3040,23 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       const now = ac.currentTime;
       const master = ac.createGain();
       master.gain.setValueAtTime(0.0001, now);
-      master.gain.exponentialRampToValueAtTime(0.14, now + 0.03);
+      master.gain.exponentialRampToValueAtTime(0.15, now + 0.03);
       master.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
       master.connect(masterBus);
 
+      // [PREMIUM POLISH] Диапазон чуть ниже (88→62, было 95→70) — больше "нутра" в
+      // рыке, ближе к тому, что в кино называют "creature growl low end".
       const osc = ac.createOscillator();
       osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(95, now);
-      osc.frequency.linearRampToValueAtTime(70, now + 0.5);
+      osc.frequency.setValueAtTime(88, now);
+      osc.frequency.linearRampToValueAtTime(62, now + 0.5);
       const filt = ac.createBiquadFilter();
       filt.type = 'lowpass';
-      filt.frequency.setValueAtTime(500, now);
+      // [PREMIUM POLISH] Фильтр теперь НАРАСТАЕТ (450→900Hz) по ходу звука вместо
+      // статичной отсечки — классический приём "открывающегося" звука перед ударом:
+      // напряжение будто нарастает и раскрывается, готовя к playImpactBoom дальше.
+      filt.frequency.setValueAtTime(450, now);
+      filt.frequency.exponentialRampToValueAtTime(900, now + 0.5);
       osc.connect(filt);
 
       const trem = ac.createOscillator();
@@ -2812,6 +3078,18 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
 
   // Удар — глухой низкочастотный "бум" (просевшая синусоида) + короткий шумовой
   // треск сверху, под фазу saga-smash и коллапс кнопки завершения инвента.
+  // [PREMIUM POLISH] Раньше весь низ держался на одной синусоиде с питч-даун
+  // 160→38Hz — она одновременно пыталась быть и "телом" удара, и "весом", отчего
+  // звук читался тонковато. Настоящий кинематографичный удар — это раздельные
+  // слои (как у kick-drum в звукорежиссуре): (1) тело — тональный питч-даун,
+  // отвечает за "форму" удара; (2) САБ — почти неподвижный тон ~50Hz с собственной,
+  // отдельной, очень короткой (~90ms) огибающей — именно он даёт физическое ощущение
+  // "веса", которое тело-тон дать не может (человеческое ухо слышит движение высоты
+  // тона намного лучше, чем движение суб-баса — сабу нужна стабильность, не мелодика);
+  // (3) шумовой треск — тот же, что был, чуть шире и темнее по фильтру;
+  // (4) новый слой — короткий, тихий "хвост осыпающихся обломков" (высокочастотный
+  // шум с быстрым, но не мгновенным затуханием) сразу после треска — без него удар
+  // обрывается слишком резко, будто звук выключили, а не будто что-то "осело".
   function playImpactBoom() {
     withAudio((ac) => {
       const now = ac.currentTime;
@@ -2821,24 +3099,55 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       master.gain.exponentialRampToValueAtTime(0.0001, now + 0.42);
       master.connect(masterBus);
 
+      // (1) Тело удара — тональный питч-даун, чуть сузил диапазон (160→52, было 160→38)
+      // чтобы не наезжать на отдельный sub-слой ниже — теперь у каждого слоя своя полоса.
       const osc = ac.createOscillator();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(160, now);
-      osc.frequency.exponentialRampToValueAtTime(38, now + 0.35);
+      osc.frequency.exponentialRampToValueAtTime(52, now + 0.3);
       osc.connect(master);
       osc.start(now); osc.stop(now + 0.42);
 
+      // (2) САБ-БАС — отдельный почти неподвижный низкий тон, собственная короткая
+      // огибающая (fast punch, не долгий хвост) — это и есть "вес" удара.
+      const sub = ac.createOscillator();
+      sub.type = 'sine';
+      sub.frequency.setValueAtTime(58, now);
+      sub.frequency.exponentialRampToValueAtTime(44, now + 0.16);
+      const subGain = ac.createGain();
+      subGain.gain.setValueAtTime(0.0001, now);
+      subGain.gain.exponentialRampToValueAtTime(0.34, now + 0.012); // быстрый панч
+      subGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+      sub.connect(subGain); subGain.connect(masterBus);
+      sub.start(now); sub.stop(now + 0.26);
+
+      // (3) Шумовой треск — тот же принцип, полоса чуть шире и темнее.
       const noise = ac.createBufferSource();
       noise.buffer = getNoiseBuffer(ac);
       const noiseFilt = ac.createBiquadFilter();
       noiseFilt.type = 'bandpass';
-      noiseFilt.frequency.value = 1400;
-      noiseFilt.Q.value = 0.7;
+      noiseFilt.frequency.value = 1300;
+      noiseFilt.Q.value = 0.6;
       const noiseGain = ac.createGain();
       noiseGain.gain.setValueAtTime(0.18, now);
       noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
       noise.connect(noiseFilt); noiseFilt.connect(noiseGain); noiseGain.connect(masterBus);
       noise.start(now); noise.stop(now + 0.12);
+
+      // (4) Короткий "хвост осыпающихся обломков" — высокочастотный шум, тихий,
+      // стартует чуть позже основного треска и гаснет медленнее — без него удар
+      // обрывался слишком резко на 0.12s.
+      const debris = ac.createBufferSource();
+      debris.buffer = getNoiseBuffer(ac);
+      const debrisFilt = ac.createBiquadFilter();
+      debrisFilt.type = 'highpass';
+      debrisFilt.frequency.value = 3200;
+      const debrisGain = ac.createGain();
+      debrisGain.gain.setValueAtTime(0.0001, now + 0.03);
+      debrisGain.gain.exponentialRampToValueAtTime(0.05, now + 0.05);
+      debrisGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+      debris.connect(debrisFilt); debrisFilt.connect(debrisGain); debrisGain.connect(masterBus);
+      debris.start(now + 0.03); debris.stop(now + 0.32);
     });
   }
 
@@ -3424,20 +3733,39 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
   // а не упирается в невидимый потолок на 34px посреди широкой кнопки.
   // btn-finish усилена по ТЗ: stretch 1.05→1.2, damping 9→6 (сильнее тянется и
   // дольше/заметнее "прыгает-отскакивает" при отпускании).
-  makeElasticButton($('btn-finish'), { stiffness: 260, damping: 6, stretch: 1.2, flickBoost: 1.6, maxPull: (w) => Math.max(30, w * 0.28) });
-  makeElasticButton($('btn-paste-wms'), { stiffness: 300, damping: 9, stretch: 1.0, flickBoost: 1.55, maxPull: (w) => Math.max(26, w * 0.32) });
+  // [PREMIUM POLISH] Пружина retuned аналитически (c = 2*ζ*sqrt(k)), не подобрана на
+  // глаз: было ζ≈0.186 (260/6) — рыхлый дребезг в 3-4 видимых перехлёста, ~1.3s до
+  // покоя. Теперь ζ≈0.42 — один чёткий, весомый перехлёст и уверенное гашение за
+  // ~530ms. Главная CTA-кнопка должна ощущаться существенной, а не как дешёвая резинка.
+  // ВАЖНО: у #btn-finish в разметке есть data-damping (dataNum() отдаёт ему приоритет
+  // над этой опцией, см. makeElasticButton) — реальное значение задаётся ТАМ, это
+  // здесь — просто фолбэк на случай, если data-атрибут когда-нибудь уберут из HTML.
+  // Оба места (здесь и в разметке) должны совпадать; если меняешь одно — меняй и другое.
+  makeElasticButton($('btn-finish'), { stiffness: 320, damping: 15, stretch: 1.2, flickBoost: 1.6, maxPull: (w) => Math.max(30, w * 0.28) });
+  // [PREMIUM POLISH] ζ≈0.26 → ζ≈0.44 (c пересчитан аналитически) — settle ~480ms,
+  // один чистый уверенный перехлёст вместо более рыхлого многократного дребезга.
+  makeElasticButton($('btn-paste-wms'), { stiffness: 360, damping: 17, stretch: 1.0, flickBoost: 1.55, maxPull: (w) => Math.max(26, w * 0.32) });
   // Переключатель языка — маленькая кнопка, поэтому пружина жёстче и короче ход
-  // (иначе на 44px-кнопке большая амплитуда выглядит нелепо), но damping ниже,
-  // чем у остальных — ей идёт более "дребезжащий", игривый отклик.
-  makeElasticButton($('btn-lang'), { stiffness: 380, damping: 8, maxPull: 16, stretch: 0.85, flickBoost: 1.5 });
+  // (иначе на 44px-кнопке большая амплитуда выглядит нелепо).
+  // [PREMIUM POLISH] ζ≈0.205 → ζ≈0.38: раньше цель была "дребезжащий, игривый
+  // отклик" — на маленькой кнопке частый мелкий дребезг читается как разболтанность,
+  // не как живость. Теперь чуть более живая, чем крупные CTA (ζ 0.42-0.44), но уже
+  // без многократного мельтешения — один быстрый, отчётливый перехлёст.
+  makeElasticButton($('btn-lang'), { stiffness: 430, damping: 16, maxPull: 16, stretch: 0.85, flickBoost: 1.5 });
   // Лого "U" — та же сочная эластика, что у btn-lang, но блокируется на время
   // mark-pulse (у лого своя click-микроанимация, ей нужен безраздельный
   // контроль над transform — пружина уступает через blockedClass).
-  makeElasticButton($('brand-mark'), { stiffness: 400, damping: 7, maxPull: 18, stretch: 1.1, flickBoost: 1.6, blockedClass: 'saga-playing' });
+  // [PREMIUM POLISH] ζ≈0.175 → ζ≈0.36 — самый живой элемент интерфейса (логотип),
+  // но уже управляемо живой: один заметный, характерный перехлёст, а не хаотичный
+  // рой мелких колебаний, которые на маленьком 44px элементе выглядели дёшево.
+  makeElasticButton($('brand-mark'), { stiffness: 460, damping: 17, maxPull: 18, stretch: 1.1, flickBoost: 1.6, blockedClass: 'saga-playing' });
 
   // Кнопки шторки — параметры заданы прямо в разметке через data-stiffness/-damping/
   // -stretch (см. HTML) в качестве живой демонстрации кастомизации из ТЗ; тут в JS —
   // только то, что не имеет смысла выносить в data-атрибут (maxPull/flickBoost).
+  // [PREMIUM POLISH] spring-тюнинг этих двух кнопок сделан в самой разметке
+  // (data-stiffness/data-damping выше по приоритету, см. dataNum() в makeElasticButton) —
+  // ищи комментарии рядом с #sheet-cancel/#sheet-confirm в HTML, не здесь.
   makeElasticButton($('sheet-cancel'), { maxPull: 20, flickBoost: 1.4 });
   makeElasticButton($('sheet-confirm'), { maxPull: 22, flickBoost: 1.45 });
   // Глаза бота были единственными крупными интерактивными элементами без эластики —
@@ -3445,15 +3773,22 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
   // отклик самой кнопки. blockedClass: 'eye-click' — та же защита, что у brand-mark/
   // saga-playing: пока идёт CSS-анимация моргания (transform: scaleY на веке), пружина
   // не трогает transform самого .bot-eye, чтобы два независимых transform не конфликтовали.
-  makeElasticButton($('bot-eye-l'), { stiffness: 420, damping: 8, maxPull: 12, stretch: 0.7, flickBoost: 1.4, blockedClass: 'eye-click' });
-  makeElasticButton($('bot-eye-r'), { stiffness: 420, damping: 8, maxPull: 12, stretch: 0.7, flickBoost: 1.4, blockedClass: 'eye-click' });
+  // [PREMIUM POLISH] ζ≈0.195 → ζ≈0.34 — глаза остаются самым живым и игривым
+  // откликом в интерфейсе (маленький maxPull:12 всё равно держит амплитуду скромной),
+  // но без прежнего частого мелкого дребезга.
+  makeElasticButton($('bot-eye-l'), { stiffness: 480, damping: 15, maxPull: 12, stretch: 0.7, flickBoost: 1.4, blockedClass: 'eye-click' });
+  makeElasticButton($('bot-eye-r'), { stiffness: 480, damping: 15, maxPull: 12, stretch: 0.7, flickBoost: 1.4, blockedClass: 'eye-click' });
 
   // Карточки — лёгкий сквош при нажатии на "пустую" поверхность (не на кнопки/textarea
   // внутри — ignoreNestedInteractive отдаёт им жест, см. makeElasticButton выше).
-  // maxPull маленький и damping высокий: едва заметная, премиальная деформация,
-  // а не полноценный драг большой панели.
+  // maxPull маленький: едва заметная, премиальная деформация, а не полноценный
+  // драг большой панели.
+  // [PREMIUM POLISH] ζ≈0.597 (почти critically damped) → ζ≈0.44 — раньше карточка
+  // доезжала до 0 БЕЗ отскока вообще (это ощущается как "тяжёлая, вязкая", не как
+  // premium-упругая). Небольшой, единственный мягкий перехлёст теперь есть — тот
+  // самый "дорогой" тактильный сигнал, что поверхность реагирует, а не просто гасится.
   document.querySelectorAll('.card').forEach((card) => {
-    makeElasticButton(card, { stiffness: 340, damping: 22, stretch: 0.22, maxPull: 10, flickBoost: 1.15, ignoreNestedInteractive: true });
+    makeElasticButton(card, { stiffness: 340, damping: 16, stretch: 0.22, maxPull: 10, flickBoost: 1.15, ignoreNestedInteractive: true });
   });
 
   // ============================================================
@@ -3572,19 +3907,42 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const SCENE_MS = 2400; // ровно совпадает с длительностью eyeFlareShockwave (2s) + запас на blink/blur
 
-    // Синхронизация звука с АВТОМАТИЧЕСКИМ CSS-морганием (eyeBlink, 6.5s цикл, веко
-    // закрыто на 96% цикла = 6.24s от старта). Left и right моргают чуть вразнобой
-    // (delay -0.12s у второго глаза), поэтому два независимых таймера, а не один общий —
-    // иначе звук всегда играл бы только по одному глазу.
+    // ===== ОРГАНИЧНОЕ АВТО-МОРГАНИЕ (взвешенный случайный интервал 1.5-5s) =====
+    // Раньше: звук подгонялся под фиксированный 6.5s CSS-infinite цикл через ручной
+    // расчёт фазы (BLINK_CLOSE_AT = 0.96 от 6500ms) — хрупко (любое изменение CSS-
+    // тайминга рассинхронизирует звук) и механически ровно на слух. Теперь класс
+    // .auto-blink-now САМ триггерит и визуал, и звук в один и тот же тик — синхрон
+    // гарантирован структурно, а не расчётом. Вес распределения (см. nextBlinkDelay)
+    // смещён к середине диапазона — настоящие живые моргания редко идут строго
+    // равномерно от 1.5 до 5, они кучкуются вокруг "обычного" темпа с редкими
+    // короткими/длинными выбросами (двойное моргание / долгая пауза).
     if (!reduceMotion) {
-      const BLINK_CYCLE_MS = 6500, BLINK_CLOSE_AT = 0.96;
-      const blinkOffsets = { l: 0, r: -120 }; // мс, совпадает с animation-delay: -0.12s
-      Object.keys(blinkOffsets).forEach((key) => {
-        const firstDelay = (BLINK_CYCLE_MS * BLINK_CLOSE_AT) + blinkOffsets[key];
-        setTimeout(function tick() {
-          if (!document.hidden) playAutoBlinkTick();
-          setTimeout(tick, BLINK_CYCLE_MS);
-        }, Math.max(0, firstDelay));
+      const BLINK_MIN = 1500, BLINK_MAX = 5000;
+      // Треугольное распределение (сумма двух uniform-семплов) вместо плоского
+      // Math.random() — даёт естественную концентрацию около центра диапазона
+      // (~3.25s) с более редкими крайними значениями, как у настоящего моргания.
+      function nextBlinkDelay() {
+        const a = Math.random(), b = Math.random();
+        const t = (a + b) / 2; // 0..1, треугольная плотность к центру
+        return BLINK_MIN + t * (BLINK_MAX - BLINK_MIN);
+      }
+      eyes.forEach(({ el }) => {
+        const lid = el.querySelector('.bot-eye-lid');
+        if (!lid) return;
+        function scheduleNext() {
+          setTimeout(function fire() {
+            if (!document.hidden && !el.classList.contains('eye-click')) {
+              lid.classList.remove('auto-blink-now');
+              void lid.offsetWidth; // форс-restart анимации
+              lid.classList.add('auto-blink-now');
+              playAutoBlinkTick(); // тот же тик, что и раньше — только теперь честно синхронный
+            }
+            scheduleNext();
+          }, nextBlinkDelay());
+        }
+        // Лёгкий начальный разброс между глазами (0-400ms), чтобы первое моргание
+        // тоже не стартовало идеально синхронно на обоих глазах сразу при загрузке.
+        setTimeout(scheduleNext, Math.random() * 400);
       });
     }
 
@@ -4025,6 +4383,10 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       at(() => {
         mark.classList.remove(...CLASSES);
         mark.classList.add('saga-smash');
+        // [PREMIUM POLISH — SYNC FIX] haptic/звук здесь синхронны с ПЕРВЫМ отрисованным
+        // кадром CSS-анимации smashJolt благодаря animation-delay:-0.15s на .saga-smash
+        // (см. CSS) — визуальный пик удара (max compression) теперь совпадает с этим же
+        // тиком, а не наступает 150ms позже, как было раньше.
         haptic('heavy');
         playImpactBoom();
         const smashRect = mark.getBoundingClientRect();
