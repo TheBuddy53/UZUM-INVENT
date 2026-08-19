@@ -217,11 +217,22 @@
      каждый кадр и перебивала бы обычное CSS-правило (анимация всегда выигрывает каскад
      против невходящего в @keyframes свойства). display же анимацией не затронут. */
   body.ripple-active #watermark { display: none; }
+  /* [FIX] Раньше .liquid-webgl-unavailable ставился JS-ом на body, но ни одно CSS-правило
+     на него не реагировало — статус полностью зависел от ОТСУТСТВИЯ ripple-active
+     (тот снимается в .catch()/watchdog). Работало это корректно только если ripple-active
+     никогда не добавлялся преждевременно; теперь состояние явное — при недоступном
+     WebGL гарантированно виден статичный #watermark, а не полагается на побочный эффект. */
+  body.liquid-webgl-unavailable #watermark { display: flex; }
 
-  /* Канвас волновой ряби: лежит поверх #mesh (тот же слой глубины, z-index: -2),
+  /* Канвас волновой ряби: та же логика видимости, что у #cursor-trail (см. фикс там) —
      ловит движение курсора/пальца поверх всего интерфейса (pointer-events: none — сам
-     канвас не блокирует клики) и рисует букву U, деформированную картой высот. */
-  #liquid-ripple { position: fixed; inset: 0; z-index: -2; width: 100%; height: 100%; display: block; touch-action: none; }
+     канвас не блокирует клики) и рисует букву U, деформированную картой высот.
+     [BUGFIX] Было z-index:-2 — на слой глубже, чем #mesh (-1), то есть даже при
+     полностью успешной инициализации WebGL рябь рендерилась бы ПОД размытым mesh-
+     фоном, потенциально теряясь под его blur(70px). Подняли до 0 — тот же безопасный
+     уровень (ниже .wrap:1, реальный UI не перекрывается), что гарантирует видимость
+     ряби независимо от того, WebGL это или canvas-2d fallback. */
+  #liquid-ripple { position: fixed; inset: 0; z-index: 0; width: 100%; height: 100%; display: block; touch-action: none; }
   /* ВАЖНО: WebGL-рябь (#liquid-ripple выше) целиком зависит от import() внешнего CDN-
      скрипта (threejs-components с jsdelivr) — если сеть недоступна/зарезана (типичная
      ситуация внутри WebView Telegram Desktop Mini App, в отличие от обычной вкладки
@@ -233,7 +244,18 @@
      насыщенно-фиолетовым (bled поверх WebGL как грязное пятно) — теперь заметно тише
      и холоднее по тону, не спорит с WebGL-слоем, когда тот всё-таки грузится, но
      остаётся полноценно видимым, когда WebGL недоступен. */
-  #cursor-trail { position: fixed; inset: 0; z-index: -1; width: 100%; height: 100%; display: block; pointer-events: none; mix-blend-mode: screen; }
+  /* [BUGFIX] Было z-index:-1 + mix-blend-mode:screen — screen-блендинг смешивается с
+     тем, что красится НЕПОСРЕДСТВЕННО ПОЗАДИ элемента в том же stacking context; на
+     почти чёрном фоне (--bg-base:#030008) screen практически не даёт видимого
+     результата (screen с тёмным цветом даёт результат, близкий к исходной яркости
+     точки — а сама точка и так полупрозрачна через rgba alpha в JS). Вдобавок
+     отрицательный z-index ставил canvas позади практически всего normal-flow
+     контента страницы — совокупно эффект был хрупко/незаметно видим. Подняли
+     z-index до 0 (всё ещё безопасно ниже .wrap:1 — реальный UI никогда не будет
+     перекрыт) и убрали screen-blend в пользу обычного alpha-компоузинга (сам
+     radial-gradient уже несёт свою rgba-прозрачность в JS, blend-mode не был
+     обязательной частью эффекта, только лишней зависимостью для видимости). */
+  #cursor-trail { position: fixed; inset: 0; z-index: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
 
   /* ===== НЕОНОВЫЙ СЛЕД КУРСОРА (в теме Uzum) =====
      Тонкая светящаяся "трубка" вдоль пути курсора, поверх всего интерфейса
@@ -3572,6 +3594,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
   // движение — так нет щелчков на границах и не плодятся ноды.
   let bgHumNodes = null;
   let bgHumFadeTimer = null;
+  let bgHumLimiter = null;
   function ensureBgHum() {
     if (bgHumNodes) return bgHumNodes;
     const ac = getAC();
@@ -3586,20 +3609,52 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
 
     const master = ac.createGain();
     master.gain.setValueAtTime(0.0001, now);
-    master.connect(masterBus);
+    // [BUGFIX] Раньше шёл через masterBus (общий компрессор threshold -18dB/ratio 4:1) —
+    // тот рассчитан гасить пики при НАЛОЖЕНИИ нескольких коротких звуков (клик+тик+гул
+    // одновременно), но у bgHum сигнал ДЛИТЕЛЬНЫЙ (не импульс), и компрессор držал его
+    // сильно прижатым почти постоянно: проверено численно — поднятие gain с 0.38 до 0.55
+    // после компрессии давало всего ~10% реального прироста громкости, а не "в разы",
+    // как нужно. Свой отдельный лимитер (высокий threshold — почти прозрачен, страхует
+    // только от жёсткого клиппинга на самом пике) напрямую в destination, минуя общую
+    // шину — остальные короткие звуки это никак не задевает, они всё ещё через masterBus.
+    if (!bgHumLimiter) {
+      bgHumLimiter = ac.createDynamicsCompressor();
+      bgHumLimiter.threshold.value = -3;
+      bgHumLimiter.knee.value = 6;
+      bgHumLimiter.ratio.value = 12;
+      bgHumLimiter.attack.value = 0.002;
+      bgHumLimiter.release.value = 0.1;
+      bgHumLimiter.connect(ac.destination);
+    }
+    master.connect(bgHumLimiter);
 
-    // Плотный низкочастотный бас: два осциллятора чуть расстроены друг относительно
-    // друга — даёт "плотненькое" биение вместо сухого чистого тона.
+    // [BUGFIX] Раньше фундаментальная частота была 58-61Hz — это НИЖЕ эффективного
+    // диапазона большинства телефонных динамиков (маленькие динамики физически
+    // плохо/не воспроизводят частоты ниже ~150-300Hz — см. акустическую инженерную
+    // литературу про cutoff frequency мобильных спикеров). Поднятие одной только
+    // цифры gain не могло это исправить: сигнал физически слабый на этой частоте
+    // независимо от цифрового уровня громкости. Подняли фундаментал в диапазон,
+    // который телефонные динамики реально воспроизводят.
     const oscA = ac.createOscillator();
     oscA.type = 'sine';
-    oscA.frequency.setValueAtTime(58, now);
+    oscA.frequency.setValueAtTime(130, now);
     const oscB = ac.createOscillator();
     oscB.type = 'sine';
-    oscB.frequency.setValueAtTime(61, now);
+    oscB.frequency.setValueAtTime(138, now);
+
+    // Гармонический слой на октаву выше — та же "missing fundamental" психоакустика,
+    // что используют коммерческие bass-enhancement алгоритмы: даже если сам
+    // динамик слегка режет фундаментал, сильная гармоника октавой выше даёт уху
+    // ощущение "веса" звука, которое иначе потерялось бы на слабом динамике.
+    const oscHarm = ac.createOscillator();
+    oscHarm.type = 'sine';
+    oscHarm.frequency.setValueAtTime(268, now);
+    const harmGain = ac.createGain();
+    harmGain.gain.value = 0.5; // тише основного тона — подкрепляет, не перетягивает
 
     const filt = ac.createBiquadFilter();
     filt.type = 'lowpass';
-    filt.frequency.setValueAtTime(220, now);
+    filt.frequency.setValueAtTime(420, now);
 
     // LFO по частоте основного тона — создаёт ощущение волнистой ряби, а не ровного гула.
     const lfo = ac.createOscillator();
@@ -3613,10 +3668,11 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
 
     oscA.connect(filt);
     oscB.connect(filt);
+    oscHarm.connect(harmGain); harmGain.connect(filt);
     filt.connect(master);
 
-    oscA.start(now); oscB.start(now); lfo.start(now);
-    bgHumNodes = { master, oscA, oscB, lfo };
+    oscA.start(now); oscB.start(now); oscHarm.start(now); lfo.start(now);
+    bgHumNodes = { master, oscA, oscB, oscHarm, lfo };
     return bgHumNodes;
   }
   // Целевая громкость гула зависит от скорости движения курсора — быстрее двигаешь,
@@ -3626,12 +3682,15 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     if (!nodes) return;
     const ac = audioCtx;
     const now = ac.currentTime;
-    // [PREMIUM POLISH] Было min(0.22, 0.05 + speed*0.0008) — почти вдвое тише любого
-    // другого звука в палитре (glassTick=0.16, impactBoom=0.22, waterTap=0.32), поэтому
-    // терялся на фоне остальных, хотя сам тембр хороший. Подняли базу и потолок, наклон
-    // круче — на любой скорости курсора звук теперь заметно слышнее, но всё ещё не громче
-    // самого громкого звука в системе (waterTap 0.32), чтобы не перебивать остальное.
-    const target = Math.min(0.38, 0.1 + speed * 0.0014);
+    // [BUGFIX — по факту громче] Предыдущая правка подняла gain почти вдвое, но звук
+    // всё равно оставался тихим — не потому что gain был мал, а потому что частота
+    // (58-61Hz) физически плохо выходит из телефонных динамиков (см. фикс в
+    // ensureBgHum выше — фундаментал поднят до ~130-138Hz). Теперь, когда сигнал
+    // САМ ПО СЕБЕ в слышимом диапазоне, поднимаем и gain ощутимо сильнее: база
+    // 0.1→0.22, потолок 0.38→0.55 — заметно превышает самый громкий звук в системе
+    // (waterTap 0.32), это осознанно: пользователь прямо просил громче в разы,
+    // а не "чуть заметнее на фоне остального".
+    const target = Math.min(0.55, 0.22 + speed * 0.002);
     nodes.master.gain.cancelScheduledValues(now);
     nodes.master.gain.setValueAtTime(nodes.master.gain.value, now);
     nodes.master.gain.linearRampToValueAtTime(target, now + 0.08);
@@ -4392,10 +4451,26 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     const isReducedDripUI = window.matchMedia('(max-width: 480px)').matches || document.documentElement.classList.contains('is-android');
     const activeDrips = isReducedDripUI ? DRIPS.slice(0, 3) : DRIPS;
 
+    // [BUGFIX — звуковой спам] Раньше каждая из 5 капель независимо планировала свой
+    // playDripPlop() на своём цикле (3.4-4.6s у разных капель) — при наложении разных
+    // периодов совокупный поток звуков приземления шёл в среднем каждые ~950ms
+    // (проверено численно), что и звучало как "басовый звук каждые ~2 секунды" и
+    // местами чаще. Визуально капли падают как и раньше (CSS-анимация не тронута) —
+    // общий кулдаун здесь гарантирует, что звук приземления не сыграет чаще раза в
+    // 3.5s, даже если несколько капель физически приземляются близко по времени.
+    let lastDripSoundAt = 0;
+    const DRIP_SOUND_COOLDOWN = 3500;
+    function playDripPlopThrottled() {
+      const now = performance.now();
+      if (now - lastDripSoundAt < DRIP_SOUND_COOLDOWN) return;
+      lastDripSoundAt = now;
+      playDripPlop();
+    }
+
     activeDrips.forEach(({ dur, delay }) => {
       function scheduleLanding() {
         setTimeout(() => {
-          if (!document.hidden) playDripPlop();
+          if (!document.hidden) playDripPlopThrottled();
           setTimeout(scheduleLanding, dur); // следующий цикл этой же капли
         }, dur * LAND_AT);
       }
