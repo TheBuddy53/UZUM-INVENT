@@ -27,6 +27,13 @@
     --accent-key-glow: rgba(255, 168, 214, 0.65);
     --green: #34C77B;
     --green-glow: rgba(52, 199, 123, 0.7);
+    /* [PREMIUM POLISH] Акцент для SLA-кнопки (переход в другой инструмент экосистемы
+       Uzum) — янтарно-золотой, сознательно отличается и от фиолетового (бренд) и от
+       зелёного (finish-действие), чтобы читаться как "портал наружу", а не ещё одно
+       действие внутри текущего инструмента. */
+    --amber: #FFB020;
+    --amber-light: #FFD166;
+    --amber-glow: rgba(255, 176, 32, 0.75);
 
     --r-xl: 24px;
     --r-lg: 16px;
@@ -664,7 +671,18 @@
     font-weight: 900; font-size: 20px; letter-spacing: -0.035em;
     color: #F3EAFF;
     text-shadow: 0 0 1px rgba(255,255,255,0.4);
-    filter: drop-shadow(0 2px 10px rgba(157,77,255,0.4)) drop-shadow(0 0 0px rgba(157,77,255,0));
+    /* [FIX] Настоящая окантовка по контуру букв (не размытое сияние вокруг всего
+       блока, как было раньше) — тонкий text-stroke в фиолетово-красном миксе даёт
+       цветной край именно на кромке каждой буквы, плюс два очень близких (radius
+       0-1px) drop-shadow в чистом фиолетовом и чистом красном чуть в разные стороны —
+       это и создаёт ощущение двухцветного "хроматического" края у самого контура,
+       а не просто общее свечение позади текста (тот остаётся ниже, в brandNameGlow). */
+    -webkit-text-stroke: 0.5px rgba(200, 60, 130, 0.55);
+    filter:
+      drop-shadow(0.6px 0 0 rgba(157,77,255,0.7))
+      drop-shadow(-0.6px 0 0 rgba(255,60,60,0.55))
+      drop-shadow(0 2px 10px rgba(157,77,255,0.4))
+      drop-shadow(0 0 0px rgba(157,77,255,0));
     animation: brandNameGlow 3.4s ease-in-out infinite;
     transition: transform 0.4s var(--ease);
     /* Буквы раньше "разлетались" на перенос строки: каждая буква — свой inline-block
@@ -673,37 +691,105 @@
     white-space: nowrap;
   }
   @keyframes brandNameGlow {
-    0%, 100% { filter: drop-shadow(0 2px 10px rgba(157,77,255,0.4)) drop-shadow(0 0 0px rgba(157,77,255,0)); }
-    50%      { filter: drop-shadow(0 2px 14px rgba(157,77,255,0.65)) drop-shadow(0 0 16px rgba(200,140,255,0.55)); }
+    0%, 100% {
+      filter:
+        drop-shadow(0.6px 0 0 rgba(157,77,255,0.7))
+        drop-shadow(-0.6px 0 0 rgba(255,60,60,0.55))
+        drop-shadow(0 2px 10px rgba(157,77,255,0.4))
+        drop-shadow(0 0 0px rgba(157,77,255,0));
+    }
+    50% {
+      filter:
+        drop-shadow(0.8px 0 0 rgba(157,77,255,0.85))
+        drop-shadow(-0.8px 0 0 rgba(255,70,70,0.7))
+        drop-shadow(0 2px 14px rgba(157,77,255,0.65))
+        drop-shadow(0 0 16px rgba(200,140,255,0.55));
+    }
   }
   .brand-name .letter-fx { color: inherit; }
   /* ===== "СТЕКАЮЩАЯ КРАСКА" ПОД ЛОГО-ТЕКСТОМ (в духе скрина "Wet Paint Button") =====
-     Три капли разной ширины/скорости под нижней кромкой .brand-name, каждая — свой
-     ::after-подобный span, растущий вниз и капающий отдельной точкой. Цвет — фирменный
-     фиолетовый градиент (#9D4DFF → #4B00AD), не покрашен под референс буквально, чтобы
-     не выбиваться из темы Uzum. Чисто CSS, без JS — дёшево по перфомансу. */
+     Капли теперь падают через ВЕСЬ экран (position:fixed, стартовая точка вычисляется
+     по факту положения заголовка), не только на 16px под текстом — richer/juicier по
+     запросу: у каждой капли есть (1) яркое ядро + мягкое bloom-свечение вокруг,
+     (2) motion-blur "мазок" сзади на фазе быстрого падения (вытянутый градиент —
+     без него быстрое падение читается как мерцающая точка, а не жидкость), (3) лёгкая
+     звёздочка-всплеск и тихий звук приземления внизу экрана (JS, синхронизирован с тем
+     же CSS-циклом — тот же принцип, что и sync auto-blink выше). Цвет — фирменный
+     фиолетовый градиент, чисто CSS-анимация позиции/масштаба (transform/opacity —
+     zero layout thrashing), JS только считает стартовую точку и играет звук по таймеру,
+     не пишет transform каждый кадр. */
   .brand-drip-wrap { position: relative; display: inline-block; }
-  .brand-drip { position: absolute; bottom: -3px; width: 3px; border-radius: 0 0 3px 3px; background: linear-gradient(180deg, #9D4DFF, #7000FF 70%, rgba(112,0,255,0)); opacity: 0.85; transform-origin: top center; animation: dripStretch 3.6s ease-in-out infinite; pointer-events: none; }
-  .brand-drip::after { content: ''; position: absolute; left: 50%; bottom: -3px; width: 4px; height: 4px; border-radius: 50%; background: #9D4DFF; transform: translateX(-50%); animation: dripFall 3.6s ease-in infinite; box-shadow: 0 0 4px rgba(157,77,255,0.7); }
-  .brand-drip.d1 { left: 8%; height: 5px; animation-delay: 0s; }
+  .brand-drip {
+    position: fixed; top: var(--drip-start-y, 60px); left: var(--drip-start-x, 40px);
+    width: 6px; height: 6px; margin-left: -3px;
+    border-radius: 50% 50% 50% 60% / 60% 60% 40% 40%;
+    background: radial-gradient(circle at 35% 30%, #E4C9FF, #9D4DFF 55%, #6300D9 100%);
+    box-shadow: 0 0 10px rgba(157,77,255,0.65), 0 0 22px rgba(157,77,255,0.3);
+    opacity: 0; pointer-events: none; z-index: 60;
+    animation: dripFallFull var(--drip-dur, 3.2s) cubic-bezier(0.55, 0.06, 0.68, 0.19) infinite;
+    will-change: transform, opacity;
+  }
+  /* Мазок за каплей — растянутый по вертикали полупрозрачный градиент-хвост,
+     появляется только на быстрой фазе падения (тот же timing-offset что и сама
+     капля) и растворяется к моменту приземления — имитирует motion blur жидкости. */
+  .brand-drip::before {
+    content: ''; position: absolute; left: 50%; bottom: 100%; width: 2.5px; height: 26px;
+    margin-left: -1.25px; border-radius: 2px;
+    background: linear-gradient(180deg, rgba(157,77,255,0), rgba(157,77,255,0.55) 60%, rgba(200,140,255,0.7));
+    opacity: 0; transform-origin: bottom center;
+    animation: dripTrail var(--drip-dur, 3.2s) cubic-bezier(0.55, 0.06, 0.68, 0.19) infinite;
+  }
+  .brand-drip.d1 { --drip-dur: 3.4s; animation-delay: 0s; }
+  .brand-drip.d1::before { animation-delay: 0s; }
+  .brand-drip.d2 { --drip-dur: 4.1s; animation-delay: 0.7s; left: calc(var(--drip-start-x, 40px) + 18px); }
+  .brand-drip.d2::before { animation-delay: 0.7s; }
+  .brand-drip.d3 { --drip-dur: 3.7s; animation-delay: 1.5s; left: calc(var(--drip-start-x, 40px) - 14px); }
+  .brand-drip.d3::before { animation-delay: 1.5s; }
+  .brand-drip.d4 { --drip-dur: 4.6s; animation-delay: 2.3s; left: calc(var(--drip-start-x, 40px) + 34px); }
+  .brand-drip.d4::before { animation-delay: 2.3s; }
+  .brand-drip.d5 { --drip-dur: 3.9s; animation-delay: 3.1s; left: calc(var(--drip-start-x, 40px) - 28px); }
+  .brand-drip.d5::before { animation-delay: 3.1s; }
+  /* Путь до низа экрана считаем через calc(100vh - var(--drip-start-y)) — так капля
+     всегда долетает ровно до нижней кромки viewport независимо от высоты экрана
+     (телефон/планшет/десктоп), а не до жёстко зашитого пикселя. */
+  @keyframes dripFallFull {
+    0% { transform: translateY(0) scale(0.6); opacity: 0; }
+    4% { opacity: 0.95; transform: translateY(0) scale(1); }
+    88% { transform: translateY(calc(100vh - var(--drip-start-y, 60px) - 40px)) scale(1.05, 0.85); opacity: 0.9; }
+    94% { transform: translateY(calc(100vh - var(--drip-start-y, 60px) - 10px)) scale(1.3, 0.55); opacity: 0.55; }
+    100% { transform: translateY(calc(100vh - var(--drip-start-y, 60px))) scale(0.2, 0.1); opacity: 0; }
+  }
+  @keyframes dripTrail {
+    0%, 4% { opacity: 0; height: 10px; }
+    45% { opacity: 0.8; height: 30px; }
+    88% { opacity: 0.5; height: 22px; }
+    94%, 100% { opacity: 0; height: 8px; }
+  }
+  /* Всплеск в момент приземления — короткая вспышка-звёздочка чуть выше и внутри
+     самой капли по временнОй фазе (94-100% цикла), radial-gradient звёзд-паттерн
+     через box-shadow из 4 маленьких точек вместо отдельных DOM-узлов (дешевле). */
+  .brand-drip::after {
+    content: ''; position: fixed; top: var(--drip-start-y, 60px); left: var(--drip-start-x, 40px);
+    width: 3px; height: 3px; margin-left: -1.5px; border-radius: 50%; background: #E4C9FF;
+    opacity: 0; pointer-events: none;
+    box-shadow: 0 0 6px 1px rgba(200,140,255,0.9);
+    animation: dripSplash var(--drip-dur, 3.2s) linear infinite;
+  }
   .brand-drip.d1::after { animation-delay: 0s; }
-  .brand-drip.d2 { left: 38%; height: 8px; animation-delay: 1.1s; }
-  .brand-drip.d2::after { animation-delay: 1.1s; }
-  .brand-drip.d3 { left: 70%; height: 4px; animation-delay: 2.2s; }
-  .brand-drip.d3::after { animation-delay: 2.2s; }
-  @keyframes dripStretch {
-    0%, 55% { height: 4px; opacity: 0.7; }
-    75% { height: 12px; opacity: 0.9; }
-    90% { height: 6px; opacity: 0.5; }
-    100% { height: 4px; opacity: 0.7; }
+  .brand-drip.d2::after { animation-delay: 0.7s; left: calc(var(--drip-start-x, 40px) + 18px); }
+  .brand-drip.d3::after { animation-delay: 1.5s; left: calc(var(--drip-start-x, 40px) - 14px); }
+  .brand-drip.d4::after { animation-delay: 2.3s; left: calc(var(--drip-start-x, 40px) + 34px); }
+  .brand-drip.d5::after { animation-delay: 3.1s; left: calc(var(--drip-start-x, 40px) - 28px); }
+  @keyframes dripSplash {
+    0%, 92% { opacity: 0; transform: translateY(0) scale(0.4); }
+    94% { opacity: 1; transform: translateY(calc(100vh - var(--drip-start-y, 60px) - 6px)) scale(1.6); }
+    100% { opacity: 0; transform: translateY(calc(100vh - var(--drip-start-y, 60px))) scale(2.4); }
   }
-  @keyframes dripFall {
-    0%, 60% { transform: translateX(-50%) translateY(0); opacity: 0; }
-    68% { opacity: 1; }
-    92% { transform: translateX(-50%) translateY(16px); opacity: 0; }
-    100% { transform: translateX(-50%) translateY(16px); opacity: 0; }
-  }
-  @media (prefers-reduced-motion: reduce) { .brand-drip, .brand-drip::after { animation: none; display: none; } }
+  @media (prefers-reduced-motion: reduce) { .brand-drip, .brand-drip::before, .brand-drip::after { animation: none; display: none; } }
+  /* [PREMIUM POLISH] На мобильных/слабом Android — 3 капли вместо 5 (тот же принцип
+     снижения, что уже применён к backdrop-filter/box-shadow карточек выше). */
+  @media (max-width: 480px) { .brand-drip.d4, .brand-drip.d5 { display: none; } }
+  html.is-android .brand-drip.d4, html.is-android .brand-drip.d5 { display: none; }
   .brand-sub { font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.17em; font-weight: 800; background: linear-gradient(90deg, var(--text-muted), #fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; transition: color 0.5s var(--ease), transform 0.4s var(--ease); }
 
   /* Кинематографичный блик и Карточки */
@@ -792,7 +878,10 @@
      keyframe-анимацию с JS-параллаксом на ТОЙ ЖЕ transform: CSS-анимация всегда
      выигрывает каскад против инлайнового style.transform, так что писать оффсет
      параллакса напрямую в el.style.transform было бы бесполезно, пока floatCard активна. */
-  @keyframes floatCard { 0%, 100% { transform: translate3d(var(--pfx, 0px), var(--pfy, 0px), 0) translateY(0) translateZ(0); } 50% { transform: translate3d(var(--pfx, 0px), var(--pfy, 0px), 0) translateY(-4px) translateZ(0); } }
+  @keyframes floatCard {
+    0%, 100% { transform: perspective(900px) translate3d(var(--pfx, 0px), var(--pfy, 0px), 0) rotateX(var(--pty, 0deg)) rotateY(var(--ptx, 0deg)) translateY(0) translateZ(0); }
+    50% { transform: perspective(900px) translate3d(var(--pfx, 0px), var(--pfy, 0px), 0) rotateX(var(--pty, 0deg)) rotateY(var(--ptx, 0deg)) translateY(-4px) translateZ(0); }
+  }
   /* Лёгкий сквош при нажатии (makeElasticButton) — та же причина, что и выше: на время
      активной эластичной деформации гасим floatCard, отдавая transform пружине. */
   .card.elastic-live { animation-play-state: paused; }
@@ -1610,6 +1699,111 @@
   }
   body.saga-active #hdr-sweep { opacity: 0; transition: opacity 0.3s var(--ease); }
   @media (prefers-reduced-motion: reduce) { #hdr-sweep { display: none; } }
+  /* ============================================================
+     ===== ЭКОСИСТЕМА: ПОРТАЛ НА СЛА (переход на внешний Uzum-инструмент) =====
+     Кнопка-портал в другой продукт экосистемы (SLA-приёмки на ПВЗ). Сознательно
+     самый "богатый" отдельный элемент на странице (signature-приём: концентрируем
+     сложность в одном месте, а не размазываем по всему интерфейсу) — амбер-акцент,
+     капающая краска, периодический глитч, локальный 3D-наклон от курсора внутри
+     самой кнопки (независимо от общего курсорного параллакса ниже — здесь наклон
+     выраженнее, т.к. это "портальный", кликабельный элемент, а не фоновая карточка).
+     ============================================================ */
+  .ecosystem-card { overflow: visible !important; text-align: center; }
+  .ecosystem-card .section-label { text-align: left; }
+  .eco-portal-wrap { position: relative; perspective: 900px; margin-top: 4px; }
+  .eco-portal {
+    position: relative; display: flex; align-items: center; justify-content: center; gap: 10px;
+    width: 100%; padding: 18px 22px; border: none; cursor: pointer;
+    border-radius: var(--r-lg); overflow: visible;
+    background: linear-gradient(135deg, var(--amber-light), var(--amber) 60%, #E08800);
+    color: #2B1400; font-weight: 900; font-size: 15px; letter-spacing: -0.01em;
+    box-shadow:
+      0 2px 4px -1px rgba(0,0,0,0.5),
+      0 18px 40px -12px rgba(255,176,32,0.55),
+      0 40px 70px -20px rgba(120,60,0,0.5),
+      inset 0 1.5px 1px rgba(255,255,255,0.6),
+      inset 0 -8px 16px -6px rgba(120,50,0,0.35);
+    transform-style: preserve-3d;
+    will-change: transform, box-shadow;
+    backface-visibility: hidden;
+    transition: box-shadow 0.3s var(--ease);
+  }
+  /* JS пишет --tilt-x/--tilt-y (в градусах, от -1 до 1 по каждой оси) на hover/pointermove
+     внутри кнопки — CSS переводит их в реальный perspective-наклон. rest-состояние (0,0)
+     через var()-фолбэк, так что без JS/на touch кнопка просто плоская, не сломана. */
+  .eco-portal { transform: rotateX(calc(var(--tilt-y, 0) * -8deg)) rotateY(calc(var(--tilt-x, 0) * 8deg)) translateZ(0); }
+  /* [SAFETY] :has() требует Chromium 105+ — не гарантировано на всех Android WebView
+     внутри Telegram Mini App, поэтому вместо :has() — прямое :active на самой кнопке. */
+  .eco-portal:active { transition: transform 0.15s var(--ease); }
+  .eco-portal-icon { font-size: 20px; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3)); transform: translateZ(14px); }
+  .eco-portal-text { position: relative; transform: translateZ(10px); display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25; }
+  .eco-portal-title { font-size: 15px; font-weight: 900; }
+  .eco-portal-sub { font-size: 10.5px; font-weight: 700; opacity: 0.72; letter-spacing: 0.02em; }
+  .eco-portal-arrow { margin-left: 4px; font-size: 16px; transform: translateZ(12px); transition: transform 0.35s var(--spring); }
+  .eco-portal:hover .eco-portal-arrow { transform: translateZ(12px) translateX(4px); }
+
+  /* Верхний блик + бегущий shine — тот же язык, что finish-toplight/finish-shine,
+     перекрашен под амбер. */
+  .eco-portal-toplight { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 1; background: linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.14) 14%, transparent 45%); }
+  .eco-portal-shine { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 1; background: linear-gradient(100deg, transparent 35%, rgba(255,255,255,0.45) 48%, rgba(255,255,255,0.65) 50%, rgba(255,255,255,0.45) 52%, transparent 65%); background-size: 300% 100%; background-position: 130% 0; animation: pasteShine 4.2s linear infinite; mix-blend-mode: overlay; }
+
+  /* Лёгкое idle-подпрыгивание — кнопка "живая" даже в покое, не ждёт обязательно hover. */
+  .eco-portal-wrap { animation: ecoBounce 3.2s var(--ease) infinite; }
+  @keyframes ecoBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+  }
+
+  /* Периодический глитч — тот же steps()-приём, что markGlitch у лого (jump-cut,
+     не плавный fade — иначе не читается как "глитч", а как обычное мерцание).
+     Редкий (раз в ~7s), короткий (0.5s) — акцент, а не постоянная тряска. */
+  .eco-portal::before {
+    content: ''; position: absolute; inset: 0; border-radius: inherit; z-index: 2;
+    pointer-events: none; background: inherit; mix-blend-mode: screen; opacity: 0;
+    animation: ecoGlitch 7s steps(2, jump-end) infinite;
+  }
+  @keyframes ecoGlitch {
+    0%, 92% { opacity: 0; transform: translate3d(0,0,0); filter: hue-rotate(0deg); }
+    93%   { opacity: 0.55; transform: translate3d(3px,-1.5px,0); filter: hue-rotate(70deg); }
+    94.5% { opacity: 0; transform: translate3d(-2.5px,1px,0); filter: hue-rotate(0deg); }
+    96%   { opacity: 0.3; transform: translate3d(-3px,1.5px,0); filter: hue-rotate(-60deg); }
+    97.5% { opacity: 0; }
+    100%  { opacity: 0; transform: translate3d(0,0,0); filter: hue-rotate(0deg); }
+  }
+
+  /* Капающая краска с нижней кромки кнопки — та же техника, что брендовые капли
+     (motion-blur trail + bloom-ядро), но короткий локальный путь (падает чуть ниже
+     кнопки и растворяется), а не через весь экран — кнопка не в шапке, длинный путь
+     здесь просто перекрывал бы карточку снизу. */
+  .eco-drip-layer { position: absolute; left: 0; right: 0; bottom: -2px; height: 1px; pointer-events: none; z-index: 0; overflow: visible; }
+  .eco-drip { position: absolute; top: 0; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50% 50% 50% 60% / 60% 60% 40% 40%; background: radial-gradient(circle at 35% 30%, #FFE9B8, var(--amber-light) 55%, #C97600 100%); box-shadow: 0 0 8px rgba(255,176,32,0.6); opacity: 0; animation: ecoDripFall var(--eco-drip-dur, 3.8s) cubic-bezier(0.55,0.06,0.68,0.19) infinite; }
+  .eco-drip::before { content: ''; position: absolute; left: 50%; bottom: 100%; width: 2px; height: 16px; margin-left: -1px; border-radius: 2px; background: linear-gradient(180deg, rgba(255,176,32,0), rgba(255,176,32,0.5) 60%, rgba(255,224,150,0.65)); opacity: 0; animation: ecoDripTrail var(--eco-drip-dur, 3.8s) cubic-bezier(0.55,0.06,0.68,0.19) infinite; }
+  .eco-drip.e1 { left: 22%; --eco-drip-dur: 3.6s; animation-delay: 0s; }
+  .eco-drip.e1::before { animation-delay: 0s; }
+  .eco-drip.e2 { left: 52%; --eco-drip-dur: 4.4s; animation-delay: 1.2s; }
+  .eco-drip.e2::before { animation-delay: 1.2s; }
+  .eco-drip.e3 { left: 78%; --eco-drip-dur: 4s; animation-delay: 2.4s; }
+  .eco-drip.e3::before { animation-delay: 2.4s; }
+  @keyframes ecoDripFall {
+    0% { transform: translateY(0) scale(0.6); opacity: 0; }
+    5% { opacity: 0.9; transform: translateY(0) scale(1); }
+    85% { transform: translateY(46px) scale(1.05, 0.85); opacity: 0.7; }
+    100% { transform: translateY(58px) scale(0.3, 0.15); opacity: 0; }
+  }
+  @keyframes ecoDripTrail {
+    0%, 5% { opacity: 0; height: 8px; }
+    45% { opacity: 0.75; height: 20px; }
+    85% { opacity: 0.35; height: 14px; }
+    100% { opacity: 0; height: 6px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .eco-portal-wrap { animation: none; }
+    .eco-portal::before { animation: none; display: none; }
+    .eco-drip, .eco-drip::before { animation: none; display: none; }
+  }
+  @media (max-width: 480px) { .eco-drip.e3 { display: none; } }
+  html.is-android .eco-drip.e3 { display: none; }
+
 </style>
 </head>
 <body>
@@ -1664,6 +1858,8 @@
           <span class="brand-drip d1" aria-hidden="true"></span>
           <span class="brand-drip d2" aria-hidden="true"></span>
           <span class="brand-drip d3" aria-hidden="true"></span>
+          <span class="brand-drip d4" aria-hidden="true"></span>
+          <span class="brand-drip d5" aria-hidden="true"></span>
         </div>
         <div class="brand-sub" data-i18n="brand_sub">Экосистема ПВЗ</div>
       </div>
@@ -1695,7 +1891,33 @@
     </div>
   </div>
 
-  <!-- Карточка завершения (С 16 осколками) -->
+  <!-- Портал в экосистему: переход на внешний SLA-инструмент -->
+  <div class="card glass-edge ecosystem-card stagger parallax-el" data-depth="0.05" style="animation-delay:0.22s">
+    <div class="grain"></div>
+    <div class="cinematic-glare"></div>
+    <div class="glass-sheen"></div>
+    <div class="section-label" data-i18n="eco_title">ЭКОСИСТЕМА UZUM</div>
+    <div class="hint-text" style="margin-bottom: 14px;" data-i18n="eco_hint">
+      Отдельный инструмент для контроля <span class="key">СЛА приёмки</span> на ПВЗ.
+    </div>
+    <div class="eco-portal-wrap">
+      <a class="eco-portal" id="eco-portal-sla" href="https://thebuddy53.github.io/SLA-UZUM/" target="_blank" rel="noopener noreferrer" data-stiffness="360" data-damping="17" data-stretch="1">
+        <div class="eco-drip-layer" aria-hidden="true">
+          <span class="eco-drip e1"></span><span class="eco-drip e2"></span><span class="eco-drip e3"></span>
+        </div>
+        <span class="eco-portal-toplight" aria-hidden="true"></span>
+        <span class="eco-portal-shine" aria-hidden="true"></span>
+        <span class="eco-portal-icon" aria-hidden="true">⏱</span>
+        <span class="eco-portal-text">
+          <span class="eco-portal-title" data-i18n="eco_btn_title">СЛА</span>
+          <span class="eco-portal-sub" data-i18n="eco_btn_sub">Открыть инструмент →</span>
+        </span>
+        <span class="eco-portal-arrow" aria-hidden="true">↗</span>
+      </a>
+    </div>
+  </div>
+
+
   <div class="card glass-edge stagger parallax-el" data-depth="0.06" style="animation-delay:0.2s">
     <div class="grain"></div>
     <div class="cinematic-glare"></div>
@@ -2405,6 +2627,10 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       finish_title: "ЗАВЕРШЕНИЕ",
       finish_hint: 'Когда все <span class="key">ячейки склада</span> отсканированы и закрыты — завершите инвентаризацию.',
       finish_btn: "Завершить инвентаризацию",
+      eco_title: "ЭКОСИСТЕМА UZUM",
+      eco_hint: 'Отдельный инструмент для контроля <span class="key">СЛА приёмки</span> на ПВЗ.',
+      eco_btn_title: "СЛА",
+      eco_btn_sub: "Открыть инструмент →",
       sheet_title: "Вставить из WMS",
       sheet_hint: 'Скопируйте из WMS два столбца — <span class="key">ID заказа</span> и <span class="key">Ячейка</span>.',
       format_col1: "ID ЗАКАЗА",
@@ -2425,6 +2651,10 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       finish_title: "YAKUNLASH",
       finish_hint: 'Barcha <span class="key">kataklar</span> skanerlanib yopilgach — inventarizatsiyani yakunlang.',
       finish_btn: "Inventarizatsiyani yakunlash",
+      eco_title: "UZUM EKOTIZIMI",
+      eco_hint: 'PVZda <span class="key">qabul SLA</span> sini nazorat qilish uchun alohida vosita.',
+      eco_btn_title: "Qabul SLA",
+      eco_btn_sub: "Vositani ochish →",
       sheet_title: "WMS dan kiritish",
       sheet_hint: 'WMS dan ikki ustunni nusxalang — <span class="key">Buyurtma ID</span> va <span class="key">Katak</span>.',
       format_col1: "BUYURTMA ID",
@@ -2877,9 +3107,13 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
 
   // Гамма для letter-fx: до-ре-ми-фа-соль-ля-си-до, но НЕ в самой низкой октаве —
   // средние и высокие ступени плюс чуть-чуть низа (юзер просил именно так: "высокие и
-  // средние и слегка низкие"). C5 (523Hz) как база, полная диатоника вверх до C6, и
-  // одна нижняя нота (C4) в начале, чтобы гамма не звучала однородно-писклявой.
-  const LETTER_SCALE = [261.63, 392.00, 440.00, 493.88, 523.25, 587.33, 659.25, 698.46, 783.99, 880.00, 987.77, 1046.50];
+  // средние и слегка низкие"). Полная диатоника, одна нижняя нота в начале, чтобы гамма
+  // не звучала однородно-писклявой.
+  // [PREMIUM POLISH] Вся гамма транспонирована на большую терцию вниз (тот же
+  // интервальный рисунок, просто теплее по регистру) — letter-fx триггерится часто
+  // (на каждое движение курсора по тексту), и прежний верхний край (до 1046Hz) вносил
+  // свой вклад в общую "звонкость/утомляемость" палитры при частом повторе.
+  const LETTER_SCALE = [207.66, 311.13, 349.23, 391.99, 415.3, 466.16, 523.25, 554.37, 622.25, 698.46, 783.99, 830.61];
   let lastLetterNoteAt = 0;
   function playLetterNote(index) {
     // Троттлинг: при очень плотном letterFX-потоке (курсор быстро проходит несколько
@@ -3010,23 +3244,24 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       master.gain.exponentialRampToValueAtTime(0.045, now + 0.006);
       master.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
       master.connect(masterBus);
+      // [PREMIUM POLISH] Было 3200-3600Hz — самый частый звук в файле, а этот
+      // диапазон (вместе со старым air-слоем на 7400-8000Hz) один из самых
+      // утомительных для уха при многократном повторе. Понижено примерно на
+      // квинту/октаву — тик остаётся лёгким и чётким, но не пронзительным.
       const osc = ac.createOscillator();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(3200 + Math.random() * 400, now);
+      osc.frequency.setValueAtTime(2350 + Math.random() * 300, now);
       osc.connect(master);
       osc.start(now); osc.stop(now + 0.08);
-      // [PREMIUM POLISH] "Воздух" без BufferSource — это самый частый звук в файле
-      // (троттлится, но всё равно может срабатывать десятками раз при быстром
-      // движении по тексту), поэтому вместо шумового буфера используем второй
-      // ДЁШЕВЫЙ осциллятор на негармоничной верхней частоте (не кратной основной) —
-      // негармоничность сама по себе читается как "блеск/воздух", не требуя
+      // "Воздух" без BufferSource — дёшево на самом горячем звуковом пути файла;
+      // негармоничная верхняя частота сама по себе читается как "блеск", не требуя
       // декодирования отдельного шумового источника на каждый вызов.
       const air = ac.createOscillator();
       air.type = 'sine';
-      air.frequency.setValueAtTime(7400 + Math.random() * 600, now);
+      air.frequency.setValueAtTime(5200 + Math.random() * 500, now);
       const airGain = ac.createGain();
       airGain.gain.setValueAtTime(0.0001, now);
-      airGain.gain.exponentialRampToValueAtTime(0.014, now + 0.004);
+      airGain.gain.exponentialRampToValueAtTime(0.013, now + 0.004);
       airGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
       air.connect(airGain); airGain.connect(masterBus);
       air.start(now); air.stop(now + 0.05);
@@ -3192,19 +3427,41 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
   // периодический CSS eyeBlink (см. @keyframes eyeBlink, цикл 6.5s) был немым —
   // отсюда и ощущение "нет звука при моргании". Громкость сильно приглушена
   // относительно кликовой версии, чтобы фоновое моргание не отвлекало.
+  // [PREMIUM POLISH] Была одна голая синусоида на 2400Hz — тонко, стеклянно, при
+  // частом повторе читалось резковато/раздражающе. Понизили базовый тон, добавили
+  // тихий призвук октавой ниже (тепло/глубина) и пропустили основной тон через
+  // мягкий lowpass — убирает "стеклянную" резкость верхних гармоник синусоиды,
+  // звук стал мягче и органичнее, ближе к настоящему "моргнул" ощущению, а не тику.
   function playAutoBlinkTick() {
     withAudio((ac) => {
       const now = ac.currentTime;
       const master = ac.createGain();
       master.gain.setValueAtTime(0.0001, now);
-      master.gain.exponentialRampToValueAtTime(0.045, now + 0.008);
-      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+      master.gain.exponentialRampToValueAtTime(0.05, now + 0.01);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
       master.connect(masterBus);
+
+      const lowpass = ac.createBiquadFilter();
+      lowpass.type = 'lowpass';
+      lowpass.frequency.value = 2200;
+      lowpass.Q.value = 0.3;
+      lowpass.connect(master);
+
       const osc = ac.createOscillator();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(2400, now);
-      osc.connect(master);
-      osc.start(now); osc.stop(now + 0.1);
+      osc.frequency.setValueAtTime(1500, now);
+      osc.frequency.exponentialRampToValueAtTime(1150, now + 0.1);
+      osc.connect(lowpass);
+      osc.start(now); osc.stop(now + 0.12);
+
+      // Тихий низкий призвук для тепла/глубины — октавой ниже основного тона.
+      const sub = ac.createOscillator();
+      sub.type = 'sine';
+      sub.frequency.setValueAtTime(750, now);
+      const subGain = ac.createGain();
+      subGain.gain.value = 0.35;
+      sub.connect(subGain); subGain.connect(master);
+      sub.start(now); sub.stop(now + 0.12);
     });
   }
 
@@ -3218,7 +3475,9 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       master.gain.exponentialRampToValueAtTime(0.13, now + 0.006);
       master.gain.exponentialRampToValueAtTime(0.0001, now + 0.13);
       master.connect(masterBus);
-      [[2100, 1], [3150, 0.35]].forEach(([freq, vol], idx) => {
+      // [PREMIUM POLISH] Было [2100,3150] — понижено для чуть большей глубины,
+      // тот же принцип "две ноты внахлёст", просто ниже по регистру.
+      [[1700, 1], [2550, 0.35]].forEach(([freq, vol], idx) => {
         const osc = ac.createOscillator();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, now + idx * 0.01);
@@ -3227,6 +3486,14 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         osc.connect(g); g.connect(master);
         osc.start(now + idx * 0.01); osc.stop(now + 0.14);
       });
+      // Тихий низкий слой для тела звука.
+      const sub = ac.createOscillator();
+      sub.type = 'sine';
+      sub.frequency.setValueAtTime(850, now);
+      const subGain = ac.createGain();
+      subGain.gain.value = 0.18;
+      sub.connect(subGain); subGain.connect(master);
+      sub.start(now); sub.stop(now + 0.14);
     });
   }
 
@@ -3359,7 +3626,12 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     if (!nodes) return;
     const ac = audioCtx;
     const now = ac.currentTime;
-    const target = Math.min(0.22, 0.05 + speed * 0.0008);
+    // [PREMIUM POLISH] Было min(0.22, 0.05 + speed*0.0008) — почти вдвое тише любого
+    // другого звука в палитре (glassTick=0.16, impactBoom=0.22, waterTap=0.32), поэтому
+    // терялся на фоне остальных, хотя сам тембр хороший. Подняли базу и потолок, наклон
+    // круче — на любой скорости курсора звук теперь заметно слышнее, но всё ещё не громче
+    // самого громкого звука в системе (waterTap 0.32), чтобы не перебивать остальное.
+    const target = Math.min(0.38, 0.1 + speed * 0.0014);
     nodes.master.gain.cancelScheduledValues(now);
     nodes.master.gain.setValueAtTime(nodes.master.gain.value, now);
     nodes.master.gain.linearRampToValueAtTime(target, now + 0.08);
@@ -3417,14 +3689,33 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     mx += (tx - mx) * lerp;
     my += (ty - my) * lerp;
     meshTrack.style.transform = `translate3d(${mx.toFixed(2)}px, ${my.toFixed(2)}px, 0)`;
+    // [PREMIUM POLISH] Лёгкий 3D-наклон ("поклон" в сторону курсора) поверх уже
+    // существующего 2D-сдвига — та же depth-система (0.02-0.22), просто ещё и
+    // rotateX/rotateY с маленькой амплитудой (максимум ~4deg на полном ходе курсора
+    // от края до края экрана * depth конкретного элемента). tx/ty уже нормализованы
+    // в PARALLAX_AMP-масштабе выше, поэтому берём их отношение к PARALLAX_AMP как
+    // общий "насколько далеко курсор от центра" фактор (-1..1) и умножаем на градусы.
+    const tiltFactorX = PARALLAX_AMP ? (tx / PARALLAX_AMP) : 0; // -1..1
+    const tiltFactorY = PARALLAX_AMP ? (ty / PARALLAX_AMP) : 0;
+    const MAX_TILT_DEG = 4;
     parallaxPlainEls.forEach(el => {
       const depth = parseFloat(el.dataset.depth || '0.15');
-      el.style.transform = `translate3d(${(mx * depth).toFixed(2)}px, ${(my * depth).toFixed(2)}px, 0)`;
+      // depth уже 0.02-0.22 — для наклона это слишком мелкий множитель (наклон был бы
+      // незаметен), поэтому масштабируем depth в отдельный, более заметный диапазон
+      // через sqrt (выравнивает разброс между самым "лёгким" 0.02 и самым "тяжёлым"
+      // 0.22 элементом — иначе topbar/footer наклонялись бы в 10 раз слабее карточек).
+      const tiltDepth = Math.sqrt(depth / 0.22);
+      const rotY = (tiltFactorX * MAX_TILT_DEG * tiltDepth).toFixed(2);
+      const rotX = (-tiltFactorY * MAX_TILT_DEG * tiltDepth).toFixed(2);
+      el.style.transform = `perspective(900px) translate3d(${(mx * depth).toFixed(2)}px, ${(my * depth).toFixed(2)}px, 0) rotateX(${rotX}deg) rotateY(${rotY}deg)`;
     });
     parallaxCardEls.forEach(el => {
       const depth = parseFloat(el.dataset.depth || '0.15');
+      const tiltDepth = Math.sqrt(depth / 0.22);
       el.style.setProperty('--pfx', (mx * depth).toFixed(2) + 'px');
       el.style.setProperty('--pfy', (my * depth).toFixed(2) + 'px');
+      el.style.setProperty('--ptx', (tiltFactorX * MAX_TILT_DEG * tiltDepth).toFixed(2) + 'deg');
+      el.style.setProperty('--pty', (-tiltFactorY * MAX_TILT_DEG * tiltDepth).toFixed(2) + 'deg');
     });
     if (Math.abs(tx - mx) > 0.05 || Math.abs(ty - my) > 0.05) {
       meshRaf = requestAnimationFrame(tickMesh);
@@ -3745,6 +4036,11 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
   // [PREMIUM POLISH] ζ≈0.26 → ζ≈0.44 (c пересчитан аналитически) — settle ~480ms,
   // один чистый уверенный перехлёст вместо более рыхлого многократного дребезга.
   makeElasticButton($('btn-paste-wms'), { stiffness: 360, damping: 17, stretch: 1.0, flickBoost: 1.55, maxPull: (w) => Math.max(26, w * 0.32) });
+  // Портал на СЛА — spring-параметры заданы в разметке (data-stiffness/-damping/
+  // -stretch), тот же принцип, что и у sheet-cancel/sheet-confirm выше; здесь в JS —
+  // только maxPull (широкая кнопка, как btn-paste-wms, фиксированный px-предел
+  // ощущался бы "стеной").
+  makeElasticButton($('eco-portal-sla'), { maxPull: (w) => Math.max(24, w * 0.3), flickBoost: 1.4 });
   // Переключатель языка — маленькая кнопка, поэтому пружина жёстче и короче ход
   // (иначе на 44px-кнопке большая амплитуда выглядит нелепо).
   // [PREMIUM POLISH] ζ≈0.205 → ζ≈0.38: раньше цель была "дребезжащий, игривый
@@ -3914,13 +4210,17 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     // .auto-blink-now САМ триггерит и визуал, и звук в один и тот же тик — синхрон
     // гарантирован структурно, а не расчётом. Вес распределения (см. nextBlinkDelay)
     // смещён к середине диапазона — настоящие живые моргания редко идут строго
-    // равномерно от 1.5 до 5, они кучкуются вокруг "обычного" темпа с редкими
+    // равномерно по всему диапазону, они кучкуются вокруг "обычного" темпа с редкими
     // короткими/длинными выбросами (двойное моргание / долгая пауза).
+    // [PREMIUM POLISH] Было 1500-5000ms (среднее ~3.25s) — на практике ощущалось
+    // слишком часто (и тик-звук на каждое моргание вместе с ним спамил). Подняли
+    // диапазон до 3500-8500ms (среднее ~6s) — заметно спокойнее, ближе к тому, как
+    // моргает человек в покое, а не как нервный тик.
     if (!reduceMotion) {
-      const BLINK_MIN = 1500, BLINK_MAX = 5000;
+      const BLINK_MIN = 3500, BLINK_MAX = 8500;
       // Треугольное распределение (сумма двух uniform-семплов) вместо плоского
       // Math.random() — даёт естественную концентрацию около центра диапазона
-      // (~3.25s) с более редкими крайними значениями, как у настоящего моргания.
+      // (~6s) с более редкими крайними значениями, как у настоящего моргания.
       function nextBlinkDelay() {
         const a = Math.random(), b = Math.random();
         const t = (a + b) / 2; // 0..1, треугольная плотность к центру
@@ -4001,7 +4301,148 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
   })();
 
 
+  // [PREMIUM POLISH] Тихий "плюх" приземления капли — отдельный от playWaterTap
+  // (тот громче/резче, для клика по фону), этот едва слышный, фоновый, под тему
+  // капель бренда. Короткий низкий тон + микро-шумовой всплеск.
+  function playDripPlop() {
+    withAudio((ac) => {
+      const now = ac.currentTime;
+      const master = ac.createGain();
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.exponentialRampToValueAtTime(0.06, now + 0.008);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.13);
+      master.connect(masterBus);
+      const osc = ac.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(260, now);
+      osc.frequency.exponentialRampToValueAtTime(110, now + 0.1);
+      osc.connect(master);
+      osc.start(now); osc.stop(now + 0.13);
+      const noise = ac.createBufferSource();
+      noise.buffer = getNoiseBuffer(ac);
+      const filt = ac.createBiquadFilter();
+      filt.type = 'bandpass';
+      filt.frequency.value = 2200;
+      filt.Q.value = 0.8;
+      const ng = ac.createGain();
+      ng.gain.setValueAtTime(0.0001, now);
+      ng.gain.exponentialRampToValueAtTime(0.05, now + 0.006);
+      ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+      noise.connect(filt); filt.connect(ng); ng.connect(masterBus);
+      noise.start(now); noise.stop(now + 0.06);
+    });
+  }
+
   // ============================================================
+  // ===== БРЕНДОВЫЕ КАПЛИ: путь через весь экран + звук приземления =====
+  // CSS отвечает за всё визуальное падение (transform/opacity, dt-независимо —
+  // это чистая CSS-анимация, не rAF-цикл). JS здесь решает ровно 2 задачи:
+  // (1) один раз (и на resize) вычисляет реальную стартовую точку капель —
+  //     позицию нижней кромки текста "Uzum Inventory" — и пишет её в CSS custom
+  //     properties (--drip-start-x/-y) на корне, а CSS keyframes (dripFallFull)
+  //     сам считает calc(100vh - start) до самого низа экрана;
+  // (2) по таймеру, синхронизированному с длительностью+delay каждой капли
+  //     (тот же принцип "структурный синхрон, не расчёт фазы", что и в fix для
+  //     auto-blink выше), проигрывает тихий playDripPlop() ровно в момент
+  //     приземления (94% цикла — см. @keyframes dripSplash/dripFallFull).
+  (() => {
+    const wrap = document.querySelector('.brand-drip-wrap');
+    if (!wrap) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) return; // CSS уже гасит анимацию/display:none, звук тоже не нужен
+
+    // [BUGFIX] .brand-drip — position:fixed, но .topbar (родитель через несколько
+    // уровней) — parallax-el и теперь каждый кадр получает CSS transform (наклон от
+    // курсора, см. tickMesh). Любой transform на предке создаёт НОВЫЙ containing
+    // block для fixed-потомков (спецификация CSS Transforms) — капли рендерились
+    // относительно трансформированного .topbar, а не viewport, из-за чего оказывались
+    // не там, где ожидалось (и часто вне видимой области). Переносим DOM-узлы капель
+    // напрямую в body один раз при инициализации — простой и надёжный разрыв связи
+    // с трансформированным предком, без борьбы с containing block через CSS.
+    const dripEls = Array.from(wrap.querySelectorAll('.brand-drip'));
+    dripEls.forEach((el) => document.body.appendChild(el));
+
+    const root = document.documentElement;
+    function measureDripStart() {
+      const r = wrap.getBoundingClientRect();
+      // Старт чуть выше нижней кромки текста — капли будто стекают с самих букв,
+      // не с пустого места под ними.
+      root.style.setProperty('--drip-start-x', (r.left + r.width * 0.5) + 'px');
+      root.style.setProperty('--drip-start-y', (r.top + r.height * 0.72) + 'px');
+    }
+    measureDripStart();
+    window.addEventListener('resize', measureDripStart, { passive: true });
+    // Шторка/смена языка могут сдвинуть layout шапки — тот же ивент, что уже
+    // используется в файле для пересчёта прочих геометрий после релэйаута.
+    window.addEventListener('uzum:relayout', measureDripStart);
+
+    // duration(ms), delay(ms) — должны буквально совпадать с CSS (--drip-dur и
+    // animation-delay каждого .brand-drip.dN, см. CSS выше). Вынесены здесь одним
+    // списком, чтобы при изменении тайминга в CSS не забыть поправить и здесь.
+    const DRIPS = [
+      { dur: 3400, delay: 0 },
+      { dur: 4100, delay: 700 },
+      { dur: 3700, delay: 1500 },
+      { dur: 4600, delay: 2300 },
+      { dur: 3900, delay: 3100 },
+    ];
+    const LAND_AT = 0.94; // соответствует 94% в @keyframes dripSplash/dripFallFull
+    // d4/d5 скрыты на мобильных/Android через CSS (см. правило рядом с dripFallFull) —
+    // не планируем для них звук приземления там, бессмысленно озвучивать невидимую каплю.
+    const isReducedDripUI = window.matchMedia('(max-width: 480px)').matches || document.documentElement.classList.contains('is-android');
+    const activeDrips = isReducedDripUI ? DRIPS.slice(0, 3) : DRIPS;
+
+    activeDrips.forEach(({ dur, delay }) => {
+      function scheduleLanding() {
+        setTimeout(() => {
+          if (!document.hidden) playDripPlop();
+          setTimeout(scheduleLanding, dur); // следующий цикл этой же капли
+        }, dur * LAND_AT);
+      }
+      setTimeout(scheduleLanding, delay);
+    });
+  })();
+
+
+  // ============================================================
+  // ===== ПОРТАЛ НА СЛА: локальный 3D-наклон от курсора + звук/haptic =====
+  // Наклон считается по позиции курсора ВНУТРИ границ самой кнопки (не всей
+  // страницы) — offset от центра нормализуется в диапазон -1..1 по каждой оси и
+  // пишется в CSS custom properties --tilt-x/--tilt-y, которые сама CSS-анимация
+  // (.eco-portal { transform: rotateX/rotateY(...) }) уже умеет читать. Только
+  // мышь/перо — на touch "наклон от курсора" не имеет смысла (палец и так на
+  // кнопке), да и pointermove с касанием создавал бы дёрганый наклон при скролле.
+  (() => {
+    const portal = $('eco-portal-sla');
+    if (!portal) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
+    if (reduceMotion || isCoarsePointer) return;
+
+    function resetTilt() {
+      portal.style.setProperty('--tilt-x', 0);
+      portal.style.setProperty('--tilt-y', 0);
+    }
+    portal.addEventListener('pointermove', (e) => {
+      if (e.pointerType && e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;
+      const r = portal.getBoundingClientRect();
+      const nx = ((e.clientX - r.left) / r.width - 0.5) * 2;   // -1..1
+      const ny = ((e.clientY - r.top) / r.height - 0.5) * 2;   // -1..1
+      portal.style.setProperty('--tilt-x', nx.toFixed(3));
+      portal.style.setProperty('--tilt-y', ny.toFixed(3));
+    }, { passive: true });
+    portal.addEventListener('pointerleave', resetTilt, { passive: true });
+    portal.addEventListener('pointerdown', () => { haptic('light'); playGlassTick(); }, { passive: true });
+    portal.addEventListener('pointerenter', (e) => {
+      if (e.pointerType && e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;
+      playHoverTick();
+    }, { passive: true });
+    // Клик — переход по href уже сработает нативно (target="_blank"), звук/haptic
+    // просто дополняют момент отправки, не блокируют и не задерживают навигацию.
+    portal.addEventListener('click', () => { haptic('medium'); playGlassTick(); });
+  })();
+
+
   // BOTTOM-SHEET (ШТОРКА)
   // ============================================================ 
   const sheetOverlay = $('sheet-overlay'), sheet = $('paste-sheet'), textarea = $('paste-textarea');
