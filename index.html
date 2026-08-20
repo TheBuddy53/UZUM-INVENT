@@ -122,7 +122,10 @@
      слой лежит НАД #mesh, но ПОД карточками (z-index между -2 и 1), приглушает
      яркость заливкой multiply — премиальный тёмно-фиолетовый, а не серый/чёрный. */
   #bg-tint { position: fixed; inset: 0; z-index: -1; pointer-events: none;
-    background: linear-gradient(160deg, rgba(20, 4, 45, 0.55), rgba(8, 1, 20, 0.7));
+    /* [FIX] Было 0.55/0.7 — по запросу "слегка притемнить" фон ради большего фокуса
+       на интерфейсе, буква и рябь всё ещё хорошо читаются под затемнением, просто
+       чуть меньше конкурируют с карточками за внимание. */
+    background: linear-gradient(160deg, rgba(20, 4, 45, 0.63), rgba(8, 1, 20, 0.78));
     mix-blend-mode: multiply;
     /* Медленная пульсация тона (#14042D → #28124D, период ~8s) — оба стопа градиента
        одной структуры в каждом кадре keyframes, поэтому браузер честно интерполирует
@@ -130,9 +133,37 @@
     animation: bgTintPulse 8s ease-in-out infinite;
   }
   @keyframes bgTintPulse {
-    0%, 100% { background: linear-gradient(160deg, rgba(20, 4, 45, 0.55), rgba(8, 1, 20, 0.7)); }
-    50% { background: linear-gradient(160deg, rgba(40, 18, 77, 0.55), rgba(8, 1, 20, 0.7)); }
+    0%, 100% { background: linear-gradient(160deg, rgba(20, 4, 45, 0.63), rgba(8, 1, 20, 0.78)); }
+    50% { background: linear-gradient(160deg, rgba(40, 18, 77, 0.63), rgba(8, 1, 20, 0.78)); }
   }
+
+  /* ===== FILM GRAIN (кинематографичный постэффект, только iOS/ПК) =====
+     Едва заметная плёночная текстура поверх ВСЕГО интерфейса (z-index выше даже
+     полёта лого в саге, 999999) через mix-blend-mode: overlay — тот же трюк, что
+     дорогие видеоредакторы/цветокоры накидывают сверху для "недешёвой" картинки.
+     Переиспользуем уже существующий --noise-png-url (тот же PNG-шум, что и в
+     остальных местах файла) — новый base64 не нужен. steps()-анимация вместо
+     плавной: настоящая плёночная зернистость дискретно "дёргается" между кадрами,
+     а не плывёт, иначе выглядит как мутное пятно, а не зерно. На Android выключен
+     полностью — полноэкранный always-on overlay с постоянной анимацией того не
+     стоит на слабом GPU ради эффекта, который на маленьком экране почти не читается. */
+  #film-grain {
+    position: fixed; inset: -60px; z-index: 999999; pointer-events: none;
+    background-image: var(--noise-png-url); background-repeat: repeat; background-size: 180px 180px;
+    opacity: 0; mix-blend-mode: overlay; will-change: transform;
+  }
+  html.is-ios #film-grain, html.is-desktop #film-grain {
+    opacity: 0.045;
+    animation: filmGrainDrift 1.6s steps(4) infinite;
+  }
+  @keyframes filmGrainDrift {
+    0%   { transform: translate3d(0, 0, 0); }
+    25%  { transform: translate3d(-2%, 1.5%, 0); }
+    50%  { transform: translate3d(1.5%, -2%, 0); }
+    75%  { transform: translate3d(-1%, -1.5%, 0); }
+    100% { transform: translate3d(0, 0, 0); }
+  }
+  @media (prefers-reduced-motion: reduce) { #film-grain { display: none; } }
 
   /* ФИКС КНОПОК */
   button, [type="button"] {
@@ -309,7 +340,21 @@
   }
   .brand-mark.saga-liftoff::before { animation: markGlitch 0.95s steps(2, jump-end) 1; }
   .brand-mark.saga-return::before { animation: markGlitch 0.95s steps(2, jump-end) 1; }
+  /* [PREMIUM] Хроматическая аберрация — на пиках глитча красный/голубой каналы
+     разъезжаются в стороны через drop-shadow (дешёвый трюк без per-pixel фильтра),
+     как лёгкий рассинхрон линз кинокамеры. Только iOS/ПК — на Android то же
+     ощущение глитча даётся одним hue-rotate, без лишних drop-shadow слоёв. */
   @keyframes markGlitch {
+    0%   { opacity: 0; transform: translate3d(0,0,0); filter: hue-rotate(0deg); }
+    9%   { opacity: 0.5; transform: translate3d(4px,-2px,0); filter: hue-rotate(80deg) drop-shadow(1.4px 0 0 rgba(255,50,70,0.55)) drop-shadow(-1.4px 0 0 rgba(50,180,255,0.55)); }
+    17%  { opacity: 0; transform: translate3d(-3px,1px,0); filter: hue-rotate(0deg); }
+    32%  { opacity: 0.35; transform: translate3d(-4px,2px,0); filter: hue-rotate(-70deg) drop-shadow(-1.2px 0 0 rgba(255,50,70,0.5)) drop-shadow(1.2px 0 0 rgba(50,180,255,0.5)); }
+    40%  { opacity: 0; }
+    58%  { opacity: 0.28; transform: translate3d(3px,-2px,0); filter: hue-rotate(60deg) drop-shadow(1px 0 0 rgba(255,50,70,0.4)) drop-shadow(-1px 0 0 rgba(50,180,255,0.4)); }
+    66%  { opacity: 0; }
+    100% { opacity: 0; transform: translate3d(0,0,0); filter: hue-rotate(0deg); }
+  }
+  @keyframes markGlitchLite {
     0%   { opacity: 0; transform: translate3d(0,0,0); filter: hue-rotate(0deg); }
     9%   { opacity: 0.5; transform: translate3d(4px,-2px,0); filter: hue-rotate(80deg); }
     17%  { opacity: 0; transform: translate3d(-3px,1px,0); filter: hue-rotate(0deg); }
@@ -319,6 +364,8 @@
     66%  { opacity: 0; }
     100% { opacity: 0; transform: translate3d(0,0,0); filter: hue-rotate(0deg); }
   }
+  html.is-android .brand-mark.saga-liftoff::before,
+  html.is-android .brand-mark.saga-return::before { animation-name: markGlitchLite; }
 
   /* Мягкие переливающиеся блики света поверх лого во время сцены */
   .mark-gleam {
@@ -708,82 +755,100 @@
   }
   .brand-name .letter-fx { color: inherit; }
   /* ===== "СТЕКАЮЩАЯ КРАСКА" ПОД ЛОГО-ТЕКСТОМ (в духе скрина "Wet Paint Button") =====
-     Капли теперь падают через ВЕСЬ экран (position:fixed, стартовая точка вычисляется
-     по факту положения заголовка), не только на 16px под текстом — richer/juicier по
-     запросу: у каждой капли есть (1) яркое ядро + мягкое bloom-свечение вокруг,
-     (2) motion-blur "мазок" сзади на фазе быстрого падения (вытянутый градиент —
-     без него быстрое падение читается как мерцающая точка, а не жидкость), (3) лёгкая
-     звёздочка-всплеск и тихий звук приземления внизу экрана (JS, синхронизирован с тем
-     же CSS-циклом — тот же принцип, что и sync auto-blink выше). Цвет — фирменный
-     фиолетовый градиент, чисто CSS-анимация позиции/масштаба (transform/opacity —
-     zero layout thrashing), JS только считает стартовую точку и играет звук по таймеру,
-     не пишет transform каждый кадр. */
+     Капли падают через ВЕСЬ экран (position:fixed, стартовая точка вычисляется по факту
+     положения заголовка). [FIX] Переработана физика по запросу — раньше капля просто
+     появлялась и падала (типичный "дождь"), теперь у неё честный жизненный цикл вязкой
+     жидкости: (1) медленная фаза "зависания" — капля вытягивается тонкой шейкой вниз,
+     будто густая жидкость под собственным весом, (2) резкий отрыв/щелчок — шейка рвётся,
+     капля округляется и срывается в свободное падение, (3) ускоряющееся падение с
+     мазком-шлейфом за собой, (4) сплющивание и всплеск-брызги в момент приземления.
+     Цикл заметно длиннее прежнего (капли "долгие", не мельтешат) — только CSS
+     transform/opacity/border-radius (zero layout thrashing), per-keyframe timing-function
+     задаёт разный темп на каждой фазе. JS только считает стартовую точку (см. ниже),
+     звука приземления больше нет — капли полностью бесшумные. */
   .brand-drip-wrap { position: relative; display: inline-block; }
   .brand-drip {
     position: fixed; top: var(--drip-start-y, 60px); left: var(--drip-start-x, 40px);
-    width: 6px; height: 6px; margin-left: -3px;
-    border-radius: 50% 50% 50% 60% / 60% 60% 40% 40%;
-    background: radial-gradient(circle at 35% 30%, #E4C9FF, #9D4DFF 55%, #6300D9 100%);
-    box-shadow: 0 0 10px rgba(157,77,255,0.65), 0 0 22px rgba(157,77,255,0.3);
+    width: 7px; height: 7px; margin-left: -3.5px;
+    border-radius: 50% 50% 50% 50% / 58% 58% 42% 42%;
+    background: radial-gradient(circle at 35% 28%, #F0E0FF, #9D4DFF 52%, #5A00C4 100%);
+    box-shadow: 0 0 11px rgba(157,77,255,0.7), 0 0 24px rgba(157,77,255,0.32);
     opacity: 0; pointer-events: none; z-index: 60;
-    animation: dripFallFull var(--drip-dur, 3.2s) cubic-bezier(0.55, 0.06, 0.68, 0.19) infinite;
-    will-change: transform, opacity;
+    animation: dripFallFull var(--drip-dur, 5.2s) linear infinite;
+    will-change: transform, opacity, border-radius;
   }
-  /* Мазок за каплей — растянутый по вертикали полупрозрачный градиент-хвост,
-     появляется только на быстрой фазе падения (тот же timing-offset что и сама
-     капля) и растворяется к моменту приземления — имитирует motion blur жидкости. */
+  /* Мазок/шейка за каплей — на фазе зависания это тонкая натянутая нить (честная
+     "склейка" с точкой старта), на фазе падения — вытянутый motion-blur хвост. */
   .brand-drip::before {
     content: ''; position: absolute; left: 50%; bottom: 100%; width: 2.5px; height: 26px;
     margin-left: -1.25px; border-radius: 2px;
-    background: linear-gradient(180deg, rgba(157,77,255,0), rgba(157,77,255,0.55) 60%, rgba(200,140,255,0.7));
+    background: linear-gradient(180deg, rgba(157,77,255,0), rgba(157,77,255,0.6) 55%, rgba(224,190,255,0.75));
     opacity: 0; transform-origin: bottom center;
-    animation: dripTrail var(--drip-dur, 3.2s) cubic-bezier(0.55, 0.06, 0.68, 0.19) infinite;
+    animation: dripTrail var(--drip-dur, 5.2s) linear infinite;
   }
-  .brand-drip.d1 { --drip-dur: 3.4s; animation-delay: 0s; }
+  .brand-drip.d1 { --drip-dur: 5.3s; animation-delay: 0s; }
   .brand-drip.d1::before { animation-delay: 0s; }
-  .brand-drip.d2 { --drip-dur: 4.1s; animation-delay: 0.7s; left: calc(var(--drip-start-x, 40px) + 18px); }
-  .brand-drip.d2::before { animation-delay: 0.7s; }
-  .brand-drip.d3 { --drip-dur: 3.7s; animation-delay: 1.5s; left: calc(var(--drip-start-x, 40px) - 14px); }
-  .brand-drip.d3::before { animation-delay: 1.5s; }
-  .brand-drip.d4 { --drip-dur: 4.6s; animation-delay: 2.3s; left: calc(var(--drip-start-x, 40px) + 34px); }
-  .brand-drip.d4::before { animation-delay: 2.3s; }
-  .brand-drip.d5 { --drip-dur: 3.9s; animation-delay: 3.1s; left: calc(var(--drip-start-x, 40px) - 28px); }
-  .brand-drip.d5::before { animation-delay: 3.1s; }
+  .brand-drip.d2 { --drip-dur: 6.4s; animation-delay: 0.9s; left: calc(var(--drip-start-x, 40px) + 18px); }
+  .brand-drip.d2::before { animation-delay: 0.9s; }
+  .brand-drip.d3 { --drip-dur: 5.7s; animation-delay: 1.9s; left: calc(var(--drip-start-x, 40px) - 14px); }
+  .brand-drip.d3::before { animation-delay: 1.9s; }
+  .brand-drip.d4 { --drip-dur: 7.1s; animation-delay: 2.9s; left: calc(var(--drip-start-x, 40px) + 34px); }
+  .brand-drip.d4::before { animation-delay: 2.9s; }
+  .brand-drip.d5 { --drip-dur: 6.0s; animation-delay: 3.9s; left: calc(var(--drip-start-x, 40px) - 28px); }
+  .brand-drip.d5::before { animation-delay: 3.9s; }
   /* Путь до низа экрана считаем через calc(100vh - var(--drip-start-y)) — так капля
      всегда долетает ровно до нижней кромки viewport независимо от высоты экрана
-     (телефон/планшет/десктоп), а не до жёстко зашитого пикселя. */
+     (телефон/планшет/десктоп), а не до жёстко зашитого пикселя.
+     Фазы: 0-20% медленное натяжение-зависание (ease-in-out, "густая" жидкость) →
+     22-26% резкий отрыв-щелчок (быстрый timing-function, эластичный overshoot) →
+     26-88% ускоряющееся свободное падение (ease-in, набирает скорость) →
+     88-96% сплющивание об пол → 96-100% растворение. */
   @keyframes dripFallFull {
-    0% { transform: translateY(0) scale(0.6); opacity: 0; }
-    4% { opacity: 0.95; transform: translateY(0) scale(1); }
-    88% { transform: translateY(calc(100vh - var(--drip-start-y, 60px) - 40px)) scale(1.05, 0.85); opacity: 0.9; }
-    94% { transform: translateY(calc(100vh - var(--drip-start-y, 60px) - 10px)) scale(1.3, 0.55); opacity: 0.55; }
-    100% { transform: translateY(calc(100vh - var(--drip-start-y, 60px))) scale(0.2, 0.1); opacity: 0; }
+    0% { transform: translateY(0) scale(0.7, 0.85); opacity: 0; border-radius: 50% 50% 50% 50% / 58% 58% 42% 42%; animation-timing-function: ease-out; }
+    5% { opacity: 1; transform: translateY(0px) scale(0.88, 0.95); border-radius: 50% 50% 50% 50% / 58% 58% 42% 42%; animation-timing-function: ease-in-out; }
+    20% { opacity: 1; transform: translateY(5px) scale(0.58, 2.05); border-radius: 44% 44% 50% 50% / 72% 72% 28% 28%; animation-timing-function: cubic-bezier(0.7,0,0.84,0); }
+    23% { opacity: 1; transform: translateY(12px) scale(0.96, 0.88); border-radius: 50% 50% 50% 56% / 62% 62% 38% 38%; animation-timing-function: ease-in; }
+    26% { opacity: 1; transform: translateY(20px) scale(1.08, 0.9); border-radius: 50% 50% 50% 56% / 60% 60% 40% 40%; animation-timing-function: cubic-bezier(0.5,0,0.7,0.15); }
+    62% { opacity: 0.98; transform: translateY(calc((100vh - var(--drip-start-y, 60px)) * 0.6)) scale(0.94, 1.15); animation-timing-function: cubic-bezier(0.55,0,0.7,0.12); }
+    88% { transform: translateY(calc(100vh - var(--drip-start-y, 60px) - 40px)) scale(0.98, 1.35); opacity: 0.94; animation-timing-function: ease-out; border-radius: 50% 50% 50% 50% / 65% 65% 35% 35%; }
+    94% { transform: translateY(calc(100vh - var(--drip-start-y, 60px) - 8px)) scale(1.75, 0.35); opacity: 0.6; border-radius: 50% 50% 50% 50% / 85% 85% 15% 15%; }
+    100% { transform: translateY(calc(100vh - var(--drip-start-y, 60px))) scale(0.15, 0.06); opacity: 0; }
   }
   @keyframes dripTrail {
-    0%, 4% { opacity: 0; height: 10px; }
-    45% { opacity: 0.8; height: 30px; }
-    88% { opacity: 0.5; height: 22px; }
-    94%, 100% { opacity: 0; height: 8px; }
+    0% { opacity: 0; height: 3px; }
+    5% { opacity: 0.4; height: 5px; }
+    20% { opacity: 0.95; height: 24px; }
+    23% { opacity: 0.25; height: 9px; }
+    55% { opacity: 0.78; height: 34px; }
+    88% { opacity: 0.4; height: 20px; }
+    94%, 100% { opacity: 0; height: 7px; }
   }
-  /* Всплеск в момент приземления — короткая вспышка-звёздочка чуть выше и внутри
-     самой капли по временнОй фазе (94-100% цикла), radial-gradient звёзд-паттерн
-     через box-shadow из 4 маленьких точек вместо отдельных DOM-узлов (дешевле). */
+  /* Всплеск-брызги в момент приземления — основная искра + кластер мелких точек
+     через box-shadow (дешевле отдельных DOM-узлов), transform: scale() растягивает
+     весь паттерн наружу разом — читается как разлетающиеся капельки, не одна вспышка. */
   .brand-drip::after {
     content: ''; position: fixed; top: var(--drip-start-y, 60px); left: var(--drip-start-x, 40px);
-    width: 3px; height: 3px; margin-left: -1.5px; border-radius: 50%; background: #E4C9FF;
+    width: 3px; height: 3px; margin-left: -1.5px; border-radius: 50%; background: #F0E0FF;
     opacity: 0; pointer-events: none;
-    box-shadow: 0 0 6px 1px rgba(200,140,255,0.9);
-    animation: dripSplash var(--drip-dur, 3.2s) linear infinite;
+    box-shadow:
+      0 0 7px 1px rgba(200,140,255,0.95),
+      6px -2px 3px 0px rgba(228,201,255,0.85),
+      -6px -1px 3px 0px rgba(228,201,255,0.85),
+      3px -6px 2.5px 0px rgba(228,201,255,0.65),
+      -4px -5px 2.5px 0px rgba(228,201,255,0.65),
+      1px 4px 2px 0px rgba(228,201,255,0.5);
+    animation: dripSplash var(--drip-dur, 5.2s) linear infinite;
   }
   .brand-drip.d1::after { animation-delay: 0s; }
-  .brand-drip.d2::after { animation-delay: 0.7s; left: calc(var(--drip-start-x, 40px) + 18px); }
-  .brand-drip.d3::after { animation-delay: 1.5s; left: calc(var(--drip-start-x, 40px) - 14px); }
-  .brand-drip.d4::after { animation-delay: 2.3s; left: calc(var(--drip-start-x, 40px) + 34px); }
-  .brand-drip.d5::after { animation-delay: 3.1s; left: calc(var(--drip-start-x, 40px) - 28px); }
+  .brand-drip.d2::after { animation-delay: 0.9s; left: calc(var(--drip-start-x, 40px) + 18px); }
+  .brand-drip.d3::after { animation-delay: 1.9s; left: calc(var(--drip-start-x, 40px) - 14px); }
+  .brand-drip.d4::after { animation-delay: 2.9s; left: calc(var(--drip-start-x, 40px) + 34px); }
+  .brand-drip.d5::after { animation-delay: 3.9s; left: calc(var(--drip-start-x, 40px) - 28px); }
   @keyframes dripSplash {
-    0%, 92% { opacity: 0; transform: translateY(0) scale(0.4); }
-    94% { opacity: 1; transform: translateY(calc(100vh - var(--drip-start-y, 60px) - 6px)) scale(1.6); }
-    100% { opacity: 0; transform: translateY(calc(100vh - var(--drip-start-y, 60px))) scale(2.4); }
+    0%, 91% { opacity: 0; transform: translateY(0) scale(0.3); }
+    93% { opacity: 1; transform: translateY(calc(100vh - var(--drip-start-y, 60px) - 8px)) scale(1.15); }
+    97% { opacity: 0.65; transform: translateY(calc(100vh - var(--drip-start-y, 60px) - 4px)) scale(2.3); }
+    100% { opacity: 0; transform: translateY(calc(100vh - var(--drip-start-y, 60px))) scale(3.1); }
   }
   @media (prefers-reduced-motion: reduce) { .brand-drip, .brand-drip::before, .brand-drip::after { animation: none; display: none; } }
   /* [PREMIUM POLISH] На мобильных/слабом Android — 3 капли вместо 5 (тот же принцип
@@ -887,7 +952,7 @@
   .card.elastic-live { animation-play-state: paused; }
   .card::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(800px circle at var(--mouse-x, 50%) var(--mouse-y, -20%), rgba(255,255,255,0.08), transparent 45%); transition: background 0.25s var(--ease); z-index: 1; }
   .card { isolation: isolate; }
-  .card .grain { content: ''; position: absolute; inset: 0; pointer-events: none; background-image: var(--grain-url); background-size: 180px 180px; opacity: 0.08; mix-blend-mode: overlay; border-radius: inherit; z-index: 1; }
+  .card .grain { content: ''; position: absolute; inset: 0; pointer-events: none; background-image: var(--grain-url); background-size: 180px 180px; opacity: 0.03; mix-blend-mode: overlay; border-radius: inherit; z-index: 1; }
   .card > *:not(.grain):not(.cinematic-glare):not(.glass-sheen) { position: relative; z-index: 2; }
   .card::after { content: ''; position: absolute; top: -60%; left: -40%; width: 45%; height: 220%; background: linear-gradient(75deg, transparent, rgba(255,255,255,0.07), transparent); transform: translateX(-20%) rotate(8deg); animation: cardSheen 9s ease-in-out infinite; pointer-events: none; will-change: transform; }
   .card:nth-child(2)::after { animation-delay: -3s; }
@@ -1672,33 +1737,14 @@
     mix-blend-mode: screen; opacity: 0.9;
   }
 
-  /* ===== ГЛОБАЛЬНЫЙ HDR-БЛИК ===== Раньше единственный "бегущий блик" (.cinematic-glare)
-     жил только на ободке двух карточек — весь остальной интерфейс был статичен по свету.
-     Этот слой — широкая мягкая диагональная полоса яркого света, медленно идущая ТУДА-
-     СЮДА (не по кругу, а маятником) через весь экран поверх контента, имитируя студийный
-     HDR-рефлекс, скользящий по поверхности стекла. mix-blend-mode:overlay даёт эффект
-     реального света, а не плоской белой полупрозрачной полосы поверх текста — тон и
-     контраст того, что под лучом, сохраняются, просто ярче/контрастнее в момент прохода. */
-  #hdr-sweep {
-    position: fixed; inset: 0; z-index: 40; pointer-events: none;
-    background: linear-gradient(115deg,
-      transparent 42%,
-      rgba(255,255,255,0.05) 47%,
-      rgba(220,195,255,0.16) 50%,
-      rgba(255,255,255,0.05) 53%,
-      transparent 58%);
-    background-size: 260% 260%;
-    mix-blend-mode: overlay;
-    animation: hdrSweepPendulum 11s ease-in-out infinite;
-    will-change: background-position;
-  }
-  @keyframes hdrSweepPendulum {
-    0%   { background-position: 120% 0%; }
-    50%  { background-position: -20% 100%; }
-    100% { background-position: 120% 0%; }
-  }
-  body.saga-active #hdr-sweep { opacity: 0; transition: opacity 0.3s var(--ease); }
-  @media (prefers-reduced-motion: reduce) { #hdr-sweep { display: none; } }
+  /* [FIX] "ГЛОБАЛЬНЫЙ HDR-БЛИК" (#hdr-sweep) убран целиком по прямому запросу — это
+     и был тот самый "белый квадрат", летающий по фону. Диагональная светлая полоса
+     на весь экран (fixed, z-index 40, поверх большей части интерфейса) с резкими
+     границами градиента в местах без карточек читалась не как мягкий блик, а как
+     геометрический белёсый прямоугольник, к тому же двигавшийся маятником
+     (вправо-влево-вправо, 11s ease-in-out infinite) — то самое "летает направо и
+     возвращается". Локальный блик на рамке карточек (.cinematic-glare) остался как
+     есть, он не имеет отношения к этому багу. */
   /* ============================================================
      ===== ЭКОСИСТЕМА: ПОРТАЛ НА СЛА (переход на внешний Uzum-инструмент) =====
      Кнопка-портал в другой продукт экосистемы (SLA-приёмки на ПВЗ). Сознательно
@@ -1715,14 +1761,18 @@
     position: relative; display: flex; align-items: center; justify-content: center; gap: 10px;
     width: 100%; padding: 18px 22px; border: none; cursor: pointer;
     border-radius: var(--r-lg); overflow: visible;
-    background: linear-gradient(135deg, var(--amber-light), var(--amber) 60%, #E08800);
+    /* [FIX] Более "аппетитный", медовый градиент — не плоский амбер, а с кремовым
+       бликом сверху и глубоким карамельным краем снизу, как настоящий загустевший
+       мёд на просвет. */
+    background: linear-gradient(135deg, #FFF3D6 0%, #FFCB4D 24%, #FFA726 50%, #E8890A 74%, #A85D00 100%);
     color: #2B1400; font-weight: 900; font-size: 15px; letter-spacing: -0.01em;
     box-shadow:
-      0 2px 4px -1px rgba(0,0,0,0.5),
-      0 18px 40px -12px rgba(255,176,32,0.55),
-      0 40px 70px -20px rgba(120,60,0,0.5),
-      inset 0 1.5px 1px rgba(255,255,255,0.6),
-      inset 0 -8px 16px -6px rgba(120,50,0,0.35);
+      0 2px 4px -1px rgba(60,20,0,0.55),
+      0 18px 40px -12px rgba(255,160,20,0.65),
+      0 40px 74px -20px rgba(140,60,0,0.55),
+      inset 0 1.5px 1px rgba(255,255,255,0.75),
+      inset 0 -8px 18px -6px rgba(120,50,0,0.4),
+      inset 0 0 22px -4px rgba(255,200,80,0.55);
     transform-style: preserve-3d;
     will-change: transform, box-shadow;
     backface-visibility: hidden;
@@ -1764,50 +1814,86 @@
   }
   @keyframes ecoGlitch {
     0%, 92% { opacity: 0; transform: translate3d(0,0,0); filter: hue-rotate(0deg); }
+    93%   { opacity: 0.55; transform: translate3d(3px,-1.5px,0); filter: hue-rotate(70deg) drop-shadow(1.2px 0 0 rgba(255,50,70,0.5)) drop-shadow(-1.2px 0 0 rgba(50,180,255,0.5)); }
+    94.5% { opacity: 0; transform: translate3d(-2.5px,1px,0); filter: hue-rotate(0deg); }
+    96%   { opacity: 0.3; transform: translate3d(-3px,1.5px,0); filter: hue-rotate(-60deg) drop-shadow(-1px 0 0 rgba(255,50,70,0.4)) drop-shadow(1px 0 0 rgba(50,180,255,0.4)); }
+    97.5% { opacity: 0; }
+    100%  { opacity: 0; transform: translate3d(0,0,0); filter: hue-rotate(0deg); }
+  }
+  @keyframes ecoGlitchLite {
+    0%, 92% { opacity: 0; transform: translate3d(0,0,0); filter: hue-rotate(0deg); }
     93%   { opacity: 0.55; transform: translate3d(3px,-1.5px,0); filter: hue-rotate(70deg); }
     94.5% { opacity: 0; transform: translate3d(-2.5px,1px,0); filter: hue-rotate(0deg); }
     96%   { opacity: 0.3; transform: translate3d(-3px,1.5px,0); filter: hue-rotate(-60deg); }
     97.5% { opacity: 0; }
     100%  { opacity: 0; transform: translate3d(0,0,0); filter: hue-rotate(0deg); }
   }
+  html.is-android .eco-portal::before { animation-name: ecoGlitchLite; }
 
-  /* Капающая краска с нижней кромки кнопки — та же техника, что брендовые капли
-     (motion-blur trail + bloom-ядро), но короткий локальный путь (падает чуть ниже
-     кнопки и растворяется), а не через весь экран — кнопка не в шапке, длинный путь
-     здесь просто перекрывал бы карточку снизу. */
+  /* Капающий мёд с нижней кромки кнопки — та же физика "зависание → отрыв → падение
+     → всплеск", что и у брендовых капель выше, но короткий локальный путь (падает чуть
+     ниже кнопки и растворяется), а не через весь экран. [FIX] Цвет — насыщенный мёд
+     (кремовый блик → золото → карамельный край), капель стало больше (5 вместо 3), и
+     добавлен всплеск-брызги в момент падения. */
   .eco-drip-layer { position: absolute; left: 0; right: 0; bottom: -2px; height: 1px; pointer-events: none; z-index: 0; overflow: visible; }
-  .eco-drip { position: absolute; top: 0; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50% 50% 50% 60% / 60% 60% 40% 40%; background: radial-gradient(circle at 35% 30%, #FFE9B8, var(--amber-light) 55%, #C97600 100%); box-shadow: 0 0 8px rgba(255,176,32,0.6); opacity: 0; animation: ecoDripFall var(--eco-drip-dur, 3.8s) cubic-bezier(0.55,0.06,0.68,0.19) infinite; }
-  .eco-drip::before { content: ''; position: absolute; left: 50%; bottom: 100%; width: 2px; height: 16px; margin-left: -1px; border-radius: 2px; background: linear-gradient(180deg, rgba(255,176,32,0), rgba(255,176,32,0.5) 60%, rgba(255,224,150,0.65)); opacity: 0; animation: ecoDripTrail var(--eco-drip-dur, 3.8s) cubic-bezier(0.55,0.06,0.68,0.19) infinite; }
-  .eco-drip.e1 { left: 22%; --eco-drip-dur: 3.6s; animation-delay: 0s; }
-  .eco-drip.e1::before { animation-delay: 0s; }
-  .eco-drip.e2 { left: 52%; --eco-drip-dur: 4.4s; animation-delay: 1.2s; }
-  .eco-drip.e2::before { animation-delay: 1.2s; }
-  .eco-drip.e3 { left: 78%; --eco-drip-dur: 4s; animation-delay: 2.4s; }
-  .eco-drip.e3::before { animation-delay: 2.4s; }
+  .eco-drip { position: absolute; top: 0; width: 6px; height: 6px; margin-left: -3px; border-radius: 50% 50% 50% 50% / 58% 58% 42% 42%; background: radial-gradient(circle at 32% 26%, #FFF6DC, #FFC94D 45%, #FFA015 72%, #A85D00 100%); box-shadow: 0 0 9px rgba(255,176,32,0.75), 0 0 18px rgba(200,120,10,0.35); opacity: 0; animation: ecoDripFall var(--eco-drip-dur, 4.4s) linear infinite; }
+  .eco-drip::before { content: ''; position: absolute; left: 50%; bottom: 100%; width: 2.2px; height: 14px; margin-left: -1.1px; border-radius: 2px; background: linear-gradient(180deg, rgba(255,176,32,0), rgba(255,176,32,0.55) 55%, rgba(255,230,170,0.75)); opacity: 0; animation: ecoDripTrail var(--eco-drip-dur, 4.4s) linear infinite; }
+  .eco-drip::after { content: ''; position: absolute; left: 50%; top: 0; width: 3px; height: 3px; margin-left: -1.5px; border-radius: 50%; background: #FFF6DC; opacity: 0; pointer-events: none;
+    box-shadow:
+      0 0 6px 1px rgba(255,176,32,0.9),
+      5px -1.5px 2.5px 0px rgba(255,220,140,0.85),
+      -5px -1px 2.5px 0px rgba(255,220,140,0.85),
+      2.5px -5px 2px 0px rgba(255,220,140,0.6),
+      -3px -4px 2px 0px rgba(255,220,140,0.6);
+    animation: ecoDripSplash var(--eco-drip-dur, 4.4s) linear infinite; }
+  .eco-drip.e1 { left: 12%; --eco-drip-dur: 4.4s; animation-delay: 0s; }
+  .eco-drip.e1::before, .eco-drip.e1::after { animation-delay: 0s; }
+  .eco-drip.e2 { left: 30%; --eco-drip-dur: 5.1s; animation-delay: 1s; }
+  .eco-drip.e2::before, .eco-drip.e2::after { animation-delay: 1s; }
+  .eco-drip.e3 { left: 50%; --eco-drip-dur: 4.8s; animation-delay: 2s; }
+  .eco-drip.e3::before, .eco-drip.e3::after { animation-delay: 2s; }
+  .eco-drip.e4 { left: 70%; --eco-drip-dur: 5.3s; animation-delay: 3s; }
+  .eco-drip.e4::before, .eco-drip.e4::after { animation-delay: 3s; }
+  .eco-drip.e5 { left: 88%; --eco-drip-dur: 4.6s; animation-delay: 3.8s; }
+  .eco-drip.e5::before, .eco-drip.e5::after { animation-delay: 3.8s; }
+  /* Фазы (те же, что у брендовых капель): 0-22% зависание-натяжение (мёд густой,
+     тянется медленно) → 22-26% отрыв → 26-92% падение → 92-100% сплющивание/растворение. */
   @keyframes ecoDripFall {
-    0% { transform: translateY(0) scale(0.6); opacity: 0; }
-    5% { opacity: 0.9; transform: translateY(0) scale(1); }
-    85% { transform: translateY(46px) scale(1.05, 0.85); opacity: 0.7; }
-    100% { transform: translateY(58px) scale(0.3, 0.15); opacity: 0; }
+    0% { transform: translateY(0) scale(0.65, 0.8); opacity: 0; border-radius: 50% 50% 50% 50% / 58% 58% 42% 42%; animation-timing-function: ease-out; }
+    6% { opacity: 1; transform: translateY(0px) scale(0.85, 0.92); border-radius: 50% 50% 50% 50% / 58% 58% 42% 42%; animation-timing-function: ease-in-out; }
+    22% { opacity: 1; transform: translateY(4px) scale(0.56, 1.95); border-radius: 44% 44% 50% 50% / 72% 72% 28% 28%; animation-timing-function: cubic-bezier(0.7,0,0.84,0); }
+    26% { opacity: 1; transform: translateY(10px) scale(0.98, 0.86); border-radius: 50% 50% 50% 55% / 60% 60% 40% 40%; animation-timing-function: ease-in; }
+    55% { opacity: 0.95; transform: translateY(34px) scale(0.92, 1.15); animation-timing-function: cubic-bezier(0.5,0,0.7,0.15); }
+    85% { transform: translateY(52px) scale(0.98, 1.3); opacity: 0.85; animation-timing-function: ease-out; }
+    92% { transform: translateY(60px) scale(1.65, 0.35); opacity: 0.55; border-radius: 50% 50% 50% 50% / 82% 82% 18% 18%; }
+    100% { transform: translateY(66px) scale(0.15, 0.06); opacity: 0; }
   }
   @keyframes ecoDripTrail {
-    0%, 5% { opacity: 0; height: 8px; }
-    45% { opacity: 0.75; height: 20px; }
-    85% { opacity: 0.35; height: 14px; }
-    100% { opacity: 0; height: 6px; }
+    0% { opacity: 0; height: 3px; }
+    6% { opacity: 0.4; height: 5px; }
+    22% { opacity: 0.9; height: 18px; }
+    26% { opacity: 0.25; height: 8px; }
+    55% { opacity: 0.7; height: 22px; }
+    85% { opacity: 0.4; height: 15px; }
+    92%, 100% { opacity: 0; height: 6px; }
+  }
+  @keyframes ecoDripSplash {
+    0%, 90% { opacity: 0; transform: translateY(0) scale(0.3); }
+    92% { opacity: 1; transform: translateY(60px) scale(1.1); }
+    97% { opacity: 0.6; transform: translateY(63px) scale(2); }
+    100% { opacity: 0; transform: translateY(66px) scale(2.6); }
   }
   @media (prefers-reduced-motion: reduce) {
     .eco-portal-wrap { animation: none; }
     .eco-portal::before { animation: none; display: none; }
-    .eco-drip, .eco-drip::before { animation: none; display: none; }
+    .eco-drip, .eco-drip::before, .eco-drip::after { animation: none; display: none; }
   }
-  @media (max-width: 480px) { .eco-drip.e3 { display: none; } }
-  html.is-android .eco-drip.e3 { display: none; }
+  @media (max-width: 480px) { .eco-drip.e4, .eco-drip.e5 { display: none; } }
+  html.is-android .eco-drip.e4, html.is-android .eco-drip.e5 { display: none; }
 
 </style>
 </head>
 <body>
-<div id="hdr-sweep" aria-hidden="true"></div>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <filter id="liquidWarp" x="-20%" y="-20%" width="140%" height="140%">
     <feTurbulence type="fractalNoise" baseFrequency="0.008 0.012" numOctaves="2" seed="7" result="noise">
@@ -1825,6 +1911,7 @@
 <canvas id="cursor-trail" aria-hidden="true"></canvas>
 <canvas id="neon-trail" aria-hidden="true"></canvas>
 <div id="noise"></div>
+<div id="film-grain" aria-hidden="true"></div>
 <div id="lang-wash"></div>
 <canvas id="lang-shader" aria-hidden="true"></canvas>
 <div id="lang-glass-cloud" aria-hidden="true"></div>
@@ -1903,7 +1990,7 @@
     <div class="eco-portal-wrap">
       <a class="eco-portal" id="eco-portal-sla" href="https://thebuddy53.github.io/SLA-UZUM/" target="_blank" rel="noopener noreferrer" data-stiffness="360" data-damping="17" data-stretch="1">
         <div class="eco-drip-layer" aria-hidden="true">
-          <span class="eco-drip e1"></span><span class="eco-drip e2"></span><span class="eco-drip e3"></span>
+          <span class="eco-drip e1"></span><span class="eco-drip e2"></span><span class="eco-drip e3"></span><span class="eco-drip e4"></span><span class="eco-drip e5"></span>
         </div>
         <span class="eco-portal-toplight" aria-hidden="true"></span>
         <span class="eco-portal-shine" aria-hidden="true"></span>
@@ -2057,11 +2144,12 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
         // незначительно, т.к. roughness всё ещё высокий (диффузный, не "зеркальный").
         app.liquidPlane.material.metalness = isMobileGL ? 0.35 : 0.75;
         app.liquidPlane.material.roughness = isMobileGL ? 0.55 : 0.25;
-        // displacementScale ощутимо поднят: 1.12/1.35 давали видимую рябь только на
-        // контрастном пустом фоне — на карточках/тексте она тонула в деталях интерфейса.
-        // 1.9 на мобильных / 2.1 на ПК держит рябь заметной поверх любого контента,
-        // не переходя в "тяжёлую" версию (та была 5.0).
-        app.liquidPlane.uniforms.displacementScale.value = isMobileGL ? 1.9 : 2.1;
+        // [FIX] 4.0/3.0 оказалось СЛИШКОМ сильно — при metalness 0.75 крупная амплитуда
+        // ряби создаёт большую плоскую бликующую грань волны, которая на светлом фоне
+        // читается как самостоятельный "белый квадрат/прямоугольник", а не как жидкость.
+        // Это и был баг со скриншота. Откатываем к более безопасному среднему значению —
+        // всё ещё заметно живее исходных 1.9/2.1, но без крупных плоских бликов-артефактов.
+        app.liquidPlane.uniforms.displacementScale.value = isMobileGL ? 2.3 : 2.6;
         app.setRain(false);
         window.__liquidApp = app;
         clearTimeout(window.__liquidLoadWatchdog);
@@ -2557,10 +2645,30 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
   // чтобы на время тяжёлых сцен ставить на паузу фоновые decorative-анимации
   // (см. body.saga-active в CSS). На ПК не используется — там ничего не приостанавливается.
   const isMobileUI = window.matchMedia('(max-width: 767px)').matches;
-  // По ширине вьюпорта ловим большинство телефонов, но не широкоэкранные Android-планшеты
-  // и раскладушки — у них GPU часто не сильнее телефонного, а ширина уже не мобильная.
-  // html.is-android в CSS дублирует мобильные снижения (mesh-blur, backdrop-filter) для них.
-  if (/Android/i.test(navigator.userAgent)) document.documentElement.classList.add('is-android');
+  // [FIX] Раньше был только html.is-android (по UA) — для остальных двух третей
+  // спецификации (is-ios/is-desktop нужны отдельными классами под премиальные
+  // постэффекты: film grain, хроматическая аберрация). Источник истины —
+  // Telegram.WebApp.platform (документированные значения: 'android', 'ios',
+  // 'macos', 'tdesktop', 'weba', 'webk', 'unigram', 'unknown'). 'macos'/'tdesktop' —
+  // это ПК/ноутбук (Telegram Desktop), а не телефон, поэтому идёт в is-desktop, а
+  // не в is-ios — так же, как сам пользователь развёл "iOS" и "ноутбуки/ПК" по
+  // смыслу. 'weba'/'webk' (Telegram Web-клиент в браузере) и 'unknown' платформу
+  // не называют вообще — там честный fallback на UA-сниффинг, как и было раньше
+  // для Android. is-ios/is-desktop сейчас не режут качество (по ТЗ у них макс.
+  // настройки без изменений) — классы нужны как хук для новых постэффектов ниже.
+  (function detectPlatform() {
+    const html = document.documentElement;
+    const tgPlatform = (webApp && webApp.platform) || '';
+    const ua = navigator.userAgent || '';
+    let cls;
+    if (tgPlatform === 'android') cls = 'is-android';
+    else if (tgPlatform === 'ios') cls = 'is-ios';
+    else if (tgPlatform === 'macos' || tgPlatform === 'tdesktop') cls = 'is-desktop';
+    else if (/Android/i.test(ua)) cls = 'is-android';
+    else if (/iPhone|iPad|iPod/i.test(ua)) cls = 'is-ios';
+    else cls = 'is-desktop';
+    html.classList.add(cls);
+  })();
 
   // Пауза фоновых decorative-анимаций (body.saga-active в CSS) — с счётчиком, а не простым
   // add/remove: сага логотипа, смена языка и шторка вставки могут в редких случаях
@@ -3599,7 +3707,10 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
 
     const filt = ac.createBiquadFilter();
     filt.type = 'lowpass';
-    filt.frequency.setValueAtTime(220, now);
+    // [PREMIUM POLISH] Было 220Hz — чистый низкий бас почти не читается на слабых
+    // динамиках (телефон/ноутбук), поэтому звук ощущался "тихим", даже когда gain
+    // поднимали. Пропускаем чуть больше верха (280Hz), не меняя тембр по сути.
+    filt.frequency.setValueAtTime(280, now);
 
     // LFO по частоте основного тона — создаёт ощущение волнистой ряби, а не ровного гула.
     const lfo = ac.createOscillator();
@@ -3615,8 +3726,28 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     oscB.connect(filt);
     filt.connect(master);
 
-    oscA.start(now); oscB.start(now); lfo.start(now);
-    bgHumNodes = { master, oscA, oscB, lfo };
+    // [PREMIUM POLISH] Тихий слой на октаву выше (116/122Hz) — сама глубокая пара
+    // 58/61Hz физически теряется на маленьких динамиках без нормального баса; этот
+    // слой даёт уху за что "зацепиться" и делает рябь ощутимо слышнее там, где раньше
+    // тонула, не меняя тембр (тот же биение двух расстроенных синусоид, просто выше).
+    // Гейн — отдельный, вдвое тише основной пары, чтобы это оставалось поддержкой,
+    // а не отдельным новым звуком.
+    const oscHi = ac.createOscillator();
+    oscHi.type = 'sine';
+    oscHi.frequency.setValueAtTime(116, now);
+    const oscHi2 = ac.createOscillator();
+    oscHi2.type = 'sine';
+    oscHi2.frequency.setValueAtTime(122, now);
+    lfoGain.connect(oscHi.frequency);
+    lfoGain.connect(oscHi2.frequency);
+    const hiGain = ac.createGain();
+    hiGain.gain.value = 0.5;
+    oscHi.connect(hiGain);
+    oscHi2.connect(hiGain);
+    hiGain.connect(filt);
+
+    oscA.start(now); oscB.start(now); lfo.start(now); oscHi.start(now); oscHi2.start(now);
+    bgHumNodes = { master, oscA, oscB, lfo, oscHi, oscHi2 };
     return bgHumNodes;
   }
   // Целевая громкость гула зависит от скорости движения курсора — быстрее двигаешь,
@@ -3626,12 +3757,13 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     if (!nodes) return;
     const ac = audioCtx;
     const now = ac.currentTime;
-    // [PREMIUM POLISH] Было min(0.22, 0.05 + speed*0.0008) — почти вдвое тише любого
-    // другого звука в палитре (glassTick=0.16, impactBoom=0.22, waterTap=0.32), поэтому
-    // терялся на фоне остальных, хотя сам тембр хороший. Подняли базу и потолок, наклон
-    // круче — на любой скорости курсора звук теперь заметно слышнее, но всё ещё не громче
-    // самого громкого звука в системе (waterTap 0.32), чтобы не перебивать остальное.
-    const target = Math.min(0.38, 0.1 + speed * 0.0014);
+    // [PREMIUM POLISH] Было min(0.38, 0.1 + speed*0.0014) — по фидбеку всё ещё едва
+    // слышно (низкие частоты тонут на слабых динамиках, см. hiGain-слой выше). Подняли
+    // базу и потолок ещё раз и сделали наклон круче — рябь теперь громче самого
+    // громкого транзиента в палитре (waterTap 0.32), но это осознанно: waterTap —
+    // короткий всплеск 0.35s, а гул — протяжный фон под движение курсора, воспринимается
+    // мягче при том же пиковом gain, так что даже 0.56 не звучит "перекрикивающе".
+    const target = Math.min(0.56, 0.16 + speed * 0.002);
     nodes.master.gain.cancelScheduledValues(now);
     nodes.master.gain.setValueAtTime(nodes.master.gain.value, now);
     nodes.master.gain.linearRampToValueAtTime(target, now + 0.08);
@@ -3671,9 +3803,10 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
   // в конкурирующей transform-анимации, для них прежний прямой путь работает как есть.
   const parallaxCardEls = parallaxEls.filter(el => el.classList.contains('card'));
   const parallaxPlainEls = parallaxEls.filter(el => !el.classList.contains('card'));
-  // На мобильных амплитуда параллакса вдвое ниже — тот же единый источник tx/ty, что
-  // двигает орбы фона, просто меньше "размах" реакции на палец.
-  const PARALLAX_AMP = isMobileUI ? 16 : 32;
+  // [FIX] Было 32/16 — при реальном диапазоне курсора (-0.5..0.5 от центра экрана)
+  // и depth большинства элементов 0.02-0.06 это давало смещения <2px, практически
+  // незаметные ("эффекта параллакса не вижу"). Подняли амплитуду почти вдвое.
+  const PARALLAX_AMP = isMobileUI ? 28 : 60;
   let mx = 0, my = 0, tx = 0, ty = 0, meshRaf = null, meshLastT = 0;
   function tickMesh(now) {
     now = now || performance.now();
@@ -3697,7 +3830,7 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     // общий "насколько далеко курсор от центра" фактор (-1..1) и умножаем на градусы.
     const tiltFactorX = PARALLAX_AMP ? (tx / PARALLAX_AMP) : 0; // -1..1
     const tiltFactorY = PARALLAX_AMP ? (ty / PARALLAX_AMP) : 0;
-    const MAX_TILT_DEG = 4;
+    const MAX_TILT_DEG = 8;
     parallaxPlainEls.forEach(el => {
       const depth = parseFloat(el.dataset.depth || '0.15');
       // depth уже 0.02-0.22 — для наклона это слишком мелкий множитель (наклон был бы
@@ -4301,38 +4434,6 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
   })();
 
 
-  // [PREMIUM POLISH] Тихий "плюх" приземления капли — отдельный от playWaterTap
-  // (тот громче/резче, для клика по фону), этот едва слышный, фоновый, под тему
-  // капель бренда. Короткий низкий тон + микро-шумовой всплеск.
-  function playDripPlop() {
-    withAudio((ac) => {
-      const now = ac.currentTime;
-      const master = ac.createGain();
-      master.gain.setValueAtTime(0.0001, now);
-      master.gain.exponentialRampToValueAtTime(0.06, now + 0.008);
-      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.13);
-      master.connect(masterBus);
-      const osc = ac.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(260, now);
-      osc.frequency.exponentialRampToValueAtTime(110, now + 0.1);
-      osc.connect(master);
-      osc.start(now); osc.stop(now + 0.13);
-      const noise = ac.createBufferSource();
-      noise.buffer = getNoiseBuffer(ac);
-      const filt = ac.createBiquadFilter();
-      filt.type = 'bandpass';
-      filt.frequency.value = 2200;
-      filt.Q.value = 0.8;
-      const ng = ac.createGain();
-      ng.gain.setValueAtTime(0.0001, now);
-      ng.gain.exponentialRampToValueAtTime(0.05, now + 0.006);
-      ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
-      noise.connect(filt); filt.connect(ng); ng.connect(masterBus);
-      noise.start(now); noise.stop(now + 0.06);
-    });
-  }
-
   // ============================================================
   // ===== БРЕНДОВЫЕ КАПЛИ: путь через весь экран + звук приземления =====
   // CSS отвечает за всё визуальное падение (transform/opacity, dt-независимо —
@@ -4376,31 +4477,9 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     // используется в файле для пересчёта прочих геометрий после релэйаута.
     window.addEventListener('uzum:relayout', measureDripStart);
 
-    // duration(ms), delay(ms) — должны буквально совпадать с CSS (--drip-dur и
-    // animation-delay каждого .brand-drip.dN, см. CSS выше). Вынесены здесь одним
-    // списком, чтобы при изменении тайминга в CSS не забыть поправить и здесь.
-    const DRIPS = [
-      { dur: 3400, delay: 0 },
-      { dur: 4100, delay: 700 },
-      { dur: 3700, delay: 1500 },
-      { dur: 4600, delay: 2300 },
-      { dur: 3900, delay: 3100 },
-    ];
-    const LAND_AT = 0.94; // соответствует 94% в @keyframes dripSplash/dripFallFull
-    // d4/d5 скрыты на мобильных/Android через CSS (см. правило рядом с dripFallFull) —
-    // не планируем для них звук приземления там, бессмысленно озвучивать невидимую каплю.
-    const isReducedDripUI = window.matchMedia('(max-width: 480px)').matches || document.documentElement.classList.contains('is-android');
-    const activeDrips = isReducedDripUI ? DRIPS.slice(0, 3) : DRIPS;
-
-    activeDrips.forEach(({ dur, delay }) => {
-      function scheduleLanding() {
-        setTimeout(() => {
-          if (!document.hidden) playDripPlop();
-          setTimeout(scheduleLanding, dur); // следующий цикл этой же капли
-        }, dur * LAND_AT);
-      }
-      setTimeout(scheduleLanding, delay);
-    });
+    // [FIX] Звук приземления капель (playDripPlop) убран по запросу — капли теперь
+    // полностью бесшумные, только визуальный CSS-эффект (measureDripStart выше по-прежнему
+    // нужен, он считает стартовую точку, от которой пляшет чистый CSS-keyframe).
   })();
 
 
@@ -4440,6 +4519,20 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
     // Клик — переход по href уже сработает нативно (target="_blank"), звук/haptic
     // просто дополняют момент отправки, не блокируют и не задерживают навигацию.
     portal.addEventListener('click', () => { haptic('medium'); playGlassTick(); });
+  })();
+
+  // ===== ЗВУК ПРИ НАВЕДЕНИИ НА КНОПКУ "ЗАВЕРШИТЬ ИНВЕНТАРИЗАЦИЮ" =====
+  // У портала на СЛА уже есть тихий hover-тик (см. блок выше) — у главной CTA-кнопки
+  // его не было вообще, разница была заметна при сравнении двух кнопок. Тот же
+  // playHoverTick(), тот же guard на mouse/pen (на touch "наведение" не происходит
+  // до самого тапа, там это было бы лишним/дублирующим кликовый звук).
+  (() => {
+    const finishBtn2 = $('btn-finish');
+    if (!finishBtn2) return;
+    finishBtn2.addEventListener('pointerenter', (e) => {
+      if (e.pointerType && e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;
+      playHoverTick();
+    }, { passive: true });
   })();
 
 
@@ -4790,6 +4883,9 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       // в switchLang(), но не в самой саге логотипа, для которой и был задуман).
       pauseBg();
 
+      // [FIX] Вся сцена вынесена в beginScene() и стартует не мгновенно, а только
+      // когда цель (finish-slot) реально видна во viewport — см. вызов ниже.
+      function beginScene() {
       const startRect = container.getBoundingClientRect();
       const targetRect = slot.getBoundingClientRect();
 
@@ -4922,6 +5018,33 @@ if (!document.body.classList.contains('liquid-webgl-unavailable')) {
       };
       document.addEventListener('visibilitychange', () => { if (document.hidden) cleanupOnHide(); });
       window.addEventListener('pagehide', cleanupOnHide, { once: true });
+      } // конец beginScene()
+
+      // [FIX] Карточка СЛА-портала выше в разметке добавила высоты странице — кнопка
+      // "Завершить инвентаризацию" на многих экранах больше не попадает во viewport
+      // без скролла, из-за чего --saga-target-x/-y считались по координатам ЗА
+      // пределами экрана и удар был не виден ("не бьёт"). Перед стартом сцены
+      // гарантируем, что цель видна: если нет — плавно подскролливаем к ней и ждём
+      // реального завершения скролла (scrollend, с safety-таймаутом на случай
+      // браузеров без этого события) и только затем считаем координаты и стартуем
+      // полёт. Сама сцена (position:fixed на маскоте, независимая от дальнейшего
+      // скролла пользователя ПОСЛЕ старта полёта) не тронута — это уже было и
+      // работает как раньше.
+      const preRect = slot.getBoundingClientRect();
+      const targetInView = preRect.top > 160 && preRect.bottom < window.innerHeight - 24;
+      if (targetInView) {
+        beginScene();
+      } else {
+        let settled = false;
+        const runOnce = () => { if (settled) return; settled = true; beginScene(); };
+        slot.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if ('onscrollend' in window) {
+          window.addEventListener('scrollend', runOnce, { once: true });
+          setTimeout(runOnce, 900);
+        } else {
+          setTimeout(runOnce, 550);
+        }
+      }
     }
 
     window.addEventListener('resize', () => {
