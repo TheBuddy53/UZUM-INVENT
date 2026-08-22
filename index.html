@@ -278,8 +278,68 @@
   @keyframes blobMorph2 { 0% { border-radius: 55% 45% 40% 60% / 50% 45% 55% 50%; } 50% { border-radius: 38% 62% 58% 42% / 60% 50% 50% 40%; } 100% { border-radius: 50% 50% 48% 52% / 45% 55% 45% 55%; } }
   @keyframes blobMorph3 { 0% { border-radius: 50% 50% 45% 55% / 55% 45% 55% 45%; } 50% { border-radius: 62% 38% 60% 40% / 42% 58% 42% 58%; } 100% { border-radius: 45% 55% 50% 50% / 50% 50% 50% 50%; } }
 
-  #watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) translateZ(0); z-index: -2; font-size: clamp(80px, 30vw, 160px); font-weight: 900; line-height: 1; color: transparent; background: linear-gradient(135deg, rgba(157,77,255,0.7), rgba(112,0,255,0.45) 45%, rgba(75,0,173,0.55)); -webkit-background-clip: text; background-clip: text; -webkit-text-stroke: 2px rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; user-select: none; pointer-events: none; animation: premiumBreathe 4s ease-in-out infinite; will-change: opacity, filter; }
-  @keyframes premiumBreathe { 0%, 100% { filter: drop-shadow(0 0 20px rgba(112,0,255,0.4)); opacity: 0.85; } 50% { filter: drop-shadow(0 0 45px rgba(157,77,255,0.85)); opacity: 1; } }
+  /* ===== БОЛЬШАЯ БУКВА "U" (главный фирменный элемент, встроенный в CDN liquid-фон) =====
+     [ПЕРЕПИСАНО] Прежняя версия была маленьким статичным фолбэком (clamp 80-160px,
+     плоская заливка без искажения) — по ТЗ полностью убрана и заменена на крупную,
+     "живущую" в жидкости букву. id намеренно оставлен прежним ("watermark") — на этот
+     же элемент завязана кинематографичная SLA exit-анимация ниже по файлу
+     (u-overload/u-flash-peak классы, см. JS у #eco-portal-sla) и правило паузы
+     body.saga-active — переименование id потянуло бы правки по всему файлу без
+     какой-либо визуальной пользы. Сама буква при этом переработана полностью:
+       1) Крупный размер (clamp с min(vw, vh), чтобы не вылезать за края даже на
+          коротких альбомных экранах) вместо прежнего мелкого клейма.
+       2) Полупрозрачная заливка (background-clip: text) — сквозь букву читается
+          сам металл CDN liquid-канваса под ней, а не плоский цвет: это и даёт
+          ощущение "буква плавает В жидкости", а не лежит поверх неё стикером.
+       3) filter: url(#letterWarp) — тот же приём, что деформирует #mesh через
+          #liquidWarp, но отдельный тонкий фильтр (см. <svg> в начале body),
+          подобранный конкретно под текст: контур буквы постоянно чуть "плывёт"/
+          преломляется, как будто его размывает рябь на поверхности жидкости.
+       4) Многослойный drop-shadow (белое ядро + фирменный фиолетовый + дальний
+          рассеянный ореол) — свечение по краям, как в референсе.
+     Именно поэтому #watermark обязан быть виден поверх ЛЮБОГО варианта фона (и
+     CDN liquid-canvas, и fallback #liquid-ripple) — кроме случая, когда fallback-движок
+     underwaterLetterEngine уже рисует свою собственную версию буквы внутри канваса
+     (см. body.ripple-active ниже) — тогда показывать обе буквы разом смысла нет. */
+  #watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) translateZ(0); z-index: -1; font-size: clamp(180px, min(48vw, 58vh), 360px); font-weight: 900; line-height: 1; color: transparent; background: linear-gradient(140deg, rgba(215,185,255,0.5) 0%, rgba(157,77,255,0.34) 42%, rgba(112,0,255,0.24) 68%, rgba(60,0,140,0.3) 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-stroke: 1.5px rgba(255,255,255,0.85); display: flex; align-items: center; justify-content: center; user-select: none; pointer-events: none; animation: premiumBreathe 6s ease-in-out infinite; will-change: opacity, filter; }
+  @keyframes premiumBreathe {
+    0%, 100% { filter: url(#letterWarp) drop-shadow(0 0 22px rgba(255,255,255,0.4)) drop-shadow(0 0 50px rgba(157,77,255,0.45)) drop-shadow(0 0 100px rgba(112,0,255,0.28)); opacity: 0.88; }
+    50% { filter: url(#letterWarp) drop-shadow(0 0 36px rgba(255,255,255,0.65)) drop-shadow(0 0 86px rgba(157,77,255,0.7)) drop-shadow(0 0 160px rgba(112,0,255,0.42)); opacity: 1; }
+  }
+  /* Android/слабый GPU: тот же силуэт и то же свечение, но БЕЗ feDisplacementMap —
+     сам displacement-фильтр (не blur/drop-shadow) самая дорогая часть filter chain на
+     слабых GPU (см. аналогичный комментарий у #mesh/#liquidWarp выше). Отдельный
+     keyframes без url(#letterWarp), переключается через animation-name — обычное
+     правило filter не победило бы каскад против уже идущей на этом свойстве анимации. */
+  @keyframes premiumBreatheLite {
+    0%, 100% { filter: drop-shadow(0 0 22px rgba(255,255,255,0.4)) drop-shadow(0 0 50px rgba(157,77,255,0.45)) drop-shadow(0 0 100px rgba(112,0,255,0.28)); opacity: 0.88; }
+    50% { filter: drop-shadow(0 0 36px rgba(255,255,255,0.65)) drop-shadow(0 0 86px rgba(157,77,255,0.7)) drop-shadow(0 0 160px rgba(112,0,255,0.42)); opacity: 1; }
+  }
+  html.is-android #watermark { animation-name: premiumBreatheLite; }
+  @media (prefers-reduced-motion: reduce) {
+    #watermark { animation: none; filter: drop-shadow(0 0 26px rgba(255,255,255,0.5)) drop-shadow(0 0 60px rgba(157,77,255,0.55)); opacity: 0.92; }
+  }
+
+  /* ===== ДЫМКА/ТУМАН ЗА БУКВОЙ (ощущение глубины) =====
+     Большое мягкое световое пятно позади буквы — без него даже крупная, преломлённая
+     буква на резком металлическом фоне выглядит плоской аппликацией. Дымка размывает
+     границу между буквой и жидкостью позади неё, создавая иллюзию толщи воды между
+     камерой и буквой. Чисто декоративный слой — статичный transform/opacity, один
+     составной слой на GPU, ничего не пересчитывает на pointermove. */
+  #u-mist { position: fixed; top: 50%; left: 50%; z-index: -2; pointer-events: none;
+    width: clamp(320px, 72vw, 640px); height: clamp(320px, 72vw, 640px);
+    transform: translate(-50%, -50%) translateZ(0);
+    background: radial-gradient(circle, rgba(210,180,255,0.16) 0%, rgba(157,77,255,0.10) 35%, rgba(112,0,255,0.05) 58%, transparent 76%);
+    filter: blur(46px);
+    animation: mistDrift 10s ease-in-out infinite;
+    will-change: opacity, transform;
+  }
+  @keyframes mistDrift {
+    0%, 100% { opacity: 0.75; transform: translate(-50%, -50%) scale(1) translateZ(0); }
+    50% { opacity: 1; transform: translate(-50%, -50%) scale(1.06) translateZ(0); }
+  }
+  html.is-android #u-mist { filter: blur(30px); animation-duration: 12s; }
+  @media (prefers-reduced-motion: reduce) { #u-mist { animation: none; opacity: 0.85; } }
 
   /* ===== ФИРМЕННАЯ ПОДСВЕТКА БУКВЫ U (HDR-лучи + мягкий motion blur пульс) =====
      По запросу: экран притемнён (~50% от максимума, см. #bg-tint), но буква на фоне
@@ -291,11 +351,15 @@
      как блюм на камере), 2) 4 тонких луча под углами (light rays), 3) медленную
      пульсацию яркости/blur-радиуса самих лучей — читается как direction motion blur
      без реальной дорогой blur-анимации на большой площади (лучи маленькие, ~2-6px
-     толщиной, blur на них дешёвый). Полностью статичный transform/opacity —
-     никакого влияния на layout, один составной слой на GPU. */
+     толщиной, blur на них дешёвый). Размер увеличен вслед за укрупнением самой буквы
+     (было clamp(140px, 46vw, 260px) под старую мелкую версию). Кроме пульсации по
+     времени, лучи ещё и слегка довора́чиваются вслед за курсором/пальцем через
+     --ray-tilt/--ray-shift — JS пишет эти custom properties в том же rAF-цикле, что
+     двигает параллакс интерфейса (см. tickMesh ниже), отдельного слушателя тут нет. */
   #brand-glow-ring { position: fixed; top: 50%; left: 50%; z-index: -2; pointer-events: none;
-    width: clamp(140px, 46vw, 260px); height: clamp(140px, 46vw, 260px);
+    width: clamp(200px, 54vw, 420px); height: clamp(200px, 54vw, 420px);
     transform: translate(-50%, -50%) translateZ(0);
+    --ray-tilt: 0deg; --ray-shift: 0deg;
     will-change: opacity;
   }
   #brand-glow-ring .glow-core {
@@ -308,11 +372,12 @@
     background: linear-gradient(90deg, transparent, rgba(220,180,255,0.5), rgba(255,255,255,0.65), rgba(220,180,255,0.5), transparent);
     mix-blend-mode: screen; opacity: 0.55; filter: blur(1px);
     animation: brandRayPulse 4s ease-in-out infinite;
+    transition: transform 0.4s var(--ease);
   }
-  #brand-glow-ring .glow-ray.r1 { width: 150%; height: 3px; margin: -1.5px 0 0 -75%; transform: rotate(18deg); }
-  #brand-glow-ring .glow-ray.r2 { width: 150%; height: 2px; margin: -1px 0 0 -75%; transform: rotate(-32deg); animation-delay: -1s; }
-  #brand-glow-ring .glow-ray.r3 { width: 130%; height: 2px; margin: -1px 0 0 -65%; transform: rotate(72deg); animation-delay: -2s; }
-  #brand-glow-ring .glow-ray.r4 { width: 130%; height: 2px; margin: -1px 0 0 -65%; transform: rotate(-58deg); animation-delay: -2.6s; }
+  #brand-glow-ring .glow-ray.r1 { width: 150%; height: 3px; margin: -1.5px 0 0 -75%; transform: rotate(calc(18deg + var(--ray-tilt))); }
+  #brand-glow-ring .glow-ray.r2 { width: 150%; height: 2px; margin: -1px 0 0 -75%; transform: rotate(calc(-32deg + var(--ray-shift))); animation-delay: -1s; }
+  #brand-glow-ring .glow-ray.r3 { width: 130%; height: 2px; margin: -1px 0 0 -65%; transform: rotate(calc(72deg + var(--ray-tilt))); animation-delay: -2s; }
+  #brand-glow-ring .glow-ray.r4 { width: 130%; height: 2px; margin: -1px 0 0 -65%; transform: rotate(calc(-58deg + var(--ray-shift))); animation-delay: -2.6s; }
   @keyframes brandGlowPulse {
     0%, 100% { opacity: 0.7; transform: scale(1); filter: blur(2px); }
     50% { opacity: 1; transform: scale(1.08); filter: blur(3px); }
@@ -330,38 +395,43 @@
   @media (prefers-reduced-motion: reduce) {
     #brand-glow-ring .glow-core, #brand-glow-ring .glow-ray { animation: none; opacity: 0.6; }
   }
-  /* #watermark (div с текстом) остаётся как statичный fallback/SEO-слой, но визуально скрыт —
-     его роль теперь играет #liquid-ripple canvas ниже, который рисует ту же букву U, но
-     уже деформируемую волновым полем. Если JS волн не запустится (ошибка/старый браузер),
-     div остаётся видимым через noscript-подобный fallback ниже. */
+  /* Если основной CDN liquid-фон недоступен и включился self-contained WebGL fallback
+     (underwaterLetterEngine, канвас #liquid-ripple) — тот сам рисует свою версию буквы
+     "U" (raymarched SDF) внутри канваса. Показывать одновременно ещё и наш CSS-#watermark
+     поверх него значило бы дублировать букву — прячем CSS-версию именно в этом случае. */
   /* display:none вместо opacity:0 — premiumBreathe анимирует opacity на самом элементе
      каждый кадр и перебивала бы обычное CSS-правило (анимация всегда выигрывает каскад
      против невходящего в @keyframes свойства). display же анимацией не затронут. */
   body.ripple-active #watermark { display: none; }
 
-  /* Канвас волновой ряби: лежит поверх #mesh (тот же слой глубины, z-index: -2),
-     ловит движение курсора/пальца поверх всего интерфейса (pointer-events: none — сам
-     канвас не блокирует клики) и рисует букву U, деформированную картой высот. */
-  #liquid-ripple { position: fixed; inset: 0; z-index: -2; width: 100%; height: 100%; display: block; touch-action: none; }
-  /* ВАЖНО: WebGL-рябь (#liquid-ripple выше) целиком зависит от import() внешнего CDN-
-     скрипта (threejs-components с jsdelivr) — если сеть недоступна/зарезана (типичная
-     ситуация внутри WebView Telegram Desktop Mini App, в отличие от обычной вкладки
-     браузера с прямым доступом к интернету), WebGL-рябь молча не запускается вообще.
-     Именно поэтому в Mini App "рябь от курсора" пропадала целиком, хотя в обычной
-     вкладке всё работало — там это была единственная физическая рябь. Этот canvas —
-     гарантированный fallback, который не зависит от сети (чистый Canvas 2D), поэтому
-     работает одинаково что во вкладке, что в Mini App. Раньше он был слишком ярким и
-     насыщенно-фиолетовым (bled поверх WebGL как грязное пятно) — теперь заметно тише
-     и холоднее по тону, не спорит с WebGL-слоем, когда тот всё-таки грузится, но
-     остаётся полноценно видимым, когда WebGL недоступен. */
-
-  /* ===== НЕОНОВЫЙ СЛЕД КУРСОРА (в теме Uzum) =====
-     Тонкая светящаяся "трубка" вдоль пути курсора, поверх всего интерфейса
-     (z-index держим ниже модалок/шторки, но выше карточек), не блокирует клики.
-     Менее интенсивная и более узкая версия неонового референса — под фирменный
-     фиолетовый вместо RGB-радуги, чтобы не спорить с остальной палитрой. */
-  #neon-trail { position: fixed; inset: 0; z-index: 550; width: 100%; height: 100%; display: block; pointer-events: none; mix-blend-mode: screen; }
-  @media (prefers-reduced-motion: reduce) { #neon-trail { display: none; } }
+  /* ===== LIQUID BACKGROUND (Three.js, металлический жидкий рендер) =====
+     Заменяет прежнюю 2D-рябь. #liquid-canvas — полноэкранный WebGL-канвас
+     (threejs-components/backgrounds/liquid1), рисующий металлическую жидкую
+     поверхность с картой смещений/бликами/тенями поверх загруженной текстуры.
+     z-index: -4 — строго НИЖЕ #vignette (-3): при равном z-index стекинг решает
+     DOM-порядок, а канвас идёт в разметке позже виньетки, значит перекрыл бы её
+     затемнение, если бы делил с ней один уровень. На -4 канвас гарантированно
+     остаётся в самом низу стопки независимо от места в DOM, а виньетка/орбы/тонировка
+     мягко наслаиваются поверх него, как и раньше. pointer-events: none — курсор
+     проходит сквозь канвас к интерфейсу; сам эффект слушает движение указателя
+     глобально через JS (см. <script type="module"> ниже), не через события на канвасе.
+     ВАЖНО (сеть в Telegram WebView): эта либа грузится с внешнего CDN (jsdelivr) —
+     если импорт не резолвится вовремя (WebView с урезанной сетью), запускается
+     safe-fallback: остаётся self-contained WebGL-шейдер буквы "U" (см. класс
+     body.liquid-cdn-unavailable ниже), который уже проверен и не зависит от сети. */
+  #liquid-canvas { position: fixed; inset: 0; z-index: -4; width: 100%; height: 100%; display: block; pointer-events: none; touch-action: none; }
+  /* Пока CDN-скрипт грузится — держим канвас невидимым, чтобы не мигнуть пустым
+     черным кадром до первого рендера; включаем через opacity-переход после init. */
+  #liquid-canvas { opacity: 0; transition: opacity 1.1s var(--ease); }
+  body.liquid-ready #liquid-canvas { opacity: 1; }
+  /* Fallback-путь: если CDN недоступен, #liquid-canvas остаётся пустым и скрытым,
+     а старый self-contained шейдер (#liquid-ripple) занимает его место — тот же
+     z-index: -4 (взаимоисключающий display, оба никогда не видны одновременно,
+     так что порядок между ними самими не имеет значения; важно только то, что
+     оба ниже #vignette). */
+  #liquid-ripple { position: fixed; inset: 0; z-index: -4; width: 100%; height: 100%; display: none; touch-action: none; }
+  body.liquid-cdn-unavailable #liquid-ripple { display: block; }
+  body.liquid-cdn-unavailable #liquid-canvas { display: none; }
 
   .wrap { max-width: 480px; margin: 0 auto; position: relative; z-index: 1; display: flex; flex-direction: column; gap: 16px; }
   .stagger { opacity: 1 !important; transform: none !important; animation: riseIn 0.8s var(--spring) forwards; }
@@ -965,7 +1035,11 @@
        стекла, освещённый "сверху") и едва заметное затемнение снизу (стекло
        естественно темнее у нижней кромки, куда меньше падает света) — вместе дают
        объём, а не плоскую подсветку по всему периметру сразу.
-       Слой курсорного neon-свечения (calc(var(--neon-near...))) не тронут — та же
+       Слой --neon-near ниже — наследие удалённого курсорного neon-trail (JS больше
+       не пишет эту custom property, поэтому она всегда 0 через fallback: calc(0 * X) = 0,
+       правило безвредно остаётся в каскаде, просто ничего не добавляет к тени).
+       Курсорную реактивность карточек/кнопок теперь полностью несёт initCursorGlass
+       (.glass-cursor-glow) — не тронута этой правкой. Не убираем var()-строки: та же
        логика, что и раньше, просто теперь встроена в более богатый общий стек. */
     box-shadow:
       0 2px 4px -1px rgba(0,0,0,0.55),
@@ -1542,6 +1616,17 @@
      вообще не учитывает системные панели корректно. */
   #paste-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 301; max-width: 480px; margin: 0 auto; background: linear-gradient(180deg, rgba(30,15,50,0.95), rgba(10,2,20,0.98)); backdrop-filter: blur(40px) saturate(220%); -webkit-backdrop-filter: blur(40px) saturate(220%); border: 1px solid var(--glass-border-dark); border-top: 1px solid rgba(255,255,255,0.25); border-radius: 32px 32px 0 0; padding: 12px 20px calc(24px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -20px 60px rgba(0,0,0,0.9), inset 0 2px 10px rgba(255,255,255,0.1); transform: translateY(100%); max-height: min(80vh, calc(var(--tg-vh, 1vh) * 80)); display: flex; flex-direction: column; transform-origin: center bottom; visibility: hidden; pointer-events: none; }
   #paste-sheet .sheet-scroll { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; flex: 1 1 auto; min-height: 0; }
+  /* Кастомный тонкий скроллбар для шторки — фирменный фиолетовый вместо системного
+     серого, который выбивался бы из премиального тёмного glassmorphism. Firefox через
+     scrollbar-width/scrollbar-color, WebKit/Blink (Telegram WebView — Blink на Android,
+     WebKit на iOS) через ::-webkit-scrollbar-*. Ширина 5px — заметно тоньше системного
+     дефолта (обычно 12-15px), трек прозрачный (сливается с фоном шторки), ползунок —
+     полупрозрачный фирменный фиолетовый с лёгким свечением, светлеет при наведении/драге. */
+  #paste-sheet .sheet-scroll { scrollbar-width: thin; scrollbar-color: rgba(157,77,255,0.5) transparent; }
+  #paste-sheet .sheet-scroll::-webkit-scrollbar { width: 5px; }
+  #paste-sheet .sheet-scroll::-webkit-scrollbar-track { background: transparent; }
+  #paste-sheet .sheet-scroll::-webkit-scrollbar-thumb { background: rgba(157,77,255,0.45); border-radius: 999px; box-shadow: 0 0 6px rgba(157,77,255,0.35); }
+  #paste-sheet .sheet-scroll::-webkit-scrollbar-thumb:hover { background: rgba(180,110,255,0.65); }
   #paste-sheet .sheet-actions { flex: 0 0 auto; }
   #paste-sheet.show { visibility: visible; animation: sheetEpicIn 0.85s var(--epic) forwards; }
   #paste-sheet.closing { visibility: visible; animation: sheetEpicOut 0.5s var(--epic-out) forwards; }
@@ -2021,6 +2106,83 @@
   @media (max-width: 480px) { .eco-drip.e4, .eco-drip.e5 { display: none; } }
   html.is-android .eco-drip.e4, html.is-android .eco-drip.e5 { display: none; }
 
+  /* ===== КИНЕМАТОГРАФИЧНАЯ EXIT-АНИМАЦИЯ (переход на СЛА) =====
+     Три фазы, оркестрованы JS через таймкоды (см. eco-portal-sla click handler):
+     Фаза 1 (0-0.4s): весь UI (.wrap > *, то есть все карточки/футер — НЕ фон и НЕ
+     буква) коллапсирует со staggering-задержкой (nth-child delay) — проваливается
+     вглубь экрана и растворяется. Фаза 2 (0.4-1.2s): буква U переходит в режим
+     "перегрузки" — растёт, светится ярче, пульсирует резкими нелинейными импульсами.
+     Фаза 3 (1.2-1.5s): экран уходит в темноту через виньетку-clip-path, затем JS
+     делает window.location.href. */
+  body.sla-exit .wrap > * {
+    /* [FIX] .card крутит бесконечную keyframe-анимацию floatCard по transform (см. CSS
+       .card) — CSS-анимации всегда выигрывают каскад над transition на том же свойстве,
+       поэтому одного transition тут недостаточно: floatCard продолжила бы диктовать
+       transform, и scale(0.85) ниже визуально не применился бы вообще. animation: none
+       полностью снимает любую анимацию с элемента (не paused — paused всё равно держит
+       transform замороженным на своём последнем кадре и блокирует transition), отдавая
+       transform обратно обычному каскаду, где его подхватывает transition ниже. */
+    animation: none;
+    transition: opacity 0.4s cubic-bezier(0.6, 0, 0.9, 0.2), filter 0.4s cubic-bezier(0.6, 0, 0.9, 0.2), transform 0.4s cubic-bezier(0.6, 0, 0.9, 0.2);
+    opacity: 0; transform: scale(0.85) translateZ(0); filter: blur(14px);
+    pointer-events: none;
+  }
+  /* Staggering: каждая следующая карточка начинает коллапс чуть позже предыдущей —
+     transition-delay растёт по nth-child, создавая ощущение волны, а не одновременного
+     исчезновения всех элементов разом. 6 карточек в .wrap (topbar/paste/eco/finish/
+     footer + возможные доп.) — цикл delay покрывает практику с запасом через :nth-child. */
+  body.sla-exit .wrap > *:nth-child(1) { transition-delay: 0s; }
+  body.sla-exit .wrap > *:nth-child(2) { transition-delay: 0.04s; }
+  body.sla-exit .wrap > *:nth-child(3) { transition-delay: 0.08s; }
+  body.sla-exit .wrap > *:nth-child(4) { transition-delay: 0.12s; }
+  body.sla-exit .wrap > *:nth-child(5) { transition-delay: 0.16s; }
+  body.sla-exit .wrap > *:nth-child(6) { transition-delay: 0.2s; }
+  body.sla-exit .wrap > *:nth-child(n+7) { transition-delay: 0.24s; }
+
+  /* Фаза 2: режим перегрузки буквы U. Класс вешается JS-ом в момент t=0.4s (после
+     коллапса UI) и снимается вместе с sla-exit по завершении перехода/навигации.
+     scale(1.2) + резкая пульсация вместо плавного premiumBreathe (та анимация
+     переопределяется — u-overload выигрывает каскад через более позднее правило
+     и собственный keyframe с более короткой, "тревожной" частотой). */
+  body.sla-exit #watermark { z-index: 800; }
+  #watermark.u-overload {
+    animation: uOverloadPulse 0.32s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    transform: translate(-50%, -50%) scale(1.2) translateZ(0);
+    transition: transform 0.5s var(--epic);
+    -webkit-text-stroke: 2.5px rgba(255,255,255,0.95);
+  }
+  @keyframes uOverloadPulse {
+    0%   { filter: drop-shadow(0 0 30px rgba(255,255,255,0.7)) drop-shadow(0 0 70px rgba(157,77,255,0.75)) drop-shadow(0 0 120px rgba(157,77,255,0.4)); opacity: 1; }
+    50%  { filter: drop-shadow(0 0 55px rgba(255,255,255,1)) drop-shadow(0 0 110px rgba(190,140,255,0.95)) drop-shadow(0 0 180px rgba(157,77,255,0.65)); opacity: 1; }
+    100% { filter: drop-shadow(0 0 30px rgba(255,255,255,0.7)) drop-shadow(0 0 70px rgba(157,77,255,0.75)) drop-shadow(0 0 120px rgba(157,77,255,0.4)); opacity: 1; }
+  }
+  /* Пиковая вспышка непосредственно перед переходом (Фаза 3, ~1.2s) — короткий,
+     максимально яркий одиночный импульс поверх продолжающейся uOverloadPulse. */
+  #watermark.u-flash-peak {
+    animation: uFlashPeak 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  @keyframes uFlashPeak {
+    0%   { filter: drop-shadow(0 0 55px rgba(255,255,255,1)) drop-shadow(0 0 110px rgba(190,140,255,0.95)); transform: translate(-50%, -50%) scale(1.2) translateZ(0); }
+    100% { filter: drop-shadow(0 0 90px rgba(255,255,255,1)) drop-shadow(0 0 200px rgba(210,170,255,1)) drop-shadow(0 0 320px rgba(157,77,255,0.85)); transform: translate(-50%, -50%) scale(1.34) translateZ(0); opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #watermark.u-overload, #watermark.u-flash-peak { animation: none; filter: drop-shadow(0 0 60px rgba(255,255,255,0.9)); transform: translate(-50%, -50%) scale(1.15) translateZ(0); }
+  }
+
+  /* Фаза 3: экран уходит в темноту через виньетку-затемнение перед навигацией —
+     радиальный градиент, схлопывающийся к центру (там, где светится U), а не
+     плоский fade — выглядит как "затягивание в точку света", а не банальное
+     потемнение экрана. z-index: 810 — выше буквы в exit-режиме (800) и выше ЛЮБОГО
+     обычного UI-оверлея (#toast: 200, шторка: 300/301, lang-эффекты: 599-601,
+     конфетти после завершения инвентаризации: 700) — сцена перехода обязана полностью
+     перекрыть экран, даже если тост/конфетти ещё доигрывают в момент клика по SLA. */
+  #sla-exit-veil {
+    position: fixed; inset: 0; z-index: 810; pointer-events: none;
+    background: radial-gradient(circle at 50% 50%, rgba(0,0,0,0) 0%, rgba(5,0,14,0.92) 55%, #030007 100%);
+    opacity: 0; transition: opacity 0.32s cubic-bezier(0.7, 0, 0.9, 0.4);
+  }
+  body.sla-exit #sla-exit-veil.show { opacity: 1; }
+
 </style>
 </head>
 <body>
@@ -2031,19 +2193,39 @@
     </feTurbulence>
     <feDisplacementMap in="SourceGraphic" in2="noise" scale="38" xChannelSelector="R" yChannelSelector="G" />
   </filter>
+  <!-- Отдельный, более тонкий фильтр специально под большую букву "U" (#watermark) —
+       #liquidWarp выше был подобран под сильно заблюренный #mesh (scale 38 там незаметен
+       из-за blur(70px) поверх), для чёткого текста такая амплитуда искажения превратила бы
+       букву в нечитаемое пятно. #letterWarp — тот же приём (feTurbulence + feDisplacementMap),
+       но с гораздо меньшим scale и более быстрым циклом (9s вместо 24s) — контур буквы
+       ощутимо "дышит"/плывёт, как будто его размывает рябь на поверхности жидкости у неё
+       над головой, но силуэт всегда остаётся узнаваемым. */ -->
+  <filter id="letterWarp" x="-40%" y="-40%" width="180%" height="180%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.012 0.018" numOctaves="2" seed="11" result="uNoise">
+      <animate attributeName="baseFrequency" values="0.010 0.016;0.016 0.010;0.010 0.016" dur="9s" repeatCount="indefinite" />
+    </feTurbulence>
+    <feDisplacementMap in="SourceGraphic" in2="uNoise" scale="9" xChannelSelector="R" yChannelSelector="G" />
+  </filter>
 </svg>
 
 <div id="vignette"></div>
 <div id="mesh"><div id="mesh-track"><span class="b1"></span><span class="b2"></span><span class="b3"></span></div></div>
+<!-- Дымка/туман за буквой — для ощущения глубины (буква "плавает" в толще жидкости,
+     а не приклеена плоским стикером к экрану). Сидит на одном z-слое с #brand-glow-ring
+     (z-index: -2), но раньше в DOM-порядке — при равном z-index более поздний элемент
+     рисуется поверх, так что кольцо/лучи остаются НАД дымкой, а сама буква (#watermark,
+     z-index: -1) поверх них обоих. См. CSS #u-mist ниже. -->
+<div id="u-mist" aria-hidden="true"></div>
 <div id="brand-glow-ring" aria-hidden="true"><span class="glow-core"></span><span class="glow-ray r1"></span><span class="glow-ray r2"></span><span class="glow-ray r3"></span><span class="glow-ray r4"></span></div>
 <div id="bg-tint"></div>
 <div id="watermark">U</div>
+<canvas id="liquid-canvas" aria-hidden="true"></canvas>
 <canvas id="liquid-ripple" aria-hidden="true"></canvas>
-<canvas id="neon-trail" aria-hidden="true"></canvas>
 <div id="film-grain" aria-hidden="true"></div>
 <div id="lang-wash"></div>
 <canvas id="lang-shader" aria-hidden="true"></canvas>
 <div id="lang-glass-cloud" aria-hidden="true"></div>
+<div id="sla-exit-veil" aria-hidden="true"></div>
 
 <div class="wrap">
   <div class="topbar stagger parallax-el" data-depth="0.04" style="animation-delay:0s">
@@ -2117,7 +2299,7 @@
       Отдельный инструмент для контроля <span class="key">СЛА приёмки</span> на ПВЗ.
     </div>
     <div class="eco-portal-wrap">
-      <a class="eco-portal" id="eco-portal-sla" href="https://thebuddy53.github.io/SLA-UZUM/" target="_blank" rel="noopener noreferrer" data-stiffness="360" data-damping="17" data-stretch="1">
+      <a class="eco-portal" id="eco-portal-sla" href="https://thebuddy53.github.io/SLA-UZUM/" rel="noopener" data-stiffness="360" data-damping="17" data-stretch="1">
         <div class="eco-drip-layer" aria-hidden="true">
           <span class="eco-drip e1"></span><span class="eco-drip e2"></span><span class="eco-drip e3"></span><span class="eco-drip e4"></span><span class="eco-drip e5"></span>
         </div>
@@ -2250,7 +2432,146 @@
 // видимости верхнего <script type="module">, где её ждут остальные IIFE ниже по файлу.
 const isLowPowerPlatform = document.documentElement.classList.contains('is-android');
 
-(function underwaterLetterEngine() {
+/* ===================== LIQUID BACKGROUND (Three.js, threejs-components) =====================
+   Металлический жидкий 3D-рендер на #liquid-canvas: загруженная текстура искажается картой
+   смещений (displacementScale), с металлик/roughness-материалом — даёт настоящие блики/тени/
+   рефлексы, которых 2D-канвас дать не может.
+   СЕТЕВОЙ РИСК (важно): этот движок грузится динамическим import() с внешнего CDN
+   (cdn.jsdelivr.net/npm/threejs-components) — тот самый импорт, который в этом файле уже
+   один раз выпиливали (см. комментарий у underwaterLetterEngine выше), потому что внутри
+   Telegram WebView он не всегда резолвится вовремя или вообще. Чтобы не наступить на те же
+   грабли повторно, здесь стоит жёсткий таймаут (LIQUID_CDN_TIMEOUT_MS): если import() не
+   разрешился за это время — считаем CDN недоступным, ставим body.liquid-cdn-unavailable и
+   отдаём сцену self-contained шейдеру (#liquid-ripple, см. underwaterLetterEngine ниже),
+   который не зависит от сети и уже проверен в проде. Если импорт всё же успевает — грузим
+   ИМЕННО ту сцену/параметры, что и просили: металлический liquid1-фон с заданной текстурой,
+   metalness/roughness/displacementScale, без дождя. */
+/* ===================== ТЕКСТУРА ДЛЯ liquid1 (без сторонних логотипов/надписей) =====================
+   [ПЕРЕПИСАНО] Раньше сюда грузилась готовая PNG-текстура с внешнего URL
+   (hebbkx1anhila5yf.public.blob.vercel-storage.com) — она и давала красивый металлический
+   рельеф, НО в неё оказались вшиты чужие надписи/лого ("21", "EV" и т.п.), которые
+   проступали через рябь. Так как это чужой, не наш ассет, нет гарантии, что и его самого,
+   и вообще что-либо, загружаемое по этому URL, всегда останется чистым от посторонней
+   графики — единственный надёжный способ убрать их раз и навсегда — вообще не грузить
+   стороннее изображение, а рисовать текстуру самим, на лету, в offscreen-канвасе. Никакого
+   текста/логотипов в ней в принципе нет — только мягкие фиолетово-металлические радиальные
+   пятна (в фирменной палитре UZUM) поверх тёмного градиента + мелкое зерно (для рельефа
+   карты смещений, чтобы поверхность не была идеально гладкой). Function возвращает
+   data:-URL — loadImage() ниже принимает его точно так же, как обычный http(s)-URL,
+   потому что под капотом это просто Image.src. Генерация разовая (при инициализации
+   сцены), не в цикле рендера, поэтому 512×512 с полным проходом по пикселям для шума —
+   это доли миллисекунды, не влияет на FPS самой ряби. */
+  function makeCleanLiquidTexture() {
+    const size = 512;
+    const c = document.createElement('canvas');
+    c.width = size; c.height = size;
+    const ctx = c.getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, size, size);
+    grad.addColorStop(0, '#1b1330');
+    grad.addColorStop(0.35, '#2c1f4d');
+    grad.addColorStop(0.6, '#171025');
+    grad.addColorStop(1, '#0b0714');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, size, size);
+    // Мягкие радиальные пятна вместо чётких фигур/текста — дают карте смещений
+    // разнообразный "металлический" рельеф без единой резкой границы, которую
+    // рябь могла бы прочитать как посторонний объект.
+    const blobs = [
+      [0.28, 0.24, 0.55, 'rgba(200,170,255,0.35)'],
+      [0.70, 0.62, 0.60, 'rgba(140,90,220,0.28)'],
+      [0.50, 0.85, 0.50, 'rgba(90,60,160,0.22)'],
+      [0.85, 0.18, 0.40, 'rgba(220,200,255,0.18)']
+    ];
+    blobs.forEach(([bx, by, br, color]) => {
+      const rg = ctx.createRadialGradient(bx * size, by * size, 0, bx * size, by * size, br * size);
+      rg.addColorStop(0, color);
+      rg.addColorStop(1, 'transparent');
+      ctx.fillStyle = rg;
+      ctx.fillRect(0, 0, size, size);
+    });
+    // Мелкое зерно яркости — высокочастотная фактура для карты смещений, иначе
+    // жидкость выглядела бы как гладкий пластик, а не металл.
+    const imgData = ctx.getImageData(0, 0, size, size);
+    const d = imgData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const n = (Math.random() - 0.5) * 14;
+      d[i] = Math.min(255, Math.max(0, d[i] + n));
+      d[i + 1] = Math.min(255, Math.max(0, d[i + 1] + n));
+      d[i + 2] = Math.min(255, Math.max(0, d[i + 2] + n));
+    }
+    ctx.putImageData(imgData, 0, 0);
+    return c.toDataURL('image/png');
+  }
+(function liquidBackgroundEngine() {
+  const canvas = document.getElementById('liquid-canvas');
+  if (!canvas) return;
+
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduceMotion) {
+    // Статичный фон без анимации предпочтительнее — сразу уходим на лёгкий fallback-шейдер,
+    // у которого своя собственная обработка prefers-reduced-motion (замирает на статичном кадре).
+    document.body.classList.add('liquid-cdn-unavailable');
+    underwaterLetterEngine();
+    return;
+  }
+
+  const LIQUID_CDN_TIMEOUT_MS = 4500;
+
+  let settled = false;
+  function fallbackToShader(reason) {
+    if (settled) return;
+    settled = true;
+    if (reason) console.warn('[liquidBackgroundEngine] falling back to self-contained shader:', reason);
+    document.body.classList.add('liquid-cdn-unavailable');
+    underwaterLetterEngine();
+  }
+
+  const timeoutId = setTimeout(() => fallbackToShader('CDN import timed out'), LIQUID_CDN_TIMEOUT_MS);
+
+  import('https://cdn.jsdelivr.net/npm/threejs-components@0.0.22/build/backgrounds/liquid1.min.js')
+    .then((mod) => {
+      if (settled) return; // таймаут уже сработал раньше, чем резолвнулся импорт — поздно, не подключаемся
+      const LiquidBackground = mod && (mod.default || mod);
+      if (typeof LiquidBackground !== 'function') throw new Error('unexpected module shape');
+
+      const app = LiquidBackground(canvas);
+      if (!app || typeof app.loadImage !== 'function') throw new Error('LiquidBackground init failed');
+
+      app.loadImage(makeCleanLiquidTexture());
+      app.liquidPlane.material.metalness = 0.75;
+      app.liquidPlane.material.roughness = 0.25;
+      app.liquidPlane.uniforms.displacementScale.value = 5;
+      app.setRain(false);
+
+      clearTimeout(timeoutId);
+      settled = true;
+      document.body.classList.remove('liquid-cdn-unavailable');
+      // liquid-ready включает opacity-переход канваса (см. CSS) — плавное появление
+      // рендера вместо мгновенного щелчка, как только первый кадр готов к показу.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        document.body.classList.add('liquid-ready');
+      }));
+
+      // Экспортируем ссылку на app для кинематографичной SLA-анимации ниже (Фаза 2:
+      // временное усиление displacementScale читает и пишет через это же поле) — без
+      // глобальной переменной пришлось бы поднимать состояние выше по файлу.
+      window.__uzumLiquidApp = app;
+    })
+    .catch((err) => {
+      clearTimeout(timeoutId);
+      fallbackToShader(err);
+    });
+})();
+
+// [ГЕЙТ] Раньше эта функция запускалась немедленно как IIFE. Теперь у неё есть
+// параллельный "старший" кандидат — CDN-based LiquidBackground (см. liquidBackgroundEngine
+// выше) — и оба одновременно поднимать нельзя: два активных WebGL-контекста с постоянными
+// rAF-циклами на одной странице реально удваивают нагрузку на GPU без всякой пользы (виден
+// только один слой, второй просто жжёт батарею под первым). Поэтому здесь — обычное
+// объявление функции, а не автозапуск; вызывается один раз ниже по файлу, ТОЛЬКО когда
+// решится исход liquidBackgroundEngine (успех CDN → эта функция не вызывается вообще;
+// таймаут/ошибка/reduced-motion → вызывается, ровно как раньше).
+function underwaterLetterEngine() {
   const canvas = document.getElementById('liquid-ripple');
   if (!canvas) return;
 
@@ -2857,229 +3178,7 @@ const isLowPowerPlatform = document.documentElement.classList.contains('is-andro
     window.addEventListener('pointerdown', liquidIdleWake, { passive: true });
     liquidIdleWake();
   }
-})();
-
-// ===== НЕОНОВЫЙ СЛЕД КУРСОРА =====
-// Рисует тонкую светящуюся линию вдоль последних точек пути курсора (сглаженную
-// quadratic-кривыми) с двойным layered glow — яркое тонкое ядро + мягкое широкое
-// свечение — и, попутно, слегка "подсвечивает" ближайшие карточки/кнопки через
-// CSS custom property --neon-near, которую читает их box-shadow (см. CSS .glow-near).
-(function neonTrailEngine() {
-  // [FPS FIX] На Android это ЕЩЁ ОДИН постоянный rAF-цикл + querySelectorAll('.card,
-  // .glass-edge, .btn') на каждый resize/move — курсорный "хвост" в принципе бессмыслен
-  // на touch-устройстве (палец и так закрывает место под "курсором"), а --neon-near
-  // подсветка карточек при touch срабатывает только в момент касания, что не то же самое,
-  // что плавное приближение мыши — визуальной пользы почти нет, а нагрузка постоянная.
-  // Полностью отключаем на Android; на iOS/десктоп ничего не меняется.
-  if (isLowPowerPlatform) return;
-  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (reduceMotion) return;
-  const canvas = document.getElementById('neon-trail');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  let dpr = Math.min(window.devicePixelRatio || 1, 2);
-  let w = 0, h = 0;
-
-  function resize() {
-    w = window.innerWidth; h = window.innerHeight;
-    canvas.width = w * dpr; canvas.height = h * dpr;
-    canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  }
-  resize();
-  window.addEventListener('resize', resize, { passive: true });
-
-  const MAX_POINTS = 22;
-  const LIFETIME_MS = 460;
-  const points = [];
-  let lastX = null, lastY = null;
-  const MIN_DIST = 5;
-
-  function addPoint(x, y) {
-    if (lastX !== null && Math.hypot(x - lastX, y - lastY) < MIN_DIST) return;
-    lastX = x; lastY = y;
-    points.push({ x, y, born: performance.now() });
-    if (points.length > MAX_POINTS) points.shift();
-  }
-  function onMove(x, y) { addPoint(x, y); }
-  window.addEventListener('pointermove', (e) => {
-    if (e.pointerType && e.pointerType !== 'mouse' && e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
-    onMove(e.clientX, e.clientY);
-  }, { passive: true });
-  window.addEventListener('touchmove', (e) => {
-    const t = e.touches && e.touches[0];
-    if (t) onMove(t.clientX, t.clientY);
-  }, { passive: true });
-
-  // Подсветка ближайшего к курсору интерфейса — только карточки/кнопки в теме,
-  // пересчитывается редко (раз в ~90ms), а не каждый rAF, это чисто декоративный
-  // штрих и не должен тратить кадровый бюджет.
-  let glowEls = [];
-  function refreshGlowEls() {
-    glowEls = Array.from(document.querySelectorAll('.card, .glass-edge, .btn'));
-  }
-  refreshGlowEls();
-  let lastGlowCheck = 0;
-  function updateGlow(x, y, now) {
-    if (now - lastGlowCheck < 90) return;
-    lastGlowCheck = now;
-    for (const el of glowEls) {
-      const r = el.getBoundingClientRect();
-      if (r.width === 0 && r.height === 0) continue;
-      const cx = Math.max(r.left, Math.min(x, r.right));
-      const cy = Math.max(r.top, Math.min(y, r.bottom));
-      const dist = Math.hypot(x - cx, y - cy);
-      const near = Math.max(0, 1 - dist / 140);
-      el.style.setProperty('--neon-near', near.toFixed(2));
-    }
-  }
-
-  // ===== NEON SPRING CURSOR: Dot + Aura (mouse only) =====
-  // Раньше единственным курсорным откликом был затухающий ХВОСТ позади движения —
-  // без якорной точки на самом кончике курсора взгляд не мог зацепиться за "живой"
-  // элемент, привязанный к устройству ввода прямо сейчас (хвост это прошлое, не
-  // настоящее). Dot решает это: рисуется на КАЖДЫЙ кадр ровно в последней сырой
-  // координате указателя (без сглаживания/задержки) — курсор ощущается "приклеенным"
-  // к пальцу/мыши. Aura — второй, более крупный и мягкий контур, который следует за
-  // Dot через ту же критически-недодемпфированную spring-модель (F=-kx-cv,
-  // semi-implicit Euler), что уже используется в файле для кнопок (см.
-  // makeElasticButton/springImpulse) — единый физический язык по всему интерфейсу,
-  // а не набор разных "плавностей" в разных местах. globalCompositeOperation='screen'
-  // на Aura (а не отдельные полупрозрачные окружности с разной alpha) — так кольца
-  // на пересечении складываются в мягкое свечение, а не мерцают заметными стыками
-  // по краям, что было бы при обычной DOM/CSS-реализации через прозрачность.
-  // Только мышь: на touch under-finger курсор — визуальный шум, не сигнал (палец
-  // и так закрывает то место, где рисовалась бы точка).
-  const isCoarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-  const cursor = {
-    active: false,
-    // Сырые координаты устройства ввода — источник истины для Dot, без фильтрации.
-    rawX: 0, rawY: 0,
-    // Aura — позиция и скорость, интегрируются пружиной каждый кадр.
-    ax: 0, ay: 0, avx: 0, avy: 0,
-    // Импульс клика: 0..1, быстро вспыхивает и экспоненциально гаснет — даёт Dot
-    // короткую пульсацию на pointerdown без отдельной анимационной системы.
-    pulse: 0,
-  };
-  if (!isCoarsePointer) {
-    window.addEventListener('pointermove', (e) => {
-      if (e.pointerType && e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;
-      if (!cursor.active) { cursor.ax = e.clientX; cursor.ay = e.clientY; } // без прыжка на первом кадре
-      cursor.active = true;
-      cursor.rawX = e.clientX; cursor.rawY = e.clientY;
-    }, { passive: true });
-    window.addEventListener('pointerdown', (e) => {
-      if (e.pointerType && e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;
-      cursor.pulse = 1;
-    }, { passive: true });
-    // Курсор физически покидает окно (не просто зависает) — прячем слой, иначе
-    // Dot/Aura останутся "приклеены" к последней известной точке у края экрана.
-    window.addEventListener('pointerout', (e) => { if (!e.relatedTarget) cursor.active = false; }, { passive: true });
-    document.addEventListener('mouseleave', () => { cursor.active = false; });
-  }
-  // Та же spring-модель, что makeElasticButton (см. основной скрипт): stiffness/
-  // damping заданы под конкретное ощущение "Aura" — достаточно мягкая, чтобы заметно
-  // отставать и обгонять на резких движениях (живая, не приклеенная копия Dot), но
-  // достаточно демпфированная, чтобы не колебаться до бесконечности вокруг точки покоя.
-  const AURA_STIFFNESS = 210, AURA_DAMPING = 16;
-  function stepAuraSpring(dtSec) {
-    const dx = cursor.rawX - cursor.ax, dy = cursor.rawY - cursor.ay;
-    const ax = dx * AURA_STIFFNESS - cursor.avx * AURA_DAMPING;
-    const ay = dy * AURA_STIFFNESS - cursor.avy * AURA_DAMPING;
-    cursor.avx += ax * dtSec; cursor.avy += ay * dtSec;
-    cursor.ax += cursor.avx * dtSec; cursor.ay += cursor.avy * dtSec;
-  }
-
-  let rafId = null;
-  let lastFrameT = 0;
-  function tick(now) {
-    rafId = requestAnimationFrame(tick);
-    if (document.hidden) return;
-    // ProMotion-независимость: dt в секундах, клампится против первого кадра
-    // (lastFrameT===0) и против длинных пауз (вкладка была в фоне) — без клампа
-    // пружина получила бы огромный dt и "выстрелила" через весь экран одним кадром.
-    const dtSec = lastFrameT ? Math.min(0.05, (now - lastFrameT) / 1000) : 1 / 60;
-    lastFrameT = now;
-
-    ctx.clearRect(0, 0, w, h);
-    while (points.length && now - points[0].born > LIFETIME_MS) points.shift();
-    if (points.length > 1) {
-      updateGlow(points[points.length - 1].x, points[points.length - 1].y, now);
-      // Отрисовка сегмент за сегментом с индивидуальным альфа-затуханием по возрасту —
-      // даёт плавно гаснущий хвост, а не резко обрывающуюся линию.
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      for (let i = 1; i < points.length; i++) {
-        const p0 = points[i - 1], p1 = points[i];
-        const age = now - p1.born;
-        const k = Math.max(0, 1 - age / LIFETIME_MS);
-        if (k <= 0) continue;
-        // Широкое мягкое свечение (менее интенсивное, чем яркий RGB-референс)
-        ctx.strokeStyle = `rgba(157,77,255,${(k * 0.22).toFixed(3)})`;
-        ctx.lineWidth = 10;
-        ctx.shadowColor = 'rgba(157,77,255,0.55)';
-        ctx.shadowBlur = 14;
-        ctx.beginPath();
-        ctx.moveTo(p0.x, p0.y);
-        ctx.lineTo(p1.x, p1.y);
-        ctx.stroke();
-        // Яркое тонкое ядро сверху
-        ctx.strokeStyle = `rgba(225,200,255,${(k * 0.55).toFixed(3)})`;
-        ctx.lineWidth = 2;
-        ctx.shadowBlur = 6;
-        ctx.beginPath();
-        ctx.moveTo(p0.x, p0.y);
-        ctx.lineTo(p1.x, p1.y);
-        ctx.stroke();
-      }
-      ctx.shadowBlur = 0;
-    }
-
-    if (!isCoarsePointer && cursor.active) {
-      stepAuraSpring(dtSec);
-      cursor.pulse *= Math.pow(0.001, dtSec); // экспоненциальный спад, dt-независимый (не Math.pow(k, 1) за кадр)
-
-      ctx.save();
-      ctx.globalCompositeOperation = 'screen';
-
-      // Aura — мягкое разлитое кольцо вокруг spring-позиции, радиус слегка дышит
-      // от накопленной скорости пружины (быстрее летит — крупнее и ярче ореол).
-      const auraSpeed = Math.hypot(cursor.avx, cursor.avy);
-      const auraR = 15 + Math.min(10, auraSpeed * 0.015);
-      const auraAlpha = 0.16 + Math.min(0.14, auraSpeed * 0.0003);
-      const auraGrad = ctx.createRadialGradient(cursor.ax, cursor.ay, 0, cursor.ax, cursor.ay, auraR);
-      auraGrad.addColorStop(0, `rgba(200,150,255,${auraAlpha.toFixed(3)})`);
-      auraGrad.addColorStop(0.6, `rgba(157,77,255,${(auraAlpha * 0.5).toFixed(3)})`);
-      auraGrad.addColorStop(1, 'rgba(157,77,255,0)');
-      ctx.fillStyle = auraGrad;
-      ctx.beginPath();
-      ctx.arc(cursor.ax, cursor.ay, auraR, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Dot — точная, без задержки позиция устройства ввода (translate3d-эквивалент
-      // на canvas: сырые координаты каждый кадр, никакого сглаживания). Клик даёт
-      // короткую вспышку радиуса/яркости поверх базового небольшого ядра.
-      const dotR = 3 + cursor.pulse * 4;
-      ctx.shadowColor = 'rgba(220,190,255,0.9)';
-      ctx.shadowBlur = 8 + cursor.pulse * 10;
-      ctx.fillStyle = `rgba(243,234,255,${(0.85 + cursor.pulse * 0.15).toFixed(3)})`;
-      ctx.beginPath();
-      ctx.arc(cursor.rawX, cursor.rawY, dotR, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.shadowBlur = 0;
-
-      ctx.restore();
-    }
-  }
-  rafId = requestAnimationFrame(tick);
-
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { points.length = 0; ctx.clearRect(0, 0, w, h); lastFrameT = 0; }
-  });
-  // Пересканируем список элементов для подсветки после смены языка/открытия шторки
-  // (DOM мог перестроиться) — дёшево, происходит редко.
-  window.addEventListener('uzum:relayout', refreshGlowEls);
-})();
+}
 
 // ===== СТЕКЛО РЕАГИРУЕТ НА КУРСОР (свет/тень/преломление, скрин прозрачной капсулы) =====
 // Внутрь каждого .glass-bubble/.card/.glass-edge вставляется .glass-cursor-glow —
@@ -4306,6 +4405,12 @@ const isLowPowerPlatform = document.documentElement.classList.contains('is-andro
 
   // ===== ФОН СТАЛ ИНТЕРАКТИВНЫМ =====
   const meshTrack = $('mesh-track');
+  // Лучи фирменной подсветки буквы (#brand-glow-ring, см. CSS) — доворачиваются вслед
+  // за курсором/пальцем через --ray-tilt/--ray-shift в том же тике, что двигает
+  // параллакс интерфейса ниже, отдельного pointermove-слушателя под это не заводим.
+  // На Android лучи и так скрыты через CSS (html.is-android .glow-ray{display:none}),
+  // так что писать сюда custom properties там просто безвредно — гейтить JS не нужно.
+  const brandGlowRing = $('brand-glow-ring');
   // Лёгкий параллакс на уже существующих элементах интерфейса (адаптация идеи
   // parallax-floating под наш сайт, без картинок Unsplash) — каждый элемент со
   // своим data-depth сдвигается на свою долю от общего смещения курсора, тот же
@@ -4347,6 +4452,15 @@ const isLowPowerPlatform = document.documentElement.classList.contains('is-andro
     const tiltFactorX = PARALLAX_AMP ? (tx / PARALLAX_AMP) : 0; // -1..1
     const tiltFactorY = PARALLAX_AMP ? (ty / PARALLAX_AMP) : 0;
     const MAX_TILT_DEG = 8;
+    if (brandGlowRing) {
+      // Небольшая амплитуда (14deg на полном ходе курсора от края до края) — лучи
+      // именно "покачиваются", а не крутятся как компас; r1/r3 и r2/r4 намеренно
+      // разведены на разные custom properties (--ray-tilt/--ray-shift), чтобы все
+      // четыре луча не доворачивались синхронно, как одна жёсткая деталь.
+      const RAY_TILT_DEG = 14;
+      brandGlowRing.style.setProperty('--ray-tilt', (tiltFactorX * RAY_TILT_DEG).toFixed(2) + 'deg');
+      brandGlowRing.style.setProperty('--ray-shift', (tiltFactorY * RAY_TILT_DEG).toFixed(2) + 'deg');
+    }
     parallaxPlainEls.forEach(el => {
       const depth = parseFloat(el.dataset.depth || '0.15');
       // depth уже 0.02-0.22 — для наклона это слишком мелкий множитель (наклон был бы
@@ -5000,13 +5114,17 @@ const isLowPowerPlatform = document.documentElement.classList.contains('is-andro
 
 
   // ============================================================
-  // ===== ПОРТАЛ НА СЛА: локальный 3D-наклон от курсора + звук/haptic =====
+  // ===== ПОРТАЛ НА СЛА: локальный 3D-наклон от курсора (только мышь/перо) =====
   // Наклон считается по позиции курсора ВНУТРИ границ самой кнопки (не всей
   // страницы) — offset от центра нормализуется в диапазон -1..1 по каждой оси и
   // пишется в CSS custom properties --tilt-x/--tilt-y, которые сама CSS-анимация
   // (.eco-portal { transform: rotateX/rotateY(...) }) уже умеет читать. Только
   // мышь/перо — на touch "наклон от курсора" не имеет смысла (палец и так на
   // кнопке), да и pointermove с касанием создавал бы дёрганый наклон при скролле.
+  // [ВАЖНО] Этот IIFE намеренно выходит рано на touch/reduced-motion — это ОК,
+  // потому что он отвечает только за декоративный наклон и hover-звук. Клик/навигация
+  // вынесены в отдельный IIFE ниже, который обязан работать на ЛЮБОМ типе указателя
+  // (Telegram Mini App — это прежде всего телефон, то есть coarse pointer).
   (() => {
     const portal = $('eco-portal-sla');
     if (!portal) return;
@@ -5027,14 +5145,81 @@ const isLowPowerPlatform = document.documentElement.classList.contains('is-andro
       portal.style.setProperty('--tilt-y', ny.toFixed(3));
     }, { passive: true });
     portal.addEventListener('pointerleave', resetTilt, { passive: true });
-    portal.addEventListener('pointerdown', () => { haptic('light'); playGlassTick(); }, { passive: true });
     portal.addEventListener('pointerenter', (e) => {
       if (e.pointerType && e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;
       playHoverTick();
     }, { passive: true });
-    // Клик — переход по href уже сработает нативно (target="_blank"), звук/haptic
-    // просто дополняют момент отправки, не блокируют и не задерживают навигацию.
-    portal.addEventListener('click', () => { haptic('medium'); playGlassTick(); });
+  })();
+
+  // ===== ПОРТАЛ НА СЛА: КИНЕМАТОГРАФИЧНАЯ EXIT-АНИМАЦИЯ (клик/тап, любой указатель) =====
+  // preventDefault полностью берёт навигацию под ручное управление: клик больше не
+  // открывает href нативно (в т.ч. не открывает новую вкладку — target="_blank" убран
+  // из разметки намеренно, см. HTML), вместо этого проигрывается 3-фазный переход, и
+  // только по его завершении JS сам делает window.location.href в ТЕКУЩЕМ окне.
+  // Идемпотентность через флаг exiting — двойной клик/тап во время анимации не должен
+  // перезапускать таймлайн или планировать вторую навигацию. Отдельный IIFE (не внутри
+  // блока выше) — обязан регистрироваться независимо от reduceMotion/isCoarsePointer,
+  // иначе на touch-устройствах (основной сценарий Mini App) кнопка просто не работала бы.
+  (() => {
+    const portal = $('eco-portal-sla');
+    if (!portal) return;
+
+    portal.addEventListener('pointerdown', () => { haptic('light'); playGlassTick(); }, { passive: true });
+
+    let exiting = false;
+    portal.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (exiting) return;
+      exiting = true;
+      haptic('medium');
+      playGlassTick();
+
+      const destination = portal.href;
+      const watermark = document.getElementById('watermark');
+      const veil = document.getElementById('sla-exit-veil');
+      const body = document.body;
+      const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      if (reduceMotion) {
+        // Уважаем системную настройку — без каскада фаз, короткий fade и сразу переход,
+        // а не полные 1.5s кинематографики поверх уже отключённого у пользователя motion.
+        body.classList.add('sla-exit');
+        if (veil) veil.classList.add('show');
+        setTimeout(() => { window.location.href = destination; }, 220);
+        return;
+      }
+
+      // ФАЗА 1 (0 - 0.4s): коллапс интерфейса. Класс sla-exit запускает staggered
+      // scale-down/fade/blur на всех прямых детях .wrap (см. CSS) — сам таймлайн ниже
+      // просто ждёт, пока эта фаза визуально завершится, не трогая её напрямую.
+      body.classList.add('sla-exit');
+
+      // ФАЗА 2 (0.4 - 1.2s): режим перегрузки буквы U — рост, яркая пульсация.
+      // Параллельно (опционально) слегка усиливаем displacementScale жидкого фона —
+      // короткий "шторм" на пике сцены, если Three.js liquid-фон вообще загрузился
+      // (window.__uzumLiquidApp пишется в liquidBackgroundEngine только при успехе
+      // CDN-импорта) — на fallback-шейдере или при неудаче CDN просто ничего не делает.
+      setTimeout(() => {
+        if (watermark) watermark.classList.add('u-overload');
+        try {
+          const app = window.__uzumLiquidApp;
+          if (app && app.liquidPlane && app.liquidPlane.uniforms && app.liquidPlane.uniforms.displacementScale) {
+            app.liquidPlane.uniforms.displacementScale.value = 8;
+          }
+        } catch (err) { /* декоративный штрих — тихо игнорируем, если API отличается */ }
+      }, 400);
+
+      // ФАЗА 3 (1.2 - 1.5s): пиковая вспышка U + затемнение экрана через виньетку,
+      // затем сама навигация ровно в конце фазы (t=1.5s), в том же окне.
+      setTimeout(() => {
+        if (watermark) watermark.classList.add('u-flash-peak');
+        if (veil) veil.classList.add('show');
+      }, 1200);
+
+      setTimeout(() => {
+        window.location.href = destination;
+      }, 1500);
+    });
   })();
 
   // ===== ЗВУК ПРИ НАВЕДЕНИИ НА КНОПКУ "ЗАВЕРШИТЬ ИНВЕНТАРИЗАЦИЮ" =====
