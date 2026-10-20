@@ -1619,6 +1619,10 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
       toast_info: "Загрузите список из WMS для проведения сверки.",
       toast_loading: "Загружаю список…",
       toast_finish: "Инвентаризация завершена!",
+      toast_too_big: "Список слишком большой: {n} строк ({b} из 4096 байт). За один раз влезает примерно {m} строк — загрузите список частями.",
+      toast_send_fail: "Не удалось отправить данные боту. Попробуйте ещё раз.",
+      toast_no_tg: "Нет связи с Telegram. Закройте и откройте приложение заново из бота.",
+      toast_not_sent: "Бот не получил данные. Откройте приложение кнопкой из клавиатуры бота (не из меню и не по ссылке).",
       footer_privacy: "Политика конфиденциальности",
       footer_consent: "Согласие на обработку данных",
       footer_version: "Версия 12 · 23.08.2026",
@@ -1654,6 +1658,10 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
       toast_info: "Solishtirish uchun WMS dan ro‘yxat yuklang.",
       toast_loading: "Ro‘yxat yuklanmoqda…",
       toast_finish: "Inventarizatsiya yakunlandi!",
+      toast_too_big: "Ro‘yxat juda katta: {n} qator ({b} / 4096 bayt). Bir martada taxminan {m} qator sig‘adi — ro‘yxatni qismlarga bo‘lib yuklang.",
+      toast_send_fail: "Ma’lumotni botga yuborib bo‘lmadi. Qayta urinib ko‘ring.",
+      toast_no_tg: "Telegram bilan aloqa yo‘q. Ilovani yopib, bot orqali qayta oching.",
+      toast_not_sent: "Bot ma’lumotni olmadi. Ilovani bot klaviaturasidagi tugma orqali oching (menyu yoki havoladan emas).",
       footer_privacy: "Maxfiylik siyosati",
       footer_consent: "Ma’lumotlarni qayta ishlashga rozilik",
       footer_version: "Versiya 12 · 23.08.2026",
@@ -1892,7 +1900,7 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
   // type: 'info' (по умолчанию) | 'success' | 'error' | 'loading' — красит glow и иконку.
   // aria-live="polite" на #toast уже озвучивает текст скринридером сам.
   const TOAST_ICONS = { info: '', success: '✅', error: '⚠️', loading: '' };
-  function showToast(msg, type) {
+  function showToast(msg, type, ms) {
     type = type || 'info';
     const el = $('toast');
     const msgEl = $('toast-msg') || el;
@@ -1903,14 +1911,13 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
     el.classList.add('toast-' + type, 'show');
     clearTimeout(el._hideTimer);
     // loading-тост не нужно держать дольше — его перекрывает следующий вызов (toast_finish).
-    el._hideTimer = setTimeout(() => el.classList.remove('show'), 3000);
+    el._hideTimer = setTimeout(() => el.classList.remove('show'), ms || 3000);
   }
 
   // ===== БРЕНДИРОВАННЫЙ ЭКРАН/БАННЕР "НЕТ СЕТИ" =====
-  // webApp.sendData() (см. bulk_load/finish_inventory выше) ничего не возвращает и не
-  // кидает исключений при отсутствии сети — это fire-and-forget вызов Telegram Bot API.
-  // Поэтому единственный надёжный сигнал офлайна — сам браузер (navigator.onLine +
-  // online/offline события), а не try/catch вокруг sendData.
+  // webApp.sendData() — fire-and-forget: сетевые ошибки он не сообщает, поэтому сигнал
+  // офлайна — сам браузер (navigator.onLine + online/offline события). НО sendData КИДАЕТ
+  // исключение, если данные > 4096 байт — это ловит sendToBot() ниже по коду.
   const offlineBanner = $('offline-banner');
   function setOfflineState(isOffline) {
     if (!offlineBanner) return;
@@ -3254,8 +3261,10 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
     return count;
   }
 
-  function setPasteError(on) {
+  function setPasteError(on, msg) {
     const errEl = $('paste-error');
+    const errTxt = $('paste-error-text');
+    if (on && errTxt) errTxt.textContent = msg || t('paste_error');
     textarea.classList.toggle('field-error', on);
     if (errEl) errEl.classList.toggle('show', on);
   }
@@ -3334,6 +3343,39 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
   $('link-privacy').addEventListener('click', () => { haptic('light'); playGlassTick(); openLegalSheet('privacy'); });
   $('link-consent').addEventListener('click', () => { haptic('light'); playGlassTick(); openLegalSheet('consent'); });
 
+  // ===== ОТПРАВКА ДАННЫХ БОТУ (Telegram sendData) =====
+  // Правила Telegram: ≤ 4096 байт; работает только если мини-апп открыт кнопкой КЛАВИАТУРЫ бота
+  // (web_app KeyboardButton); при успехе Telegram САМ закрывает мини-апп и бот получает
+  // message.web_app_data. Поэтому webApp.close() вручную не вызываем: если отправка не прошла,
+  // закрытие только потеряло бы введённый список.
+  const TG_SEND_LIMIT = 4096;
+  const utf8Len = s => new TextEncoder().encode(s).length;
+  let notSentTimer = null;
+  function sendToBot(json) {
+    if (!(window.Telegram && window.Telegram.WebApp)) {
+      // SDK telegram-web-app.js не загрузился -> webApp это заглушка, sendData ничего не делает
+      haptic('error');
+      showToast(t('toast_no_tg'), 'error', 6000);
+      return false;
+    }
+    try {
+      webApp.sendData(json);
+    } catch (err) {
+      console.error('[sendToBot] sendData failed:', err);
+      haptic('error');
+      showToast(t('toast_send_fail'), 'error', 5000);
+      return false;
+    }
+    // Успех = Telegram закрыл мини-апп. Если страница жива через 2с — клиент проигнорировал
+    // отправку (мини-апп открыт не кнопкой клавиатуры). Говорим об этом, а не молчим.
+    clearTimeout(notSentTimer);
+    notSentTimer = setTimeout(() => {
+      haptic('error');
+      showToast(t('toast_not_sent'), 'error', 8000);
+    }, 2000);
+    return true;
+  }
+
   $('sheet-confirm').addEventListener('click', () => {
     const text = textarea.value.trim();
     if (!text || countParseableLines(text) === 0) {
@@ -3346,11 +3388,29 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
       textarea.focus();
       return;
     }
+    // Нормализуем: убираем \r, пробелы по краям строк и пустые строки (экономит байты).
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const json = JSON.stringify({ action: 'bulk_load', payload: { text: lines.join('\n') } });
+    const bytes = utf8Len(json);
+    if (bytes > TG_SEND_LIMIT) {
+      // Лимит Telegram: sendData принимает ≤ 4096 байт и ЗАКРЫВАЕТ мини-апп после первой отправки,
+      // поэтому слать несколькими вызовами нельзя. Шторку НЕ закрываем — введённый список не пропадает.
+      const base = utf8Len(JSON.stringify({ action: 'bulk_load', payload: { text: '' } }));
+      let used = base, fit = 0;
+      for (const l of lines) {
+        const c = utf8Len(JSON.stringify(l)) - 2 + (fit ? 2 : 0);
+        if (used + c > TG_SEND_LIMIT) break;
+        used += c; fit++;
+      }
+      haptic('error');
+      setPasteError(true, t('toast_too_big').replace('{n}', lines.length).replace('{b}', bytes).replace('{m}', fit));
+      return;
+    }
     setPasteError(false);
     haptic('medium');
     closeSheet();
     showToast(t('toast_loading'), 'loading');
-    webApp.sendData(JSON.stringify({ action: 'bulk_load', payload: { text } }));
+    sendToBot(json);
   });
 
   // ===== КОНФЕТТИ (пул из 16 фиксированных DOM-узлов) =====
@@ -3403,8 +3463,7 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
     { const fb = e.currentTarget; setTimeout(() => fb.classList.remove('click-flash'), 340); }
     burstConfetti(e.currentTarget);
     if (typeof window.playInventoryCompleteEyes === 'function') window.playInventoryCompleteEyes();
-    webApp.sendData(JSON.stringify({ action: 'finish_inventory' }));
-    showToast(t('toast_finish'), 'success');
+    if (sendToBot(JSON.stringify({ action: 'finish_inventory' }))) showToast(t('toast_finish'), 'success');
   });
 
   $('btn-info').addEventListener('click', () => {
