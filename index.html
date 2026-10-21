@@ -1619,7 +1619,7 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
       toast_info: "Загрузите список из WMS для проведения сверки.",
       toast_loading: "Загружаю список…",
       toast_finish: "Инвентаризация завершена!",
-      toast_too_big: "Список слишком большой для кнопки: {n} строк ({b} из 4096 байт, влезает ~{m}). Отправьте его боту файлом .xlsx или .csv — там лимита нет. Частями слать нельзя: каждая загрузка заменяет предыдущий список.",
+      toast_too_big: "Список слишком большой: {n} строк, за один раз влезает примерно {m}. Остальное можно отправить боту файлом .xlsx или .csv. Частями кнопкой слать нельзя — каждая загрузка заменяет предыдущий список.",
       toast_send_fail: "Не удалось отправить данные боту. Попробуйте ещё раз.",
       toast_no_tg: "Нет связи с Telegram. Закройте и откройте приложение заново из бота.",
       toast_not_sent: "Бот не получил данные. Откройте приложение кнопкой из клавиатуры бота (не из меню и не по ссылке).",
@@ -1658,7 +1658,7 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
       toast_info: "Solishtirish uchun WMS dan ro‘yxat yuklang.",
       toast_loading: "Ro‘yxat yuklanmoqda…",
       toast_finish: "Inventarizatsiya yakunlandi!",
-      toast_too_big: "Ro‘yxat tugma uchun juda katta: {n} qator ({b} / 4096 bayt, ~{m} qator sig‘adi). Uni botga .xlsx yoki .csv fayl sifatida yuboring — cheklov yo‘q. Qismlab yuborib bo‘lmaydi: har bir yuklash oldingi ro‘yxatni almashtiradi.",
+      toast_too_big: "Ro‘yxat juda katta: {n} qator, bir martada taxminan {m} qator sig‘adi. Qolganini botga .xlsx yoki .csv fayl sifatida yuborishingiz mumkin. Tugma orqali qismlab yuborib bo‘lmaydi — har bir yuklash oldingi ro‘yxatni almashtiradi.",
       toast_send_fail: "Ma’lumotni botga yuborib bo‘lmadi. Qayta urinib ko‘ring.",
       toast_no_tg: "Telegram bilan aloqa yo‘q. Ilovani yopib, bot orqali qayta oching.",
       toast_not_sent: "Bot ma’lumotni olmadi. Ilovani bot klaviaturasidagi tugma orqali oching (menyu yoki havoladan emas).",
@@ -3350,6 +3350,17 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
   // закрытие только потеряло бы введённый список.
   const TG_SEND_LIMIT = 4096;
   const utf8Len = s => new TextEncoder().encode(s).length;
+  // deflate (zlib) -> base64. null, если браузер не умеет CompressionStream (тогда работает прежний путь).
+  async function deflateBase64(str) {
+    try {
+      if (typeof CompressionStream === 'undefined' || typeof Blob === 'undefined' || typeof Response === 'undefined') return null;
+      const stream = new Blob([str]).stream().pipeThrough(new CompressionStream('deflate'));
+      const buf = new Uint8Array(await new Response(stream).arrayBuffer());
+      let bin = '';
+      for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+      return btoa(bin);
+    } catch (err) { console.warn('[deflateBase64] не удалось сжать:', err); return null; }
+  }
   let notSentTimer = null;
   function sendToBot(json) {
     if (!(window.Telegram && window.Telegram.WebApp)) {
@@ -3376,7 +3387,9 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
     return true;
   }
 
-  $('sheet-confirm').addEventListener('click', () => {
+  let sendingBulk = false;
+  $('sheet-confirm').addEventListener('click', async () => {
+    if (sendingBulk) return; // защита от двойного клика, пока идёт сжатие/отправка
     const text = textarea.value.trim();
     if (!text || countParseableLines(text) === 0) {
       // Пусто/нераспаршено — подсвечиваем поле, прокручиваем к нему и трясём (см. .field-error),
@@ -3390,18 +3403,27 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
     }
     // Нормализуем: убираем \r, пробелы по краям строк и пустые строки (экономит байты).
     const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    const json = JSON.stringify({ action: 'bulk_load', payload: { text: lines.join('\n') } });
-    const bytes = utf8Len(json);
+    const listText = lines.join('\n');
+    let json = JSON.stringify({ action: 'bulk_load', payload: { text: listText } });
+    let bytes = utf8Len(json);
     if (bytes > TG_SEND_LIMIT) {
-      // Лимит Telegram: sendData принимает ≤ 4096 байт и ЗАКРЫВАЕТ мини-апп после первой отправки,
-      // поэтому слать несколькими вызовами нельзя. Шторку НЕ закрываем — введённый список не пропадает.
-      const base = utf8Len(JSON.stringify({ action: 'bulk_load', payload: { text: '' } }));
-      let used = base, fit = 0;
-      for (const l of lines) {
-        const c = utf8Len(JSON.stringify(l)) - 2 + (fit ? 2 : 0);
-        if (used + c > TG_SEND_LIMIT) break;
-        used += c; fit++;
+      // Список не влезает в 4096 байт как есть — молча сжимаем (deflate + base64), это ~в 2 раза
+      // компактнее (≈500 строк вместо ≈250). Для пользователя ничего не меняется: вставил текст ->
+      // «Загрузить». Бот сам распаковывает payload.z и разбирает тем же парсером.
+      sendingBulk = true;
+      let z = null;
+      try { z = await deflateBase64(listText); } finally { sendingBulk = false; }
+      if (z) {
+        const zjson = JSON.stringify({ action: 'bulk_load', payload: { z } });
+        const zbytes = utf8Len(zjson);
+        if (zbytes <= TG_SEND_LIMIT) { json = zjson; }
+        bytes = Math.min(bytes, zbytes);
       }
+    }
+    if (utf8Len(json) > TG_SEND_LIMIT) {
+      // Не влезло даже сжатым. Лимит Telegram: sendData ≤ 4096 байт и ЗАКРЫВАЕТ мини-апп после первой
+      // отправки — слать частями нельзя. Шторку НЕ закрываем: введённый список не пропадает.
+      const fit = Math.max(1, Math.floor(lines.length * (TG_SEND_LIMIT - 60) / bytes * 0.93));
       haptic('error');
       setPasteError(true, t('toast_too_big').replace('{n}', lines.length).replace('{b}', bytes).replace('{m}', fit));
       return;
